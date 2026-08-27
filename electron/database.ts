@@ -73,9 +73,10 @@ function migrateFromJson(): void {
     const rows = (json as any)[table]
     if (!Array.isArray(rows) || rows.length === 0) continue
 
-    // 用数据行的实际字段插入（仅插入表中存在的列）
-    const firstRow = rows[0]
-    const insertCols = Object.keys(firstRow).filter(c => schema.includes(c))
+    // 用所有行的字段并集确定插入列（不能用第一行，否则漏字段如 parent_id/position）
+    const allKeys = new Set<string>()
+    for (const r of rows) Object.keys(r).forEach(k => allKeys.add(k))
+    const insertCols = Array.from(allKeys).filter(c => schema.includes(c))
     if (insertCols.length === 0) continue
 
     const insert = db.prepare(

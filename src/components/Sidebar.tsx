@@ -133,13 +133,30 @@ export default function Sidebar({
   const [showSettings, setShowSettings] = useState(false)
   const [tempApiKey, setTempApiKey] = useState(apiKey)
   const [backupInfo, setBackupInfo] = useState<string>('')
-  // AI 消息折叠状态：默认全部折叠（id 在集合中 = 折叠）
+  // AI 消息折叠状态：id 在集合中 = 折叠（默认折叠）
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => {
     const s = new Set<string>()
     messages.forEach(m => { if (m.role === 'assistant') s.add(m.id) })
     return s
   })
+  // 记录已处理过的消息 id，新 AI 消息到达时自动折叠（不干扰用户手动展开的）
+  const seenMessageIds = useRef<Set<string>>(new Set())
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    let changed = false
+    setCollapsedIds(prev => {
+      const next = new Set(prev)
+      messages.forEach(m => {
+        if (m.role === 'assistant' && !seenMessageIds.current.has(m.id)) {
+          next.add(m.id) // 新 AI 消息默认折叠
+          seenMessageIds.current.add(m.id)
+          changed = true
+        }
+      })
+      return changed ? next : prev
+    })
+  }, [messages])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
