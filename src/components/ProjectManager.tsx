@@ -24,7 +24,7 @@ const projectColors = [
   '#f97316',
 ]
 
-export default function ProjectManager() {
+export default function ProjectManager({ refreshKey }: { refreshKey?: number }) {
   const [projects, setProjects] = useState<Project[]>([])
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -43,13 +43,13 @@ export default function ProjectManager() {
 
   useEffect(() => {
     loadProjects()
-  }, [])
+  }, [refreshKey])
 
   useEffect(() => {
     if (selectedProject) {
       loadProjectItems()
     }
-  }, [selectedProject])
+  }, [selectedProject, refreshKey])
 
   const loadProjects = async () => {
     if (!window.electronAPI) return

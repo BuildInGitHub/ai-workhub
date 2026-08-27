@@ -31,7 +31,7 @@ const categoryColors: Record<string, string> = {
   '其他': 'bg-studio-100 text-studio-500 border-studio-200',
 }
 
-export default function LinkManager() {
+export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
   const [links, setLinks] = useState<LinkType[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
@@ -62,7 +62,7 @@ export default function LinkManager() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility)
     }
-  }, [])
+  }, [refreshKey])
 
   const loadLinks = async () => {
     if (!window.electronAPI) return

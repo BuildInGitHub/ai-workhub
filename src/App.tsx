@@ -217,17 +217,17 @@ function App() {
 
     switch (activeTab.type) {
       case 'files':
-        return <FileManager onFilePreview={setPreviewFile} />
+        return <FileManager onFilePreview={setPreviewFile} refreshKey={dataRefreshKey} />
       case 'links':
-        return <LinkManager />
+        return <LinkManager refreshKey={dataRefreshKey} />
       case 'tasks':
-        return <TaskManager />
+        return <TaskManager refreshKey={dataRefreshKey} />
       case 'projects':
-        return <ProjectManager />
+        return <ProjectManager refreshKey={dataRefreshKey} />
       case 'quick-launch':
         return <QuickLaunch refreshKey={dataRefreshKey} />
       case 'calendar':
-        return <Calendar />
+        return <Calendar refreshKey={dataRefreshKey} />
       case 'search':
         return <GlobalSearch onClose={() => handleAddTab('home', '工作台')} />
       case 'home':

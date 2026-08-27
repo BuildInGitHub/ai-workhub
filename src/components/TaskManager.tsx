@@ -21,7 +21,7 @@ import { v4 as uuidv4 } from 'uuid'
 import ConfirmDialog from './ConfirmDialog'
 import TaskKanban from './TaskKanban'
 
-export default function TaskManager() {
+export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all')
@@ -53,7 +53,7 @@ export default function TaskManager() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility)
     }
-  }, [])
+  }, [refreshKey])
 
   const loadTasks = async () => {
     if (!window.electronAPI) return

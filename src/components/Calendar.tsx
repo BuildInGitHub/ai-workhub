@@ -18,7 +18,7 @@ interface CalendarEvent {
   type: 'task' | 'schedule'
 }
 
-export default function Calendar() {
+export default function Calendar({ refreshKey }: { refreshKey?: number }) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<ViewMode>('month')
   const [tasks, setTasks] = useState<Task[]>([])
@@ -27,7 +27,7 @@ export default function Calendar() {
 
   useEffect(() => {
     loadTasks()
-  }, [])
+  }, [refreshKey])
 
   const loadTasks = async () => {
     if (!window.electronAPI) return

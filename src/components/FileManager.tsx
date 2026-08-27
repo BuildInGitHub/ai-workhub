@@ -18,9 +18,10 @@ import { v4 as uuidv4 } from 'uuid'
 
 interface FileManagerProps {
   onFilePreview?: (file: { path: string; name: string }) => void
+  refreshKey?: number
 }
 
-export default function FileManager({ onFilePreview }: FileManagerProps) {
+export default function FileManager({ onFilePreview, refreshKey }: FileManagerProps) {
   const [currentPath, setCurrentPath] = useState('')
   const [entries, setEntries] = useState<FileEntry[]>([])
   const [favoriteFiles, setFavoriteFiles] = useState<FavoriteFile[]>([])
@@ -32,7 +33,7 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
   useEffect(() => {
     loadDrives()
     loadFavorites()
-  }, [])
+  }, [refreshKey])
 
   const loadDrives = async () => {
     if (!window.electronAPI) return
