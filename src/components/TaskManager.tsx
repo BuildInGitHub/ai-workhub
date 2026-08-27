@@ -73,9 +73,11 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
     }
   }
 
-  // 一级任务与子任务分组
+  // 一级任务与子任务分组（子任务按 position 排序）
   const parentTasks = tasks.filter(t => !t.parent_id)
-  const getSubtasks = (parentId: string) => tasks.filter(t => t.parent_id === parentId)
+  const getSubtasks = (parentId: string) => tasks
+    .filter(t => t.parent_id === parentId)
+    .sort((a, b) => ((a as any).position ?? 9999) - ((b as any).position ?? 9999) || String(a.created_at).localeCompare(String(b.created_at)))
 
   // 搜索过滤：一级任务匹配，或任一子任务匹配
   const matchesQuery = (task: Task): boolean => {
