@@ -531,8 +531,8 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="输入任务描述（可选）"
-                  rows={2}
-                  className="input resize-none"
+                  rows={5}
+                  className="input resize-y min-h-[110px] max-h-64"
                 />
               </div>
 

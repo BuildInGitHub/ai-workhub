@@ -390,8 +390,8 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="输入链接描述（可选）"
-                  rows={3}
-                  className="input resize-none"
+                  rows={4}
+                  className="input resize-y min-h-[100px] max-h-56"
                 />
               </div>
               
