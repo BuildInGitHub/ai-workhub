@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { 
   X, Plus, ChevronLeft, Trash2, Edit,
-  Circle, CircleDot, CheckCircle2, GripVertical
+  Circle, CircleDot, CheckCircle2, GripVertical,
+  Calendar, Flag
 } from 'lucide-react'
 import type { Task } from '../types'
 import { v4 as uuidv4 } from 'uuid'
@@ -19,6 +20,18 @@ const COLUMNS = [
   { key: 'done' as const, label: '已完成', icon: <CheckCircle2 size={16} />, color: 'text-green-500', bg: 'bg-green-50', dot: 'bg-green-400' },
 ]
 
+const priorityColors: Record<string, string> = {
+  low: 'bg-green-100 text-green-600',
+  medium: 'bg-yellow-100 text-yellow-600',
+  high: 'bg-red-100 text-red-600'
+}
+
+const priorityBgColors: Record<string, string> = {
+  low: 'from-green-400 to-green-500',
+  medium: 'from-yellow-400 to-yellow-500',
+  high: 'from-red-400 to-red-500'
+}
+
 export default function TaskKanban({ parentTask, onClose, onChanged }: TaskKanbanProps) {
   const [subtasks, setSubtasks] = useState<Task[]>([])
   const [dragOver, setDragOver] = useState<string | null>(null)        // 列
@@ -26,6 +39,7 @@ export default function TaskKanban({ parentTask, onClose, onChanged }: TaskKanba
   const [dragOverPos, setDragOverPos] = useState<'above' | 'below' | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [editForm, setEditForm] = useState({ title: '', description: '', priority: 'medium' as 'low' | 'medium' | 'high', due_date: '' })
   const [newTitle, setNewTitle] = useState('')
 
   useEffect(() => {
@@ -179,14 +193,28 @@ export default function TaskKanban({ parentTask, onClose, onChanged }: TaskKanba
     }
   }
 
-  const updateTitle = async (task: Task, title: string) => {
-    if (!window.electronAPI || !title.trim()) return
+  // 打开编辑弹窗（完整修改：标题/描述/优先级/截止日期）
+  const openEditModal = (task: Task) => {
+    setEditingTask(task)
+    setEditForm({
+      title: task.title,
+      description: task.description || '',
+      priority: task.priority,
+      due_date: task.due_date || ''
+    })
+  }
+
+  // 保存修改
+  const saveEdit = async () => {
+    if (!window.electronAPI || !editingTask || !editForm.title.trim()) return
     try {
       await window.electronAPI.db.query(
-        "UPDATE tasks SET title = ?, updated_at = datetime('now') WHERE id = ?",
-        [title.trim(), task.id]
+        "UPDATE tasks SET title = ?, description = ?, priority = ?, due_date = ?, updated_at = datetime('now') WHERE id = ?",
+        [editForm.title.trim(), editForm.description, editForm.priority, editForm.due_date || null, editingTask.id]
       )
+      setEditingTask(null)
       loadSubtasks()
+      onChanged()
     } catch (error) {
       console.error('更新子任务失败:', error)
     }
@@ -296,37 +324,27 @@ export default function TaskKanban({ parentTask, onClose, onChanged }: TaskKanba
                         <div className="flex items-start gap-2">
                           <GripVertical size={14} className="mt-0.5 text-studio-300 flex-shrink-0" />
                           <div className="flex-1 min-w-0">
-                            {editingTask?.id === task.id ? (
-                              <input
-                                autoFocus
-                                defaultValue={task.title}
-                                onBlur={(e) => {
-                                  updateTitle(task, e.target.value)
-                                  setEditingTask(null)
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    updateTitle(task, (e.target as HTMLInputElement).value)
-                                    setEditingTask(null)
-                                  }
-                                  if (e.key === 'Escape') setEditingTask(null)
-                                }}
-                                className="w-full text-sm px-2 py-1 bg-white border border-caramel-300 rounded-lg focus:outline-none"
-                              />
-                            ) : (
-                              <p className={`text-sm ${getStatus(task) === 'done' ? 'line-through text-studio-400' : 'text-ink-100'}`}>
-                                {task.title}
-                              </p>
-                            )}
-                            {task.due_date && (
-                              <p className="text-xs text-studio-400 mt-1">📅 {task.due_date}</p>
-                            )}
+                            <p className={`text-sm ${getStatus(task) === 'done' ? 'line-through text-studio-400' : 'text-ink-100'}`}>
+                              {task.title}
+                            </p>
+                            {/* 优先级与截止日期 */}
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className={`px-1.5 py-0.5 rounded-md text-[10px] leading-none ${priorityColors[task.priority]}`}>
+                                {task.priority === 'high' ? '高' : task.priority === 'medium' ? '中' : '低'}
+                              </span>
+                              {task.due_date && (
+                                <span className="flex items-center gap-1 text-xs text-studio-400">
+                                  <Calendar size={12} className="text-studio-400" />
+                                  {task.due_date}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                             <button
-                              onClick={() => setEditingTask(task)}
+                              onClick={() => openEditModal(task)}
                               className="p-1 rounded-md hover:bg-studio-100 text-studio-400"
-                              title="重命名"
+                              title="编辑（标题/描述/优先级/截止日期）"
                             >
                               <Edit size={13} />
                             </button>
@@ -378,6 +396,94 @@ export default function TaskKanban({ parentTask, onClose, onChanged }: TaskKanba
           </div>
         </div>
       </div>
+
+      {/* 编辑子任务弹窗 */}
+      {editingTask && (
+        <div className="fixed inset-0 bg-ink-400/40 flex items-center justify-center z-[95] backdrop-blur-sm"
+          onClick={(e) => { if (e.target === e.currentTarget) setEditingTask(null) }}>
+          <div className="bg-white rounded-2xl p-6 w-[440px] shadow-elevated animate-slideIn">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="font-display text-lg font-semibold">编辑子任务</h3>
+              <button onClick={() => setEditingTask(null)} className="p-2 hover:bg-studio-100 rounded-xl">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-studio-500 mb-2">标题</label>
+                <input
+                  type="text"
+                  value={editForm.title}
+                  onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                  placeholder="输入任务标题"
+                  className="input"
+                  autoFocus
+                  onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-studio-500 mb-2">描述</label>
+                <textarea
+                  value={editForm.description}
+                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                  placeholder="输入任务描述（可选）"
+                  rows={2}
+                  className="input resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-studio-500 mb-2">优先级</label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {(['low', 'medium', 'high'] as const).map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, priority: p })}
+                        className={`py-2 rounded-lg text-sm transition-colors ${
+                          editForm.priority === p
+                            ? `bg-gradient-to-br ${priorityBgColors[p]} text-white`
+                            : 'bg-studio-100 text-studio-500'
+                        }`}
+                      >
+                        {p === 'low' ? '低' : p === 'medium' ? '中' : '高'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-studio-500 mb-2">截止日期</label>
+                  <input
+                    type="date"
+                    value={editForm.due_date}
+                    onChange={(e) => setEditForm({ ...editForm, due_date: e.target.value })}
+                    className="input"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={() => setEditingTask(null)}
+                  className="flex-1 py-2.5 rounded-xl text-sm bg-studio-100 text-studio-600 hover:bg-studio-200 transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={saveEdit}
+                  disabled={!editForm.title.trim()}
+                  className="flex-1 py-2.5 rounded-xl text-sm bg-gradient-to-r from-caramel-400 to-caramel-500 text-white hover:opacity-90 disabled:opacity-50 transition-all"
+                >
+                  保存修改
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 删除确认 */}
       <ConfirmDialog
