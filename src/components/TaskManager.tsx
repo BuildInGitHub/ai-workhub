@@ -29,6 +29,18 @@ export default function TaskManager() {
 
   useEffect(() => {
     loadTasks()
+    
+    // 监听标签页显示状态，数据变化时刷新
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        loadTasks()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
   }, [])
 
   const loadTasks = async () => {
@@ -77,22 +89,31 @@ export default function TaskManager() {
   }
 
   const handleSave = async () => {
-    if (!window.electronAPI || !formData.title) return
+    console.log('[TaskManager] handleSave called, formData:', formData)
+    console.log('[TaskManager] window.electronAPI:', window.electronAPI)
+    
+    if (!window.electronAPI) {
+      console.error('[TaskManager] electronAPI not available')
+      return
+    }
+    
+    if (!formData.title) {
+      console.warn('[TaskManager] title is empty')
+      return
+    }
     
     try {
-      if (editingTask) {
-        await window.electronAPI.db.query(
-          "UPDATE tasks SET title = ?, description = ?, priority = ?, due_date = ?, updated_at = datetime('now') WHERE id = ?",
-          [formData.title, formData.description, formData.priority, formData.due_date || null, editingTask.id]
-        )
-      } else {
-        await window.electronAPI.db.query(
-          "INSERT INTO tasks (id, title, description, priority, due_date, completed, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, datetime('now'), datetime('now'))",
-          [uuidv4(), formData.title, formData.description, formData.priority, formData.due_date || null]
-        )
-      }
+      const taskId = uuidv4()
+      const sql = "INSERT INTO tasks (id, title, description, priority, due_date, completed, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, datetime('now'), datetime('now'))"
+      const params = [taskId, formData.title, formData.description, formData.priority, formData.due_date || null]
+      console.log('[TaskManager] Executing SQL:', sql)
+      console.log('[TaskManager] Params:', params)
       
-      loadTasks()
+      const result = await window.electronAPI.db.query(sql, params)
+      console.log('[TaskManager] Result:', result)
+      
+      // 重新加载任务列表
+      await loadTasks()
       closeModal()
     } catch (error) {
       console.error('保存任务失败:', error)

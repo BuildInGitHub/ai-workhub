@@ -1,16 +1,17 @@
 # ===========================
 # AI WorkHub - Git Ignore
+# 忽略本地个人文件和临时文件
 # ===========================
 
 # -----------------------
-# Dependencies
+# 依赖 (不要提交)
 # -----------------------
 node_modules/
 .pnp/
 .pnp.js
 
 # -----------------------
-# Build outputs
+# 构建输出 (自动生成)
 # -----------------------
 dist/
 dist-electron/
@@ -23,7 +24,7 @@ release/
 *.zip
 
 # -----------------------
-# IDE & Editor
+# IDE 和编辑器
 # -----------------------
 .idea/
 .vscode/
@@ -33,7 +34,7 @@ release/
 .DS_Store
 
 # -----------------------
-# Logs & Cache
+# 日志和缓存
 # -----------------------
 logs/
 *.log
@@ -43,20 +44,20 @@ yarn-error.log*
 pnpm-debug.log*
 
 # -----------------------
-# Environment
+# 环境变量 (包含敏感信息)
 # -----------------------
 .env
 .env.local
 .env.*.local
 
 # -----------------------
-# Testing
+# 测试
 # -----------------------
 coverage/
 .nyc_output/
 
 # -----------------------
-# Temporary files
+# 临时文件
 # -----------------------
 *.tmp
 *.temp
@@ -64,14 +65,14 @@ coverage/
 tmp/
 
 # -----------------------
-# Electron specific
+# Electron 相关
 # -----------------------
 .electron/
 electron_binary/
 *.asar
 
 # -----------------------
-# Windows specific
+# Windows 系统文件
 # -----------------------
 Thumbs.db
 ehthumbs.db
@@ -79,12 +80,28 @@ Desktop.ini
 $RECYCLE.BIN/
 
 # -----------------------
-# Project specific
+# 应用数据 (包含 API 密钥等个人数据)
 # -----------------------
-# ZCode config
-.zcode/
-
-# User data (contains API keys, settings)
-userData/
+# 注意: 不要提交包含敏感信息的本地数据
+# 实际路径: %APPDATA%/ai-workhub/
 *.json
 !package-lock.json
+!tsconfig.json
+
+# -----------------------
+# ZCode 配置 (包含计划模式等)
+# -----------------------
+.zcode/
+!.zcode/plans/
+
+# -----------------------
+# 开发调试文件
+# -----------------------
+*.local
+
+# -----------------------
+# 个人脚本
+# -----------------------
+*.bat
+*.cmd
+*.ps1

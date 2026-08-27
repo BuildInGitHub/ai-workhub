@@ -1,5 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { v4 as uuidv4 } from 'uuid'
+import { 
+  Sparkles, Brain, CheckCircle, AlertCircle, 
+  FolderOpen, FileText, Folder, Hash, 
+  Lightbulb, BarChart3, ListChecks, Link2,
+  Home as HomeIcon, Download, Upload, Search,
+  Image, Video, Music, Archive, AppWindow
+} from 'lucide-react'
 import Sidebar from './components/Sidebar'
 import TabBar from './components/TabBar'
 import TaskBar from './components/TaskBar'
@@ -47,7 +54,8 @@ function App() {
         window.electronAPI.shell.openExternal.bind(window.electronAPI.shell),
         window.electronAPI.fs.readDir.bind(window.electronAPI.fs),
         window.electronAPI.fs.readFile.bind(window.electronAPI.fs),
-        window.electronAPI.os.homeDir.bind(window.electronAPI.os)
+        window.electronAPI.os.homeDir.bind(window.electronAPI.os),
+        window.electronAPI.fs.moveFile ? window.electronAPI.fs.moveFile.bind(window.electronAPI.fs) : undefined
       )
       setAgentTools(getTools())
     }
@@ -161,12 +169,11 @@ function App() {
       // 显示思考过程
       setCurrentPlan(taskPlan)
       
-      // 添加思考过程消息
+      // 添加思考过程消息 - 更友好的格式
       const thoughtMessage: ChatMessage = {
         id: uuidv4(),
         role: 'assistant',
-        content: `[思考中]\n\n${taskPlan.thought}\n\n计划执行 ${taskPlan.steps.length} 个步骤:` + 
-          taskPlan.steps.map((s, i) => `\n${i+1}. ${s.description}`).join(''),
+        content: `[Brain] ${taskPlan.thought}\n\n[ListChecks] 计划执行 ${taskPlan.steps.length} 个步骤:\n${taskPlan.steps.map((s, i) => `${i+1}. ${s.description}`).join('\n')}`,
         created_at: new Date().toISOString()
       }
       setChatMessages(prev => [...prev, thoughtMessage])
@@ -178,11 +185,60 @@ function App() {
         const execResult = await executePlan(taskPlan)
         
         if (execResult.success) {
-          responseContent = `[任务完成]\n\n` + 
-            execResult.steps.map((s, i) => `步骤${i+1}: ${s.tool}\n结果: ${JSON.stringify(s.output, null, 2)}`).join('\n\n')
+          // 格式化执行结果
+          const stepResults = execResult.steps.map((s, i) => {
+            let resultText = ''
+            if (s.output) {
+              // 简化输出显示
+              if (typeof s.output === 'object') {
+                // browse_directory 结果格式化
+                if (Array.isArray(s.output)) {
+                  const files = s.output.filter((f: any) => f.isFile).slice(0, 10)
+                  const folders = s.output.filter((f: any) => f.isDirectory).slice(0, 5)
+                  if (files.length > 0 || folders.length > 0) {
+                    resultText = '[FolderOpen] 文件/文件夹:\n'
+                    folders.forEach((f: any) => {
+                      resultText += `   [Folder] ${f.name}/\n`
+                    })
+                    files.forEach((f: any) => {
+                      resultText += `   [FileText] ${f.name}\n`
+                    })
+                    if (s.output.length > 15) {
+                      resultText += `   ... 还有 ${s.output.length - 15} 个项目`
+                    }
+                  } else {
+                    resultText = '[FolderOpen] 目录为空'
+                  }
+                } else if (s.output.message) {
+                  resultText = s.output.message
+                } else if (s.output.stats) {
+                  resultText = `[BarChart3] 统计: ${s.output.stats.totalFiles}个文件, ${s.output.stats.totalFolders}个文件夹`
+                  if (s.output.suggestions?.length > 0) {
+                    resultText += '\n[Lightbulb] ' + s.output.suggestions.join('\n[Lightbulb] ')
+                  }
+                } else if (s.output.desktopPath) {
+                  resultText = `[FolderOpen] 桌面路径: ${s.output.desktopPath}`
+                } else if (s.output.path) {
+                  resultText = `[FolderOpen] 路径: ${s.output.path}`
+                } else if (s.output.id && s.output.title) {
+                  resultText = `[CheckCircle] 已创建: ${s.output.title}`
+                } else {
+                  resultText = JSON.stringify(s.output).slice(0, 100)
+                }
+              } else {
+                resultText = String(s.output).slice(0, 100)
+              }
+            }
+            return `[CheckCircle] 步骤${i+1}: ${s.tool}\n   ${resultText}`
+          }).join('\n\n')
+          
+          responseContent = `[Sparkles] 任务完成！\n\n${stepResults}`
         } else {
-          responseContent = `[执行中断] ${execResult.finalResult}\n\n` +
-            execResult.steps.map((s, i) => `步骤${i+1}: ${s.tool} - ${s.error || '完成'}`).join('\n')
+          const failedSteps = execResult.steps
+            .filter(s => s.error)
+            .map((s, i) => `[AlertCircle] 步骤${i+1}: ${s.tool} - ${s.error}`)
+            .join('\n')
+          responseContent = `[AlertCircle] 执行中断\n\n已完成 ${execResult.steps.filter(s => s.output).length} 个步骤\n\n${failedSteps}`
         }
         
         const resultMessage: ChatMessage = {

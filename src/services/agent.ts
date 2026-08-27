@@ -96,6 +96,10 @@ export async function executeTool(toolName: string, params: Record<string, any>)
   // 从tools Map获取实际执行函数
   const tool = tools.get(matchedTool.name)
   
+  if (!tool) {
+    return { success: false, error: `Tool ${matchedTool.name} not found` }
+  }
+  
   try {
     const result = await tool.execute(params)
     return { success: true, data: result }
@@ -110,7 +114,8 @@ export function initBuiltinTools(
   shellOpenExternal: (url: string) => Promise<void>,
   fsReadDir: (path: string) => Promise<any>,
   fsReadFile: (path: string) => Promise<any>,
-  osHomeDir: () => Promise<string>
+  osHomeDir: () => Promise<string>,
+  fsMoveFile?: (srcPath: string, destPath: string) => Promise<any>
 ) {
   // 搜索任务
   registerTool({
@@ -276,6 +281,168 @@ export function initBuiltinTools(
     execute: async () => {
       const home = await osHomeDir()
       return { path: home }
+    }
+  })
+
+  // 整理桌面文件
+  registerTool({
+    name: 'organize_desktop',
+    description: '整理桌面文件，按文件类型分类并返回整理建议',
+    parameters: [
+      { name: 'path', type: 'string', description: '桌面路径（可选，默认桌面）', required: false }
+    ],
+    execute: async (params) => {
+      const desktopPath = params.path || (await osHomeDir()) + '\\Desktop'
+      
+      try {
+        const result = await fsReadDir(desktopPath)
+        
+        if (!result || result.length === 0) {
+          return { message: '桌面是空的，无需整理', suggestions: [] }
+        }
+        
+        // 按类型分类
+        const categories: Record<string, { name: string, files: string[], count: number }> = {
+          '图片': { name: '图片', files: [], count: 0 },
+          '文档': { name: '文档', files: [], count: 0 },
+          '视频': { name: '视频', files: [], count: 0 },
+          '音频': { name: '音频', files: [], count: 0 },
+          '压缩包': { name: '压缩包', files: [], count: 0 },
+          '安装包': { name: '安装包', files: [], count: 0 },
+          '其他': { name: '其他', files: [], count: 0 }
+        }
+        
+        const extensions: Record<string, string> = {
+          // 图片
+          '.jpg': '图片', '.jpeg': '图片', '.png': '图片', '.gif': '图片', 
+          '.bmp': '图片', '.svg': '图片', '.webp': '图片', '.ico': '图片',
+          // 文档
+          '.doc': '文档', '.docx': '文档', '.pdf': '文档', '.txt': '文档',
+          '.xls': '文档', '.xlsx': '文档', '.ppt': '文档', '.pptx': '文档',
+          '.md': '文档', '.csv': '文档',
+          // 视频
+          '.mp4': '视频', '.avi': '视频', '.mkv': '视频', '.mov': '视频',
+          '.wmv': '视频', '.flv': '视频', '.webm': '视频',
+          // 音频
+          '.mp3': '音频', '.wav': '音频', '.flac': '音频', '.aac': '音频',
+          '.ogg': '音频', '.wma': '音频',
+          // 压缩包
+          '.zip': '压缩包', '.rar': '压缩包', '.7z': '压缩包', '.tar': '压缩包', '.gz': '压缩包',
+          // 安装包
+          '.exe': '安装包', '.msi': '安装包', '.dmg': '安装包', '.pkg': '安装包', '.deb': '安装包'
+        }
+        
+        const files = result.filter((f: any) => f.isFile)
+        const folders = result.filter((f: any) => f.isDirectory)
+        
+        for (const file of files) {
+          const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase()
+          const category = extensions[ext] || '其他'
+          categories[category].files.push(file.name)
+          categories[category].count++
+        }
+        
+        // 统计信息
+        const stats = {
+          totalFiles: files.length,
+          totalFolders: folders.length,
+          categories: Object.values(categories).filter(c => c.count > 0)
+        }
+        
+        // 建议
+        const suggestions: string[] = []
+        if (files.length > 20) {
+          suggestions.push(`桌面有 ${files.length} 个文件，建议整理`)
+        }
+        for (const cat of stats.categories) {
+          if (cat.count > 3) {
+            suggestions.push(`建议创建"${cat.name}"文件夹，将 ${cat.count} 个文件移动进去`)
+          }
+        }
+        
+        return {
+          desktopPath,
+          stats,
+          suggestions,
+          message: suggestions.length > 0 ? '整理建议已生成' : '桌面很整洁'
+        }
+      } catch (error: any) {
+        return { error: error.message }
+      }
+    }
+  })
+
+  // 执行桌面整理（移动文件）
+  registerTool({
+    name: 'execute_organize_desktop',
+    description: '执行桌面整理，将文件按类型移动到分类文件夹',
+    parameters: [
+      { name: 'path', type: 'string', description: '桌面路径', required: false }
+    ],
+    execute: async (params) => {
+      if (!fsMoveFile) {
+        return { error: '文件系统移动功能不可用' }
+      }
+      
+      const desktopPath = params.path || (await osHomeDir()) + '\\Desktop'
+      
+      try {
+        const result = await fsReadDir(desktopPath)
+        
+        if (!result || result.length === 0) {
+          return { message: '桌面是空的，无需整理', moved: [] }
+        }
+        
+        // 分类映射
+        const categoryMap: Record<string, string> = {
+          '.jpg': '图片', '.jpeg': '图片', '.png': '图片', '.gif': '图片',
+          '.bmp': '图片', '.svg': '图片', '.webp': '图片', '.ico': '图片',
+          '.doc': '文档', '.docx': '文档', '.pdf': '文档', '.txt': '文档',
+          '.xls': '文档', '.xlsx': '文档', '.ppt': '文档', '.pptx': '文档',
+          '.md': '文档', '.csv': '文档',
+          '.mp4': '视频', '.avi': '视频', '.mkv': '视频', '.mov': '视频',
+          '.wmv': '视频', '.flv': '视频', '.webm': '视频',
+          '.mp3': '音频', '.wav': '音频', '.flac': '音频', '.aac': '音频',
+          '.ogg': '音频', '.wma': '音频',
+          '.zip': '压缩包', '.rar': '压缩包', '.7z': '压缩包',
+          '.tar': '压缩包', '.gz': '压缩包',
+          '.exe': '安装包', '.msi': '安装包', '.dmg': '安装包'
+        }
+        
+        const moved: string[] = []
+        const errors: string[] = []
+        
+        const files = result.filter((f: any) => f.isFile)
+        
+        for (const file of files) {
+          const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase()
+          const category = categoryMap[ext] || '其他'
+          const destFolder = desktopPath + '\\' + category
+          const destPath = destFolder + '\\' + file.name
+          
+          // 跳过已经在正确分类文件夹中的文件
+          if (file.path && file.path.includes('\\' + category + '\\')) {
+            continue
+          }
+          
+          try {
+            const moveResult = await fsMoveFile(file.path, destPath)
+            if (moveResult.success) {
+              moved.push(`${file.name} -> ${category}`)
+            }
+          } catch (e: any) {
+            errors.push(`${file.name}: ${e.message}`)
+          }
+        }
+        
+        return {
+          message: `已移动 ${moved.length} 个文件`,
+          moved,
+          errors: errors.length > 0 ? errors : undefined
+        }
+      } catch (error: any) {
+        return { error: error.message }
+      }
     }
   })
 
@@ -575,6 +742,10 @@ ${toolsList.map(t => `- ${t.name}: ${t.description}`).join('\n')}
 7. 如果需要创建任务，用create_task
 8. 如果需要创建日历事件，用create_calendar_event
 9. 如果需要搜索项目，用search_projects
+10. 桌面路径直接使用: "C:\\\\Users\\\\dot backup\\\\Desktop" (Windows默认桌面)
+11. 用户主目录是: "C:\\\\Users\\\\dot backup"
+12. 整理桌面文件用 organize_desktop 工具，它会自动获取桌面路径
+13. 如果需要分析桌面文件并整理，直接调用 organize_desktop 或 execute_organize_desktop 工具
 
 只返回JSON，不要其他内容。
 `

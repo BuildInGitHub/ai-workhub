@@ -26,6 +26,18 @@ export default function LinkManager() {
 
   useEffect(() => {
     loadLinks()
+    
+    // 监听标签页显示状态，数据变化时刷新
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        loadLinks()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
   }, [])
 
   const loadLinks = async () => {
@@ -87,7 +99,12 @@ export default function LinkManager() {
   }
 
   const openLink = (url: string) => {
-    window.electronAPI?.shell.openExternal(url)
+    // 添加 http/https 前缀如果缺失
+    let fullUrl = url
+    if (url && !url.match(/^https?:\/\//i)) {
+      fullUrl = 'https://' + url
+    }
+    window.electronAPI?.shell.openExternal(fullUrl)
   }
 
   const openEditModal = (link: LinkType) => {

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, type ReactNode } from 'react'
 import { 
   MessageSquare, 
   ChevronLeft, 
@@ -14,8 +14,83 @@ import {
   CheckSquare,
   Calendar,
   Search,
-  Home
+  Home,
+  Brain,
+  CheckCircle,
+  AlertCircle,
+  FolderOpen,
+  FileText,
+  Hash,
+  Lightbulb,
+  BarChart3,
+  ListChecks,
+  Link2,
+  Download,
+  Upload,
+  Image,
+  Video,
+  Music,
+  Archive,
+  AppWindow
 } from 'lucide-react'
+
+// 图标映射表
+const iconMap: Record<string, ReactNode> = {
+  '[Brain]': <Brain size={16} className="inline text-purple-500" />,
+  '[ListChecks]': <ListChecks size={16} className="inline text-blue-500" />,
+  '[Sparkles]': <Sparkles size={16} className="inline text-caramel-400" />,
+  '[CheckCircle]': <CheckCircle size={16} className="inline text-green-500" />,
+  '[AlertCircle]': <AlertCircle size={16} className="inline text-red-500" />,
+  '[FolderOpen]': <FolderOpen size={16} className="inline text-blue-400" />,
+  '[Folder]': <Folder size={16} className="inline text-yellow-500" />,
+  '[FileText]': <FileText size={16} className="inline text-gray-500" />,
+  '[Hash]': <Hash size={16} className="inline text-gray-400" />,
+  '[Lightbulb]': <Lightbulb size={16} className="inline text-yellow-400" />,
+  '[BarChart3]': <BarChart3 size={16} className="inline text-indigo-500" />,
+  '[Link2]': <Link2 size={16} className="inline text-blue-400" />,
+  '[Download]': <Download size={16} className="inline text-green-500" />,
+  '[Upload]': <Upload size={16} className="inline text-orange-500" />,
+  '[Image]': <Image size={16} className="inline text-pink-400" />,
+  '[Video]': <Video size={16} className="inline text-red-400" />,
+  '[Music]': <Music size={16} className="inline text-purple-400" />,
+  '[Archive]': <Archive size={16} className="inline text-gray-500" />,
+  '[AppWindow]': <AppWindow size={16} className="inline text-blue-500" />,
+  '[Zap]': <Zap size={16} className="inline text-yellow-500" />,
+  '[Star]': <Sparkles size={16} className="inline text-yellow-400" />,
+}
+
+// 解析消息内容，将 [IconName] 转换为图标组件
+function parseMessageContent(content: string): ReactNode[] {
+  const parts: ReactNode[] = []
+  const regex = /\[(Brain|ListChecks|Sparkles|CheckCircle|AlertCircle|FolderOpen|Folder|FileText|Hash|Lightbulb|BarChart3|Link2|Download|Upload|Image|Video|Music|Archive|AppWindow|Zap|Star)\]/g
+  
+  let lastIndex = 0
+  let match
+  
+  while ((match = regex.exec(content)) !== null) {
+    // 添加匹配前的文本
+    if (match.index > lastIndex) {
+      parts.push(content.slice(lastIndex, match.index))
+    }
+    
+    const iconKey = match[0]
+    const icon = iconMap[iconKey]
+    if (icon) {
+      parts.push(icon)
+    } else {
+      parts.push(match[0])
+    }
+    
+    lastIndex = match.index + match[0].length
+  }
+  
+  // 添加剩余文本
+  if (lastIndex < content.length) {
+    parts.push(content.slice(lastIndex))
+  }
+  
+  return parts.length > 0 ? parts : [content]
+}
 import type { ChatMessage, Tab } from '../types'
 
 interface SidebarProps {
@@ -175,7 +250,9 @@ export default function Sidebar({
                         : 'bg-white border border-studio-300 text-ink-100'
                     }`}
                   >
-                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    <p className="text-sm whitespace-pre-wrap">
+                      {msg.role === 'user' ? msg.content : parseMessageContent(msg.content)}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -183,7 +260,10 @@ export default function Sidebar({
               {isLoading && (
                 <div className="flex justify-start">
                   <div className="bg-white border border-studio-300 p-4 rounded-2xl">
-                    <Loader2 size={20} className="animate-spin text-caramel-400" />
+                    <div className="flex items-center gap-2">
+                      <Loader2 size={18} className="animate-spin text-caramel-400" />
+                      <span className="text-sm text-studio-500">AI正在思考中...</span>
+                    </div>
                   </div>
                 </div>
               )}

@@ -84,7 +84,8 @@ export default function GlobalSearch({ onClose }: GlobalSearchProps) {
               subtitle: link.url,
               icon: <Link size={18} className="text-green-500" />,
               action: () => {
-                window.electronAPI?.shell.openExternal(link.url)
+                const url = link.url.match(/^https?:\/\//i) ? link.url : 'https://' + link.url
+                window.electronAPI?.shell.openExternal(url)
                 onClose()
               }
             })

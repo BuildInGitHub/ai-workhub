@@ -81,16 +81,20 @@ function saveDatabase(): void {
 export function query(table: string, operation: 'select' | 'insert' | 'update' | 'delete', data?: any, condition?: { field: string, value: any }): any {
   const tableName = table as keyof Database
   
+  console.log('[Query] Operation:', operation, 'Table:', tableName, 'Data:', data, 'Condition:', condition)
+  
   if (!db[tableName]) {
+    console.log('[Query] Table not found:', tableName)
     return { error: `Table ${table} does not exist` }
   }
 
   switch (operation) {
     case 'select':
-      if (condition) {
-        return db[tableName].filter((item: any) => item[condition.field] === condition.value)
-      }
-      return db[tableName]
+      const selectResult = condition 
+        ? db[tableName].filter((item: any) => item[condition.field] === condition.value)
+        : db[tableName]
+      console.log('[Query] Select result:', selectResult.length, 'items')
+      return selectResult
     
     case 'insert':
       const newItem = { ...data, id: data.id || require('uuid').v4() }
@@ -99,6 +103,7 @@ export function query(table: string, operation: 'select' | 'insert' | 'update' |
       }
       db[tableName].push(newItem)
       saveDatabase()
+      console.log('[Query] Inserted:', newItem.id)
       return newItem
     
     case 'update':
@@ -106,8 +111,10 @@ export function query(table: string, operation: 'select' | 'insert' | 'update' |
       if (index !== -1) {
         db[tableName][index] = { ...db[tableName][index], ...data }
         saveDatabase()
+        console.log('[Query] Updated:', index)
         return db[tableName][index]
       }
+      console.log('[Query] Update item not found')
       return { error: 'Item not found' }
     
     case 'delete':
@@ -128,6 +135,8 @@ export function runQuery(sql: string, params?: any[]): any {
   // 简单的SQL解析（仅支持基本操作）
   const sqlLower = sql.toLowerCase().trim()
   
+  console.log('[DB] Query:', sql, 'Params:', params)
+  
   try {
     // SELECT
     if (sqlLower.startsWith('select')) {
@@ -138,7 +147,7 @@ export function runQuery(sql: string, params?: any[]): any {
         
         // WHERE clause - 支持简单条件
         const whereMatch = sqlLower.match(/where\s+(.+?)(?:\s+order|\s+limit|$)/)
-        if (whereMatch && params && params.length > 0) {
+        if (whereMatch) {
           const whereClause = whereMatch[1]
           // 处理 AND 条件
           const conditions = whereClause.split(/\s+and\s+/i)
@@ -147,42 +156,62 @@ export function runQuery(sql: string, params?: any[]): any {
           results = results.filter((item: any) => {
             let match = true
             for (const cond of conditions) {
-              if (paramIndex >= params.length) break
               if (cond.includes('like')) {
-                // LIKE 查询
-                const fieldMatch = cond.match(/(\w+)\s+like/)
-                if (fieldMatch) {
-                  const field = fieldMatch[1]
-                  let pattern = params[paramIndex]?.toString() || ''
-                  // 处理LIKE通配符
-                  const isStartsWith = pattern.startsWith('%')
-                  const isEndsWith = pattern.endsWith('%')
-                  pattern = pattern.replace(/%/g, '')
-                  const itemValue = item[field]?.toString().toLowerCase() || ''
-                  const searchValue = pattern.toLowerCase()
-                  if (isStartsWith && isEndsWith) {
-                    match = itemValue.includes(searchValue)
-                  } else if (isStartsWith) {
-                    match = itemValue.endsWith(searchValue)
-                  } else if (isEndsWith) {
-                    match = itemValue.startsWith(searchValue)
-                  } else {
-                    match = itemValue.includes(searchValue)
+                // LIKE 查询 (需要参数)
+                if (params && params.length > 0 && paramIndex < params.length) {
+                  const fieldMatch = cond.match(/(\w+)\s+like/)
+                  if (fieldMatch) {
+                    const field = fieldMatch[1]
+                    let pattern = params[paramIndex]?.toString() || ''
+                    const isStartsWith = pattern.startsWith('%')
+                    const isEndsWith = pattern.endsWith('%')
+                    pattern = pattern.replace(/%/g, '')
+                    const itemValue = item[field]?.toString().toLowerCase() || ''
+                    const searchValue = pattern.toLowerCase()
+                    if (isStartsWith && isEndsWith) {
+                      match = itemValue.includes(searchValue)
+                    } else if (isStartsWith) {
+                      match = itemValue.endsWith(searchValue)
+                    } else if (isEndsWith) {
+                      match = itemValue.startsWith(searchValue)
+                    } else {
+                      match = itemValue.includes(searchValue)
+                    }
+                    paramIndex++
                   }
-                  paramIndex++
+                } else {
+                  match = false
                 }
               } else if (cond.includes('=')) {
-                // 等于查询
+                // 等于查询 - 支持 ? 占位符和字面量
                 const fieldMatch = cond.match(/(\w+)\s*=\s*\?/)
                 if (fieldMatch) {
-                  const field = fieldMatch[1]
-                  match = item[field] === params[paramIndex]
-                  paramIndex++
+                  // 使用参数
+                  if (params && params.length > 0 && paramIndex < params.length) {
+                    const field = fieldMatch[1]
+                    match = item[field] === params[paramIndex]
+                    paramIndex++
+                  } else {
+                    match = false
+                  }
+                } else {
+                  // 字面量比较，如 WHERE completed = 1
+                  const literalMatch = cond.match(/(\w+)\s*=\s*(\d+)/)
+                  if (literalMatch) {
+                    const field = literalMatch[1]
+                    const value = parseInt(literalMatch[2])
+                    match = item[field] === value
+                  }
                 }
               }
             }
             return match
           })
+        }
+        
+        // 处理 COUNT(*) 查询 (在 WHERE 过滤之后)
+        if (sqlLower.includes('count(*)')) {
+          return { data: [{ count: results.length }] }
         }
         
         // ORDER BY
@@ -221,8 +250,28 @@ export function runQuery(sql: string, params?: any[]): any {
           const fields = fieldsMatch[1].split(',').map(f => f.trim())
           const valuesPart = fieldsMatch[2]
           
-          // 解析值，判断是 ? 占位符还是字面量
-          const valueParts = valuesPart.split(',').map((v: string) => v.trim())
+          // 解析值 - 需要智能拆分，处理函数调用如 datetime('now')
+          const valueParts: string[] = []
+          let current = ''
+          let parenDepth = 0
+          for (const char of valuesPart) {
+            if (char === '(') {
+              parenDepth++
+              current += char
+            } else if (char === ')') {
+              parenDepth--
+              current += char
+            } else if (char === ',' && parenDepth === 0) {
+              valueParts.push(current.trim())
+              current = ''
+            } else {
+              current += char
+            }
+          }
+          if (current.trim()) {
+            valueParts.push(current.trim())
+          }
+          
           const obj: any = {}
           let paramIndex = 0
           
@@ -234,15 +283,18 @@ export function runQuery(sql: string, params?: any[]): any {
               // 是占位符，从params获取
               value = params[paramIndex]
               paramIndex++
-            } else if (vp.includes('datetime') && vp.includes('now')) {
+            } else if (vp && vp.includes('datetime') && vp.includes('now')) {
               // datetime('now')
               value = new Date().toISOString()
-            } else if (!isNaN(Number(vp))) {
+            } else if (vp && !isNaN(Number(vp))) {
               // 数字字面量
               value = Number(vp)
-            } else {
+            } else if (vp && vp.startsWith("'") && vp.endsWith("'")) {
               // 字符串字面量
-              value = vp.replace(/'/g, '')
+              value = vp.slice(1, -1)
+            } else {
+              // 其他
+              value = vp ? vp.replace(/'/g, '') : null
             }
             
             obj[field] = value
@@ -302,8 +354,10 @@ export function runQuery(sql: string, params?: any[]): any {
       }
     }
     
-    return { error: 'Unsupported SQL operation' }
+    console.log('[DB] Returning unsupported operation for:', sqlLower.substring(0, 50))
+    return { error: 'Unsupported SQL operation: ' + sqlLower.substring(0, 30) }
   } catch (error: any) {
+    console.log('[DB] Error:', error.message)
     return { error: error.message }
   }
 }

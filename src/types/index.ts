@@ -131,6 +131,7 @@ export interface ElectronAPI {
     getStats: (filePath: string) => Promise<FileStats>
     readFile: (filePath: string) => Promise<{ content?: string; error?: string }>
     getDrives: () => Promise<string[]>
+    moveFile?: (srcPath: string, destPath: string) => Promise<{ success?: boolean; error?: string }>
   }
   dialog: {
     selectDirectory: () => Promise<string | null>

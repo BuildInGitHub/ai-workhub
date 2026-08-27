@@ -4,10 +4,14 @@ import { contextBridge, ipcRenderer } from 'electron'
 contextBridge.exposeInMainWorld('electronAPI', {
   // 文件系统
   fs: {
-    readDir: (dirPath: string) => ipcRenderer.invoke('fs:readDir', dirPath),
+    readDir: (dirPath: string) => {
+      console.log('[Preload] fs:readDir', dirPath)
+      return ipcRenderer.invoke('fs:readDir', dirPath)
+    },
     getStats: (filePath: string) => ipcRenderer.invoke('fs:getStats', filePath),
     readFile: (filePath: string) => ipcRenderer.invoke('fs:readFile', filePath),
     getDrives: () => ipcRenderer.invoke('fs:getDrives'),
+    moveFile: (srcPath: string, destPath: string) => ipcRenderer.invoke('fs:moveFile', srcPath, destPath),
   },
   
   // 对话框
@@ -29,6 +33,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // 数据库
   db: {
-    query: (sql: string, params?: any[]) => ipcRenderer.invoke('db:query', sql, params),
+    query: (sql: string, params?: any[]) => {
+      console.log('[Preload] db:query called', sql.substring(0, 50), params)
+      return ipcRenderer.invoke('db:query', sql, params)
+    },
   },
 })

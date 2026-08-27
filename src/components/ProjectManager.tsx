@@ -257,7 +257,10 @@ export default function ProjectManager() {
                       >
                         <span className="text-sm text-ink-100 truncate">{link.title}</span>
                         <button
-                          onClick={() => window.electronAPI?.shell.openExternal(link.url)}
+                          onClick={() => {
+                            const url = link.url.match(/^https?:\/\//i) ? link.url : 'https://' + link.url
+                            window.electronAPI?.shell.openExternal(url)
+                          }}
                           className="p-1.5 text-studio-400 hover:text-green-500"
                         >
                           <Link size={14} />

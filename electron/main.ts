@@ -26,6 +26,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: false,
     },
     frame: true,
     show: false,
@@ -172,6 +173,22 @@ ipcMain.handle('fs:getStats', async (_, filePath: string) => {
   }
 })
 
+// 移动/重命名文件
+ipcMain.handle('fs:moveFile', async (_, srcPath: string, destPath: string) => {
+  const fs = await import('fs/promises')
+  const pathModule = await import('path')
+  try {
+    // 确保目标目录存在
+    const destDir = pathModule.dirname(destPath)
+    await fs.mkdir(destDir, { recursive: true })
+    // 移动文件
+    await fs.rename(srcPath, destPath)
+    return { success: true, from: srcPath, to: destPath }
+  } catch (error: any) {
+    return { error: error.message }
+  }
+})
+
 // 读取文件内容
 ipcMain.handle('fs:readFile', async (_, filePath: string) => {
   const fs = await import('fs/promises')
@@ -193,7 +210,12 @@ ipcMain.handle('dialog:selectDirectory', async () => {
 
 // 打开外部链接
 ipcMain.handle('shell:openExternal', async (_, url: string) => {
-  await shell.openExternal(url)
+  try {
+    await shell.openExternal(url)
+  } catch (error: any) {
+    console.error('[Main] openExternal error:', error.message)
+    // 忽略 EPIPE 等错误，不弹窗
+  }
 })
 
 // 获取用户主目录
@@ -213,9 +235,13 @@ ipcMain.handle('os:documentsDir', () => {
 
 // 数据库操作
 ipcMain.handle('db:query', async (_, sql: string, params?: any[]) => {
+  console.log('[Main] db:query received', sql.substring(0, 60), params)
   try {
-    return runQuery(sql, params)
+    const result = runQuery(sql, params)
+    console.log('[Main] db:query result:', result)
+    return result
   } catch (error: any) {
+    console.error('[Main] db:query error:', error)
     return { error: error.message }
   }
 })

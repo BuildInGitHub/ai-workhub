@@ -10,15 +10,17 @@ import {
   ArrowRight,
   Sparkles,
   TrendingUp,
-  Calendar
+  Calendar,
+  Hand
 } from 'lucide-react'
 import type { Tab, Link as LinkType, Task } from '../types'
 
 interface HomeProps {
   onAddTab: (type: Tab['type'], title: string) => void
+  refreshKey?: number
 }
 
-export default function Home({ onAddTab }: HomeProps) {
+export default function Home({ onAddTab, refreshKey }: HomeProps) {
   const [recentLinks, setRecentLinks] = useState<LinkType[]>([])
   const [recentTasks, setRecentTasks] = useState<Task[]>([])
   const [stats, setStats] = useState({
@@ -30,7 +32,19 @@ export default function Home({ onAddTab }: HomeProps) {
 
   useEffect(() => {
     loadData()
-  }, [])
+    
+    // 监听标签页显示状态，数据变化时刷新
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        loadData()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [refreshKey])
 
   const loadData = async () => {
     if (!window.electronAPI) return
@@ -91,8 +105,8 @@ export default function Home({ onAddTab }: HomeProps) {
       {/* 欢迎区域 */}
       <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="font-display text-3xl font-bold text-ink-100 mb-2">
-            欢迎回来 👋
+          <h1 className="font-display text-3xl font-bold text-ink-100 mb-2 flex items-center gap-3">
+            欢迎回来 <Hand size={32} className="text-caramel-400" />
           </h1>
           <p className="text-studio-500">今天的工作从这里开始</p>
         </div>
@@ -199,7 +213,8 @@ export default function Home({ onAddTab }: HomeProps) {
                   href="#"
                   onClick={(e) => {
                     e.preventDefault()
-                    window.electronAPI?.shell.openExternal(link.url)
+                    const url = link.url.match(/^https?:\/\//i) ? link.url : 'https://' + link.url
+                    window.electronAPI?.shell.openExternal(url)
                   }}
                   className="flex items-center gap-3 p-3 rounded-xl hover:bg-studio-100 transition-colors"
                 >
