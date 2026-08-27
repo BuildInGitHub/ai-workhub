@@ -402,7 +402,8 @@ export default function LinkManager() {
                       value={formData.account}
                       onChange={(e) => setFormData({ ...formData, account: e.target.value })}
                       placeholder="登录账号"
-                      className="input pl-9"
+                      className="input"
+                      style={{ paddingLeft: '2.5rem' }}
                     />
                   </div>
                 </div>
@@ -415,7 +416,8 @@ export default function LinkManager() {
                       value={formData.password_hint}
                       onChange={(e) => setFormData({ ...formData, password_hint: e.target.value })}
                       placeholder="如：姓名拼音+生日"
-                      className="input pl-9"
+                      className="input"
+                      style={{ paddingLeft: '2.5rem' }}
                     />
                   </div>
                 </div>
