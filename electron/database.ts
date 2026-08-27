@@ -157,6 +157,10 @@ export function runQuery(sql: string, params?: any[]): any {
           // 先解析所有条件并绑定参数（一次性，避免 filter 内重复消耗参数）
           let paramIndex = 0
           const parsedConditions = conditions.map(cond => {
+            // 恒真条件（如 WHERE 1=1）直接跳过
+            if (/^\s*\d+\s*=\s*\d+\s*$/.test(cond)) {
+              return { type: 'always' as const, field: '', value: true }
+            }
             if (cond.includes('like')) {
               const fieldMatch = cond.match(/(\w+)\s+like/)
               if (fieldMatch) {
@@ -186,10 +190,11 @@ export function runQuery(sql: string, params?: any[]): any {
               }
             }
             return null
-          }).filter(Boolean) as Array<{ type: 'eq' | 'like', field: string, value: any }>
+          }).filter(Boolean) as Array<{ type: 'eq' | 'like' | 'always', field: string, value: any }>
           
           results = results.filter((item: any) => {
             return parsedConditions.every(pc => {
+              if (pc.type === 'always') return true
               if (pc.type === 'like') {
                 let pattern = pc.value || ''
                 const isStartsWith = pattern.startsWith('%')

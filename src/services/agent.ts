@@ -1087,11 +1087,11 @@ export async function executePlan(plan: PlanResult): Promise<ExecutionResult> {
     return null
   }
   
-  // 从用户请求中提取父任务名（"给X加子任务"、"在X下创建子任务"）
+  // 从用户请求中提取父任务名（"给X加子任务"、"在X下创建子任务"、"给X添加三个子任务"）
   const extractParentName = (input: string): string | null => {
     const patterns = [
-      /(?:给|为|在|对)\s*["「『]?(.+?)["」』]?\s*(?:加|创建|新建|添加)\s*(?:一个|个)?\s*子任务/,
-      /(?:给|为|在|对)\s*["「『]?(.+?)["」』]?\s*(?:加|创建|新建|添加)\s*(?:一个|个)?\s*下级任务/,
+      /(?:给|为|在|对)\s*["「『]?(.+?)["」』]?\s*(?:加|创建|新建|添加)\s*(?:[一二两三四五六七八九十百\d]+个|一个|个|多个|数个)?\s*子任务/,
+      /(?:给|为|在|对)\s*["「『]?(.+?)["」』]?\s*(?:加|创建|新建|添加)\s*(?:[一二两三四五六七八九十百\d]+个|一个|个|多个|数个)?\s*下级任务/,
     ]
     for (const p of patterns) {
       const m = input.match(p)
