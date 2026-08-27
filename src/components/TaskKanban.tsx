@@ -62,15 +62,21 @@ export default function TaskKanban({ parentTask, onClose, onChanged }: TaskKanba
   // 列内任务（保持顺序）
   const colItems = (status: 'todo' | 'doing' | 'done') => subtasks.filter(t => getStatus(t) === status)
 
-  // 持久化整列顺序（position 为列内下标）
-  const persistColumn = async (items: Task[]) => {
+  // 持久化整列顺序（position 为列内下标），并合并重建完整状态（不能丢其他列）
+  const persistColumn = async (colKey: 'todo' | 'doing' | 'done', items: Task[]) => {
     for (let i = 0; i < items.length; i++) {
       await window.electronAPI?.db.query(
         "UPDATE tasks SET position = ?, updated_at = datetime('now') WHERE id = ?",
         [i, items[i].id]
       )
     }
-    setSubtasks([...items])
+    // 按 待办→进行中→已完成 列顺序合并，保证其他列任务不丢失
+    const full = [
+      ...(colKey === 'todo' ? items : colItems('todo')),
+      ...(colKey === 'doing' ? items : colItems('doing')),
+      ...(colKey === 'done' ? items : colItems('done')),
+    ]
+    setSubtasks(full)
   }
 
   // 添加子任务（排在列尾）
@@ -106,7 +112,7 @@ export default function TaskKanban({ parentTask, onClose, onChanged }: TaskKanba
         const newCol = [...srcCol]
         newCol.splice(from, 1)
         newCol.splice(insertIndex, 0, task)
-        await persistColumn(newCol)
+        await persistColumn(srcStatus, newCol)
       } else {
         // 跨列移动
         const completed = targetStatus === 'done' ? 1 : 0
