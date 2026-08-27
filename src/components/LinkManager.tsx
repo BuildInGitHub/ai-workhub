@@ -7,15 +7,32 @@ import {
   Search,
   Edit,
   X,
-  Tag
+  Tag,
+  User,
+  KeyRound
 } from 'lucide-react'
 import type { Link as LinkType } from '../types'
 import { v4 as uuidv4 } from 'uuid'
 import ConfirmDialog from './ConfirmDialog'
 
+// 预设分类
+const CATEGORIES = ['工作', '学习', '生活', '购物', '娱乐', '工具', '其他'] as const
+
+// 分类徽章配色
+const categoryColors: Record<string, string> = {
+  '工作': 'bg-blue-50 text-blue-500 border-blue-100',
+  '学习': 'bg-purple-50 text-purple-500 border-purple-100',
+  '生活': 'bg-green-50 text-green-500 border-green-100',
+  '购物': 'bg-pink-50 text-pink-500 border-pink-100',
+  '娱乐': 'bg-orange-50 text-orange-500 border-orange-100',
+  '工具': 'bg-teal-50 text-teal-500 border-teal-100',
+  '其他': 'bg-studio-100 text-studio-500 border-studio-200',
+}
+
 export default function LinkManager() {
   const [links, setLinks] = useState<LinkType[]>([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingLink, setEditingLink] = useState<LinkType | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<LinkType | null>(null)
@@ -23,7 +40,10 @@ export default function LinkManager() {
     title: '',
     url: '',
     description: '',
-    tags: ''
+    tags: '',
+    category: '',
+    account: '',
+    password_hint: ''
   })
 
   useEffect(() => {
@@ -59,13 +79,25 @@ export default function LinkManager() {
   const filteredLinks = links.filter(link => {
     const query = searchQuery.toLowerCase()
     const tagsStr = (link as any).tags || ''
-    return (
+    const accountStr = (link as any).account || ''
+    const categoryStr = (link as any).category || ''
+    const matchSearch = (
       link.title.toLowerCase().includes(query) ||
       link.url.toLowerCase().includes(query) ||
       (link.description && link.description.toLowerCase().includes(query)) ||
-      tagsStr.toLowerCase().includes(query)
+      tagsStr.toLowerCase().includes(query) ||
+      accountStr.toLowerCase().includes(query)
     )
+    const matchCategory = !categoryFilter || categoryStr === categoryFilter
+    return matchSearch && matchCategory
   })
+
+  // 统计各分类链接数（用于筛选栏）
+  const categoryCounts = links.reduce<Record<string, number>>((acc, link) => {
+    const c = (link as any).category || ''
+    if (c) acc[c] = (acc[c] || 0) + 1
+    return acc
+  }, {})
 
   const handleSave = async () => {
     if (!window.electronAPI || !formData.title || !formData.url) return
@@ -73,13 +105,13 @@ export default function LinkManager() {
     try {
       if (editingLink) {
         await window.electronAPI.db.query(
-          "UPDATE links SET title = ?, url = ?, description = ?, tags = ?, updated_at = datetime('now') WHERE id = ?",
-          [formData.title, formData.url, formData.description, formData.tags, editingLink.id]
+          "UPDATE links SET title = ?, url = ?, description = ?, tags = ?, category = ?, account = ?, password_hint = ?, updated_at = datetime('now') WHERE id = ?",
+          [formData.title, formData.url, formData.description, formData.tags, formData.category, formData.account, formData.password_hint, editingLink.id]
         )
       } else {
         await window.electronAPI.db.query(
-          "INSERT INTO links (id, title, url, description, tags, created_at, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
-          [uuidv4(), formData.title, formData.url, formData.description, formData.tags]
+          "INSERT INTO links (id, title, url, description, tags, category, account, password_hint, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
+          [uuidv4(), formData.title, formData.url, formData.description, formData.tags, formData.category, formData.account, formData.password_hint]
         )
       }
       
@@ -115,7 +147,10 @@ export default function LinkManager() {
       title: link.title,
       url: link.url,
       description: link.description || '',
-      tags: (link as any).tags || ''
+      tags: (link as any).tags || '',
+      category: (link as any).category || '',
+      account: (link as any).account || '',
+      password_hint: (link as any).password_hint || ''
     })
     setShowAddModal(true)
   }
@@ -123,7 +158,7 @@ export default function LinkManager() {
   const closeModal = () => {
     setShowAddModal(false)
     setEditingLink(null)
-    setFormData({ title: '', url: '', description: '', tags: '' })
+    setFormData({ title: '', url: '', description: '', tags: '', category: '', account: '', password_hint: '' })
   }
 
   const parseTags = (tagsStr: string): string[] => {
@@ -151,15 +186,42 @@ export default function LinkManager() {
       </div>
 
       {/* 搜索栏 */}
-      <div className="relative mb-6">
+      <div className="relative mb-4">
         <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-studio-400" />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="搜索链接..."
+          placeholder="搜索链接（标题、网址、账号、标签）..."
           className="w-full pl-12 pr-4 py-3 bg-white rounded-2xl border border-studio-200 focus:outline-none focus:border-caramel-400 focus:ring-2 focus:ring-caramel-100"
         />
+      </div>
+
+      {/* 分类筛选栏 */}
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <button
+          onClick={() => setCategoryFilter('')}
+          className={`px-3.5 py-1.5 rounded-full text-sm transition-colors ${
+            categoryFilter === ''
+              ? 'bg-caramel-400 text-white'
+              : 'bg-white border border-studio-200 text-studio-500 hover:border-caramel-300'
+          }`}
+        >
+          全部<span className="ml-1 opacity-70">{links.length}</span>
+        </button>
+        {CATEGORIES.filter(c => categoryCounts[c]).map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setCategoryFilter(categoryFilter === cat ? '' : cat)}
+            className={`px-3.5 py-1.5 rounded-full text-sm transition-colors ${
+              categoryFilter === cat
+                ? 'bg-caramel-400 text-white'
+                : 'bg-white border border-studio-200 text-studio-500 hover:border-caramel-300'
+            }`}
+          >
+            {cat}<span className="ml-1 opacity-70">{categoryCounts[cat]}</span>
+          </button>
+        ))}
       </div>
 
       {/* 链接列表 */}
@@ -180,7 +242,14 @@ export default function LinkManager() {
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-ink-100 text-lg mb-1">{link.title}</h3>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-medium text-ink-100 text-lg truncate">{link.title}</h3>
+                      {(link as any).category && (
+                        <span className={`px-2 py-0.5 rounded-lg text-xs border flex-shrink-0 ${categoryColors[(link as any).category] || categoryColors['其他']}`}>
+                          {(link as any).category}
+                        </span>
+                      )}
+                    </div>
                     <a
                       href="#"
                       onClick={(e) => {
@@ -195,6 +264,23 @@ export default function LinkManager() {
                       <p className="text-sm text-studio-500 mb-3 line-clamp-2">
                         {link.description}
                       </p>
+                    )}
+                    {/* 账号与密码提示 */}
+                    {((link as any).account || (link as any).password_hint) && (
+                      <div className="flex items-center gap-4 mb-3 text-xs text-studio-500">
+                        {(link as any).account && (
+                          <span className="flex items-center gap-1.5">
+                            <User size={13} className="text-studio-400" />
+                            {String((link as any).account)}
+                          </span>
+                        )}
+                        {(link as any).password_hint && (
+                          <span className="flex items-center gap-1.5" title="密码提示（仅提示，不存明文密码）">
+                            <KeyRound size={13} className="text-studio-400" />
+                            {String((link as any).password_hint)}
+                          </span>
+                        )}
+                      </div>
                     )}
                     {link.tags && (
                       <div className="flex flex-wrap gap-2">
@@ -286,6 +372,55 @@ export default function LinkManager() {
                 />
               </div>
               
+              <div>
+                <label className="block text-sm font-medium text-studio-500 mb-2">分类</label>
+                <div className="flex flex-wrap gap-2">
+                  {CATEGORIES.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, category: formData.category === cat ? '' : cat })}
+                      className={`px-3.5 py-1.5 rounded-full text-sm transition-colors ${
+                        formData.category === cat
+                          ? 'bg-caramel-400 text-white'
+                          : 'bg-studio-100 text-studio-500 hover:text-ink-100'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-studio-500 mb-2">账号（可选）</label>
+                  <div className="relative">
+                    <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-studio-400" />
+                    <input
+                      type="text"
+                      value={formData.account}
+                      onChange={(e) => setFormData({ ...formData, account: e.target.value })}
+                      placeholder="登录账号"
+                      className="input pl-9"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-studio-500 mb-2">密码提示（可选）</label>
+                  <div className="relative">
+                    <KeyRound size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-studio-400" />
+                    <input
+                      type="text"
+                      value={formData.password_hint}
+                      onChange={(e) => setFormData({ ...formData, password_hint: e.target.value })}
+                      placeholder="如：姓名拼音+生日"
+                      className="input pl-9"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-studio-500 mb-2">标签</label>
                 <input

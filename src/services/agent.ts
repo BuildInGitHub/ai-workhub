@@ -248,15 +248,18 @@ export function initBuiltinTools(
       { name: 'title', type: 'string', description: '链接标题', required: true },
       { name: 'url', type: 'string', description: '链接地址', required: true },
       { name: 'description', type: 'string', description: '链接描述', required: false },
-      { name: 'tags', type: 'string', description: '标签，逗号分隔', required: false }
+      { name: 'tags', type: 'string', description: '标签，逗号分隔', required: false },
+      { name: 'category', type: 'string', description: '分类: 工作/学习/生活/购物/娱乐/工具/其他', required: false },
+      { name: 'account', type: 'string', description: '关联账号', required: false },
+      { name: 'password_hint', type: 'string', description: '密码提示（只存提示，不存明文密码）', required: false }
     ],
     execute: async (params) => {
       const id = uuidv4()
       await dbQuery(
-        "INSERT INTO links (id, title, url, description, tags, created_at, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
-        [id, params.title, params.url, params.description || '', params.tags || '']
+        "INSERT INTO links (id, title, url, description, tags, category, account, password_hint, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
+        [id, params.title, params.url, params.description || '', params.tags || '', params.category || '', params.account || '', params.password_hint || '']
       )
-      return { id, title: params.title, url: params.url }
+      return { id, title: params.title, url: params.url, category: params.category || '' }
     }
   })
 

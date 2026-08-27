@@ -27,6 +27,9 @@ export interface Link {
   description?: string
   favicon?: string
   tags?: string
+  category?: string        // 分类：工作/学习/生活/购物/娱乐/工具/其他
+  account?: string         // 关联账号
+  password_hint?: string   // 密码提示（不存明文密码）
   created_at: string
   updated_at: string
 }
