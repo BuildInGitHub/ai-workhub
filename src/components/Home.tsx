@@ -144,7 +144,7 @@ export default function Home({ onAddTab, refreshKey }: HomeProps) {
     // AI 指令类
     { text: '试试告诉AI助手「帮我整理桌面」', type: 'ai' },
     { text: '让AI把常用应用加到快速启动，例如「把微信加到快速启动」', type: 'ai' },
-    { text: '给任务拆分子任务：「给AI出海添加子任务：Agent、SEO」', type: 'ai' },
+    { text: '给任务拆分子任务：「给X任务添加子任务：A、B」', type: 'ai' },
     { text: '让AI收集链接：「添加百度到链接收藏，分类工作」', type: 'ai' },
     { text: '创建带截止日期的任务：「下周五前完成周报」', type: 'ai' },
     { text: '让AI找文件：「查找最近的文档」', type: 'ai' },
