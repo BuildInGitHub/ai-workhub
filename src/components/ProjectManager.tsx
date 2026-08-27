@@ -30,6 +30,9 @@ export default function ProjectManager() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null)
+  const [pickerType, setPickerType] = useState<'link' | 'task' | null>(null)
+  const [availableLinks, setAvailableLinks] = useState<LinkType[]>([])
+  const [availableTasks, setAvailableTasks] = useState<Task[]>([])
   const [projectLinks, setProjectLinks] = useState<LinkType[]>([])
   const [projectTasks, setProjectTasks] = useState<Task[]>([])
   const [formData, setFormData] = useState({
@@ -66,30 +69,62 @@ export default function ProjectManager() {
     if (!window.electronAPI || !selectedProject) return
     
     try {
-      const linksResult = await window.electronAPI.db.query(
-        `SELECT l.* FROM links l 
-         JOIN project_items pi ON l.id = pi.item_id 
-         WHERE pi.project_id = ? AND pi.item_type = 'link'`,
+      // 加载关联关系（JSON 存储不支持 JOIN，客户端匹配）
+      const itemsResult = await window.electronAPI.db.query(
+        "SELECT * FROM project_items WHERE project_id = ?",
         [selectedProject.id]
       )
-      if (linksResult.data) {
-        setProjectLinks(linksResult.data)
-      }
+      const relations = itemsResult.data || []
+      
+      const linkIds = relations.filter((r: any) => r.item_type === 'link').map((r: any) => r.item_id)
+      const taskIds = relations.filter((r: any) => r.item_type === 'task').map((r: any) => r.item_id)
 
-      const tasksResult = await window.electronAPI.db.query(
-        `SELECT t.* FROM tasks t 
-         JOIN project_items pi ON t.id = pi.item_id 
-         WHERE pi.project_id = ? AND pi.item_type = 'task'`,
-        [selectedProject.id]
-      )
-      if (tasksResult.data) {
-        setProjectTasks(tasksResult.data.map((t: any) => ({
-          ...t,
-          completed: Boolean(t.completed)
-        })))
-      }
+      // 客户端关联
+      const linksResult = await window.electronAPI.db.query("SELECT * FROM links")
+      const tasksResult = await window.electronAPI.db.query("SELECT * FROM tasks")
+      
+      const allLinks = linksResult.data || []
+      const allTasks = (tasksResult.data || []).map((t: any) => ({ ...t, completed: Boolean(t.completed) }))
+      
+      setProjectLinks(allLinks.filter((l: any) => linkIds.includes(l.id)))
+      setProjectTasks(allTasks.filter((t: any) => taskIds.includes(t.id)))
     } catch (error) {
       console.error('加载项目内容失败:', error)
+    }
+  }
+
+  // 添加关联
+  const addProjectItem = async (itemType: 'link' | 'task', itemId: string) => {
+    if (!window.electronAPI || !selectedProject) return
+    try {
+      await window.electronAPI.db.query(
+        "INSERT INTO project_items (id, project_id, item_type, item_id, created_at) VALUES (?, ?, ?, ?, datetime('now'))",
+        [uuidv4(), selectedProject.id, itemType, itemId]
+      )
+      loadProjectItems()
+    } catch (error) {
+      console.error('添加关联失败:', error)
+    }
+  }
+
+  // 移除关联（不删除原链接/任务本身）
+  const removeProjectItem = async (itemType: 'link' | 'task', itemId: string) => {
+    if (!window.electronAPI || !selectedProject) return
+    try {
+      const relResult = await window.electronAPI.db.query(
+        "SELECT * FROM project_items WHERE project_id = ?",
+        [selectedProject.id]
+      )
+      const rel = (relResult.data || []).find((r: any) => r.item_type === itemType && r.item_id === itemId)
+      if (rel) {
+        await window.electronAPI.db.query(
+          "DELETE FROM project_items WHERE id = ?",
+          [rel.id]
+        )
+        loadProjectItems()
+      }
+    } catch (error) {
+      console.error('移除关联失败:', error)
     }
   }
 
@@ -126,6 +161,27 @@ export default function ProjectManager() {
       loadProjects()
     } catch (error) {
       console.error('删除项目失败:', error)
+    }
+  }
+
+  // 打开选择器：加载所有可选的链接/任务（排除已关联的）
+  const openPicker = async (type: 'link' | 'task') => {
+    if (!window.electronAPI) return
+    try {
+      if (type === 'link') {
+        const result = await window.electronAPI.db.query("SELECT * FROM links ORDER BY created_at DESC")
+        const all = result.data || []
+        const linkedIds = projectLinks.map(l => l.id)
+        setAvailableLinks(all.filter((l: any) => !linkedIds.includes(l.id)))
+      } else {
+        const result = await window.electronAPI.db.query("SELECT * FROM tasks ORDER BY created_at DESC")
+        const all = (result.data || []).map((t: any) => ({ ...t, completed: Boolean(t.completed) }))
+        const linkedIds = projectTasks.map(t => t.id)
+        setAvailableTasks(all.filter((t: any) => !linkedIds.includes(t.id)))
+      }
+      setPickerType(type)
+    } catch (error) {
+      console.error('加载可选列表失败:', error)
     }
   }
 
@@ -246,27 +302,46 @@ export default function ProjectManager() {
                     <Link size={18} className="text-green-500" />
                     关联链接
                   </h3>
-                  <span className="text-xs text-studio-400">{projectLinks.length}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-studio-400">{projectLinks.length}</span>
+                    <button
+                      onClick={() => openPicker('link')}
+                      className="p-1.5 rounded-lg bg-caramel-50 text-caramel-500 hover:bg-caramel-100 transition-colors"
+                      title="关联链接"
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
                 </div>
                 <div className="flex-1 overflow-y-auto space-y-2">
                   {projectLinks.length === 0 ? (
-                    <p className="text-studio-400 text-sm text-center py-6">暂无关联链接</p>
+                    <p className="text-studio-400 text-sm text-center py-6">暂无关联链接，点击 + 添加</p>
                   ) : (
                     projectLinks.map((link) => (
                       <div
                         key={link.id}
-                        className="p-3 bg-studio-50 rounded-xl flex items-center justify-between"
+                        className="group p-3 bg-studio-50 rounded-xl flex items-center justify-between"
                       >
                         <span className="text-sm text-ink-100 truncate">{link.title}</span>
-                        <button
-                          onClick={() => {
-                            const url = link.url.match(/^https?:\/\//i) ? link.url : 'https://' + link.url
-                            window.electronAPI?.shell.openExternal(url)
-                          }}
-                          className="p-1.5 text-studio-400 hover:text-green-500"
-                        >
-                          <Link size={14} />
-                        </button>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <button
+                            onClick={() => {
+                              const url = link.url.match(/^https?:\/\//i) ? link.url : 'https://' + link.url
+                              window.electronAPI?.shell.openExternal(url)
+                            }}
+                            className="p-1.5 text-studio-400 hover:text-green-500"
+                            title="打开链接"
+                          >
+                            <Link size={14} />
+                          </button>
+                          <button
+                            onClick={() => removeProjectItem('link', link.id)}
+                            className="p-1.5 text-studio-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="取消关联"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
                       </div>
                     ))
                   )}
@@ -280,16 +355,25 @@ export default function ProjectManager() {
                     <CheckSquare size={18} className="text-purple-500" />
                     关联任务
                   </h3>
-                  <span className="text-xs text-studio-400">{projectTasks.length}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-studio-400">{projectTasks.length}</span>
+                    <button
+                      onClick={() => openPicker('task')}
+                      className="p-1.5 rounded-lg bg-caramel-50 text-caramel-500 hover:bg-caramel-100 transition-colors"
+                      title="关联任务"
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
                 </div>
                 <div className="flex-1 overflow-y-auto space-y-2">
                   {projectTasks.length === 0 ? (
-                    <p className="text-studio-400 text-sm text-center py-6">暂无关联任务</p>
+                    <p className="text-studio-400 text-sm text-center py-6">暂无关联任务，点击 + 添加</p>
                   ) : (
                     projectTasks.map((task) => (
                       <div
                         key={task.id}
-                        className={`p-3 bg-studio-50 rounded-xl flex items-center gap-2 ${
+                        className={`group p-3 bg-studio-50 rounded-xl flex items-center gap-2 ${
                           task.completed ? 'opacity-50' : ''
                         }`}
                       >
@@ -299,9 +383,16 @@ export default function ProjectManager() {
                           disabled
                           className="w-4 h-4 rounded"
                         />
-                        <span className={`text-sm ${task.completed ? 'line-through' : ''}`}>
+                        <span className={`text-sm truncate flex-1 ${task.completed ? 'line-through' : ''}`}>
                           {task.title}
                         </span>
+                        <button
+                          onClick={() => removeProjectItem('task', task.id)}
+                          className="p-1.5 text-studio-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                          title="取消关联"
+                        >
+                          <X size={14} />
+                        </button>
                       </div>
                     ))
                   )}
@@ -379,6 +470,80 @@ export default function ProjectManager() {
           </div>
         </div>
       )}
+      {/* 关联选择器弹窗 */}
+      {pickerType && (
+        <div className="fixed inset-0 bg-ink-400/30 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-6 w-[440px] shadow-elevated animate-slideIn">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-display text-lg font-semibold">
+                关联{pickerType === 'link' ? '链接' : '任务'}到「{selectedProject?.name}」
+              </h3>
+              <button onClick={() => setPickerType(null)} className="p-2 hover:bg-studio-100 rounded-xl">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="max-h-[360px] overflow-y-auto space-y-2 mb-4">
+              {pickerType === 'link' ? (
+                availableLinks.length === 0 ? (
+                  <p className="text-studio-400 text-sm text-center py-8">
+                    没有可关联的链接
+                    <span className="block text-xs mt-1">先到「链接收藏」中添加链接</span>
+                  </p>
+                ) : (
+                  availableLinks.map((link) => (
+                    <button
+                      key={link.id}
+                      onClick={() => {
+                        addProjectItem('link', link.id)
+                        setPickerType(null)
+                      }}
+                      className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-caramel-50 transition-colors text-left group"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
+                        <Link size={14} className="text-green-500" />
+                      </div>
+                      <span className="text-sm text-ink-100 truncate flex-1">{link.title}</span>
+                      <Plus size={16} className="text-studio-300 group-hover:text-caramel-400 flex-shrink-0" />
+                    </button>
+                  ))
+                )
+              ) : (
+                availableTasks.length === 0 ? (
+                  <p className="text-studio-400 text-sm text-center py-8">
+                    没有可关联的任务
+                    <span className="block text-xs mt-1">先到「任务管理」中创建任务</span>
+                  </p>
+                ) : (
+                  availableTasks.map((task) => (
+                    <button
+                      key={task.id}
+                      onClick={() => {
+                        addProjectItem('task', task.id)
+                        setPickerType(null)
+                      }}
+                      className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-caramel-50 transition-colors text-left group"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
+                        <CheckSquare size={14} className="text-purple-500" />
+                      </div>
+                      <span className={`text-sm truncate flex-1 ${task.completed ? 'line-through text-studio-400' : 'text-ink-100'}`}>
+                        {task.title}
+                      </span>
+                      <Plus size={16} className="text-studio-300 group-hover:text-caramel-400 flex-shrink-0" />
+                    </button>
+                  ))
+                )
+              )}
+            </div>
+
+            <button onClick={() => setPickerType(null)} className="w-full btn btn-secondary">
+              取消
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 删除项目确认框 */}
       <ConfirmDialog
         isOpen={!!deleteTarget}

@@ -152,63 +152,58 @@ export function runQuery(sql: string, params?: any[]): any {
         const whereMatch = sqlLower.match(/where\s+(.+?)(?:\s+order|\s+limit|$)/)
         if (whereMatch) {
           const whereClause = whereMatch[1]
-          // 处理 AND 条件
           const conditions = whereClause.split(/\s+and\s+/i)
-          let paramIndex = 0
           
-          results = results.filter((item: any) => {
-            let match = true
-            for (const cond of conditions) {
-              if (cond.includes('like')) {
-                // LIKE 查询 (需要参数)
-                if (params && params.length > 0 && paramIndex < params.length) {
-                  const fieldMatch = cond.match(/(\w+)\s+like/)
-                  if (fieldMatch) {
-                    const field = fieldMatch[1]
-                    let pattern = params[paramIndex]?.toString() || ''
-                    const isStartsWith = pattern.startsWith('%')
-                    const isEndsWith = pattern.endsWith('%')
-                    pattern = pattern.replace(/%/g, '')
-                    const itemValue = item[field]?.toString().toLowerCase() || ''
-                    const searchValue = pattern.toLowerCase()
-                    if (isStartsWith && isEndsWith) {
-                      match = itemValue.includes(searchValue)
-                    } else if (isStartsWith) {
-                      match = itemValue.endsWith(searchValue)
-                    } else if (isEndsWith) {
-                      match = itemValue.startsWith(searchValue)
-                    } else {
-                      match = itemValue.includes(searchValue)
-                    }
-                    paramIndex++
-                  }
-                } else {
-                  match = false
-                }
-              } else if (cond.includes('=')) {
-                // 等于查询 - 支持 ? 占位符和字面量
-                const fieldMatch = cond.match(/(\w+)\s*=\s*\?/)
-                if (fieldMatch) {
-                  // 使用参数
-                  if (params && params.length > 0 && paramIndex < params.length) {
-                    const field = fieldMatch[1]
-                    match = item[field] === params[paramIndex]
-                    paramIndex++
-                  } else {
-                    match = false
-                  }
-                } else {
-                  // 字面量比较，如 WHERE completed = 1
-                  const literalMatch = cond.match(/(\w+)\s*=\s*(\d+)/)
-                  if (literalMatch) {
-                    const field = literalMatch[1]
-                    const value = parseInt(literalMatch[2])
-                    match = item[field] === value
-                  }
-                }
+          // 先解析所有条件并绑定参数（一次性，避免 filter 内重复消耗参数）
+          let paramIndex = 0
+          const parsedConditions = conditions.map(cond => {
+            if (cond.includes('like')) {
+              const fieldMatch = cond.match(/(\w+)\s+like/)
+              if (fieldMatch) {
+                const value = params?.[paramIndex]?.toString() || ''
+                paramIndex++
+                return { type: 'like' as const, field: fieldMatch[1], value }
+              }
+              return null
+            }
+            if (cond.includes('=')) {
+              // ? 占位符
+              const paramMatch = cond.match(/(\w+)\s*=\s*\?/)
+              if (paramMatch) {
+                const value = params?.[paramIndex]
+                paramIndex++
+                return { type: 'eq' as const, field: paramMatch[1], value }
+              }
+              // 数字字面量，如 completed = 1
+              const numMatch = cond.match(/(\w+)\s*=\s*(\d+)/)
+              if (numMatch) {
+                return { type: 'eq' as const, field: numMatch[1], value: parseInt(numMatch[2]) }
+              }
+              // 字符串字面量，如 key = 'xxx'（注意取原始大小写）
+              const strMatch = cond.match(/(\w+)\s*=\s*'([^']*)'/)
+              if (strMatch) {
+                return { type: 'eq' as const, field: strMatch[1], value: strMatch[2] }
               }
             }
-            return match
+            return null
+          }).filter(Boolean) as Array<{ type: 'eq' | 'like', field: string, value: any }>
+          
+          results = results.filter((item: any) => {
+            return parsedConditions.every(pc => {
+              if (pc.type === 'like') {
+                let pattern = pc.value || ''
+                const isStartsWith = pattern.startsWith('%')
+                const isEndsWith = pattern.endsWith('%')
+                pattern = pattern.replace(/%/g, '')
+                const itemValue = item[pc.field]?.toString().toLowerCase() || ''
+                const searchValue = pattern.toLowerCase()
+                if (isStartsWith && isEndsWith) return itemValue.includes(searchValue)
+                if (isStartsWith) return itemValue.endsWith(searchValue)
+                if (isEndsWith) return itemValue.startsWith(searchValue)
+                return itemValue.includes(searchValue)
+              }
+              return item[pc.field] === pc.value
+            })
           })
         }
         
