@@ -3,6 +3,8 @@ import {
   MessageSquare, 
   ChevronLeft, 
   ChevronRight, 
+  ChevronDown,
+  ChevronUp,
   Send, 
   Settings,
   Loader2,
@@ -91,6 +93,13 @@ function parseMessageContent(content: string): ReactNode[] {
   
   return parts.length > 0 ? parts : [content]
 }
+
+// 生成折叠时的摘要：去掉图标标记，取第一行前 40 字
+function getMessageSummary(content: string): string {
+  const clean = content.replace(/\[[A-Za-z0-9]+\]/g, '').replace(/\s+/g, ' ').trim()
+  const firstLine = clean.split('\n').find(l => l.trim()) || ''
+  return firstLine.length > 40 ? firstLine.slice(0, 40) + '…' : firstLine
+}
 import type { ChatMessage, Tab } from '../types'
 
 interface SidebarProps {
@@ -124,6 +133,12 @@ export default function Sidebar({
   const [showSettings, setShowSettings] = useState(false)
   const [tempApiKey, setTempApiKey] = useState(apiKey)
   const [backupInfo, setBackupInfo] = useState<string>('')
+  // AI 消息折叠状态：默认全部折叠（id 在集合中 = 折叠）
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => {
+    const s = new Set<string>()
+    messages.forEach(m => { if (m.role === 'assistant') s.add(m.id) })
+    return s
+  })
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -287,17 +302,42 @@ export default function Sidebar({
                   key={msg.id}
                   className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-slideIn`}
                 >
-                  <div 
-                    className={`max-w-[85%] p-4 rounded-2xl ${
-                      msg.role === 'user' 
-                        ? 'bg-gradient-to-br from-caramel-400 to-caramel-500 text-white' 
-                        : 'bg-white border border-studio-300 text-ink-100'
-                    }`}
-                  >
-                    <p className="text-sm whitespace-pre-wrap">
-                      {msg.role === 'user' ? msg.content : parseMessageContent(msg.content)}
-                    </p>
-                  </div>
+                  {msg.role === 'user' ? (
+                    <div className="max-w-[85%] p-4 rounded-2xl bg-gradient-to-br from-caramel-400 to-caramel-500 text-white">
+                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    </div>
+                  ) : (
+                    // AI 消息：可折叠/展开，默认折叠
+                    <div className="max-w-[85%] bg-white border border-studio-300 rounded-2xl overflow-hidden">
+                      <button
+                        onClick={() => {
+                          setCollapsedIds(prev => {
+                            const next = new Set(prev)
+                            if (next.has(msg.id)) next.delete(msg.id)
+                            else next.add(msg.id)
+                            return next
+                          })
+                        }}
+                        className="w-full flex items-center gap-2 px-4 py-3 hover:bg-studio-50 transition-colors text-left"
+                        title={collapsedIds.has(msg.id) ? '展开' : '折叠'}
+                      >
+                        <Sparkles size={14} className="text-caramel-400 flex-shrink-0" />
+                        <span className="flex-1 text-xs text-studio-500 truncate">
+                          {collapsedIds.has(msg.id)
+                            ? getMessageSummary(msg.content)
+                            : 'AI 回复'}
+                        </span>
+                        {collapsedIds.has(msg.id)
+                          ? <ChevronDown size={14} className="text-studio-400 flex-shrink-0" />
+                          : <ChevronUp size={14} className="text-studio-400 flex-shrink-0" />}
+                      </button>
+                      {!collapsedIds.has(msg.id) && (
+                        <div className="px-4 pb-3 text-ink-100">
+                          <p className="text-sm whitespace-pre-wrap">{parseMessageContent(msg.content)}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
               
