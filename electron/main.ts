@@ -159,6 +159,36 @@ app.whenReady().then(async () => {
   createWindow()
   createTray()
 
+  // 壁纸自检：若壁纸文件被意外移走（如整理桌面导致黑屏），自动找回恢复
+  try {
+    const wallpaperPath = await readWallpaperFromRegistry()
+    if (wallpaperPath && wallpaperPath.toLowerCase().includes('desktop')) {
+      const fs = await import('fs/promises')
+      try {
+        await fs.access(wallpaperPath)
+      } catch {
+        // 壁纸文件丢失，从桌面分类文件夹找回
+        const pathModule = await import('path')
+        const dir = pathModule.dirname(wallpaperPath)
+        const fileName = pathModule.basename(wallpaperPath)
+        for (const folder of ['图片', '其他', '视频', '文档']) {
+          const candidate = pathModule.join(dir, folder, fileName)
+          try {
+            await fs.access(candidate)
+            await fs.rename(candidate, wallpaperPath)
+            await applyWallpaper(wallpaperPath)
+            console.log('[Main] 壁纸已自动恢复:', wallpaperPath)
+            break
+          } catch {
+            // 继续查找下一个文件夹
+          }
+        }
+      }
+    }
+  } catch {
+    // 忽略壁纸自检失败
+  }
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
@@ -302,6 +332,101 @@ ipcMain.handle('shell:openExternal', async (_, url: string) => {
 // 获取用户主目录
 ipcMain.handle('os:homeDir', () => {
   return app.getPath('home')
+})
+
+// ===========================
+// 壁纸保护与恢复
+// ===========================
+
+// 读取注册表中的壁纸路径 (Windows: HKCU\Control Panel\Desktop\WallPaper)
+function readWallpaperFromRegistry(): Promise<string | null> {
+  return new Promise((resolve) => {
+    try {
+      const { exec } = require('child_process')
+      exec('reg query "HKCU\\Control Panel\\Desktop" /v WallPaper', { timeout: 5000 }, (err: any, stdout: string) => {
+        if (err) {
+          resolve(null)
+          return
+        }
+        const m = stdout.match(/WallPaper\s+REG_SZ\s+(.+)/)
+        resolve(m ? m[1].trim() : null)
+      })
+    } catch {
+      resolve(null)
+    }
+  })
+}
+
+// 通过 SystemParametersInfo 重新应用壁纸
+function applyWallpaper(imagePath: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    try {
+      const { exec } = require('child_process')
+      const cmd = `powershell -NoProfile -Command "Add-Type -TypeDefinition 'using System;using System.Runtime.InteropServices;public class W{[DllImport(\\\\"user32.dll\\\\",SetLastError=true)]public static extern bool SystemParametersInfo(int uAction,int uParam,string lpvParam,int fuWinIni);}'; [W]::SystemParametersInfo(20,0,'${imagePath.replace(/'/g, "''")}',3)"`
+      exec(cmd, { timeout: 8000 }, (err: any) => {
+        resolve(!err)
+      })
+    } catch {
+      resolve(false)
+    }
+  })
+}
+
+// 获取当前壁纸路径
+ipcMain.handle('system:getWallpaper', async () => {
+  return await readWallpaperFromRegistry()
+})
+
+// 恢复壁纸：若壁纸文件被移走，从桌面分类文件夹找回并重新应用
+ipcMain.handle('system:restoreWallpaper', async () => {
+  try {
+    const wallpaperPath = await readWallpaperFromRegistry()
+    if (!wallpaperPath) {
+      return { success: false, message: '无法读取壁纸设置' }
+    }
+
+    const fs = await import('fs/promises')
+    const pathModule = await import('path')
+
+    // 情况1: 壁纸文件还在，直接重新应用
+    try {
+      await fs.access(wallpaperPath)
+      const ok = await applyWallpaper(wallpaperPath)
+      return { success: ok, message: ok ? '壁纸已重新应用' : '壁纸文件存在，但应用失败', path: wallpaperPath }
+    } catch {
+      // 文件不存在，继续查找
+    }
+
+    // 情况2: 文件被移走了，在桌面分类文件夹中按文件名找回
+    const dir = pathModule.dirname(wallpaperPath)
+    const fileName = pathModule.basename(wallpaperPath)
+    const searchFolders = ['图片', '其他', '视频', '文档']
+    for (const folder of searchFolders) {
+      const candidate = pathModule.join(dir, folder, fileName)
+      try {
+        await fs.access(candidate)
+        // 找到了，移回原位
+        await fs.rename(candidate, wallpaperPath)
+        const ok = await applyWallpaper(wallpaperPath)
+        return {
+          success: ok,
+          message: ok
+            ? `已从「${folder}」文件夹找回壁纸文件并恢复`
+            : `壁纸文件已移回原位（${wallpaperPath}），请在桌面右键「个性化」重新设置`,
+          path: wallpaperPath
+        }
+      } catch {
+        // 该文件夹没有，继续
+      }
+    }
+
+    return {
+      success: false,
+      message: `壁纸文件「${fileName}」未找到，请在桌面右键「个性化」手动设置壁纸`
+    }
+  } catch (error: any) {
+    return { success: false, message: error.message }
+  }
 })
 
 // 获取桌面路径

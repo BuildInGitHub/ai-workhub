@@ -28,6 +28,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     desktopDir: () => ipcRenderer.invoke('os:desktopDir'),
     documentsDir: () => ipcRenderer.invoke('os:documentsDir'),
   },
+
+  // 壁纸保护
+  wallpaper: {
+    get: () => ipcRenderer.invoke('system:getWallpaper'),
+    restore: () => ipcRenderer.invoke('system:restoreWallpaper'),
+  },
   
   // Shell
   shell: {

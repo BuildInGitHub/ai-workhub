@@ -115,8 +115,37 @@ export function initBuiltinTools(
   fsReadDir: (path: string) => Promise<any>,
   fsReadFile: (path: string) => Promise<any>,
   osHomeDir: () => Promise<string>,
-  fsMoveFile?: (srcPath: string, destPath: string) => Promise<any>
+  fsMoveFile?: (srcPath: string, destPath: string) => Promise<any>,
+  getWallpaper?: () => Promise<string | null>
 ) {
+  // 受保护文件判定：壁纸、系统文件、快捷方式、隐藏文件一律不动
+  const getProtectedPaths = async (): Promise<Set<string>> => {
+    const protectedSet = new Set<string>()
+    try {
+      const wallpaper = await getWallpaper?.()
+      if (wallpaper) {
+        protectedSet.add(wallpaper.toLowerCase())
+      }
+    } catch {
+      // 读取失败不影响整理，只是少了壁纸保护
+    }
+    return protectedSet
+  }
+
+  const isProtectedFile = (file: any, wallpaperPaths: Set<string>): boolean => {
+    const name = (file.name || '').toLowerCase()
+    const filePath = (file.path || '').toLowerCase()
+    // 系统文件与配置
+    if (name === 'desktop.ini' || name === 'thumbs.db') return true
+    // 隐藏文件
+    if (name.startsWith('.')) return true
+    // 快捷方式（移动会破坏桌面应用入口）
+    if (name.endsWith('.lnk') || name.endsWith('.url')) return true
+    // 当前壁纸文件
+    if (wallpaperPaths.has(filePath)) return true
+    return false
+  }
+
   // 搜索任务
   registerTool({
     name: 'search_tasks',
@@ -378,6 +407,20 @@ export function initBuiltinTools(
     }
   })
 
+  // 恢复壁纸（壁纸被误动导致黑屏时使用）
+  registerTool({
+    name: 'restore_wallpaper',
+    description: '恢复桌面壁纸。当用户反馈壁纸变黑/丢失时使用，会自动从桌面分类文件夹找回壁纸文件并重新应用',
+    parameters: [],
+    execute: async () => {
+      const wallpaperApi = (globalThis as any).window?.electronAPI?.wallpaper
+      if (!wallpaperApi?.restore) {
+        return { error: '壁纸恢复功能不可用' }
+      }
+      return await wallpaperApi.restore()
+    }
+  })
+
   // 移除快速启动项
   registerTool({
     name: 'remove_quick_launch',
@@ -442,6 +485,13 @@ export function initBuiltinTools(
         if (!result || result.length === 0) {
           return { message: '桌面是空的，无需整理', suggestions: [] }
         }
+
+        // 受保护文件（壁纸/系统文件/快捷方式）不参与整理
+        const wallpaperPaths = await getProtectedPaths()
+        const allFiles = result.filter((f: any) => f.isFile)
+        const skipped = allFiles.filter((f: any) => isProtectedFile(f, wallpaperPaths))
+        const files = allFiles.filter((f: any) => !isProtectedFile(f, wallpaperPaths))
+        const folders = result.filter((f: any) => f.isDirectory)
         
         // 按类型分类
         const categories: Record<string, { name: string, files: string[], count: number }> = {
@@ -474,9 +524,6 @@ export function initBuiltinTools(
           '.exe': '安装包', '.msi': '安装包', '.dmg': '安装包', '.pkg': '安装包', '.deb': '安装包'
         }
         
-        const files = result.filter((f: any) => f.isFile)
-        const folders = result.filter((f: any) => f.isDirectory)
-        
         for (const file of files) {
           const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase()
           const category = extensions[ext] || '其他'
@@ -488,6 +535,7 @@ export function initBuiltinTools(
         const stats = {
           totalFiles: files.length,
           totalFolders: folders.length,
+          protectedFiles: skipped.length,
           categories: Object.values(categories).filter(c => c.count > 0)
         }
         
@@ -507,6 +555,7 @@ export function initBuiltinTools(
           stats,
           suggestions,
           message: suggestions.length > 0 ? '整理建议已生成' : '桌面很整洁'
+            + (skipped.length > 0 ? `（已保护 ${skipped.length} 个系统/壁纸/快捷方式文件不参与整理）` : '')
         }
       } catch (error: any) {
         return { error: error.message }
@@ -553,8 +602,17 @@ export function initBuiltinTools(
         
         const moved: string[] = []
         const errors: string[] = []
+        const skipped: string[] = []
         
-        const files = result.filter((f: any) => f.isFile)
+        // 受保护文件（壁纸/系统文件/快捷方式/隐藏文件）绝不移动
+        const wallpaperPaths = await getProtectedPaths()
+        const files = result.filter((f: any) => f.isFile && (() => {
+          if (isProtectedFile(f, wallpaperPaths)) {
+            skipped.push(f.name)
+            return false
+          }
+          return true
+        })())
         
         for (const file of files) {
           const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase()
@@ -578,8 +636,10 @@ export function initBuiltinTools(
         }
         
         return {
-          message: `已移动 ${moved.length} 个文件`,
+          message: `已移动 ${moved.length} 个文件`
+            + (skipped.length > 0 ? `，已保护 ${skipped.length} 个文件（壁纸/系统文件/快捷方式）` : ''),
           moved,
+          skipped: skipped.length > 0 ? skipped : undefined,
           errors: errors.length > 0 ? errors : undefined
         }
       } catch (error: any) {
@@ -891,6 +951,8 @@ ${toolsList.map(t => `- ${t.name}: ${t.description}`).join('\n')}
 14. 添加应用到快速启动的标准流程: 第一步 search_apps 搜索应用路径，第二步 add_quick_launch 添加(type="app"，path用搜索到的.lnk或.exe路径)
 15. 查看快速启动内容用 list_quick_launch；移除用 remove_quick_launch
 16. 添加网址到快速启动直接用 add_quick_launch(type="link")，无需搜索
+17. 整理桌面会自动保护壁纸、系统文件(desktop.ini)和快捷方式(.lnk)，这些文件不会被移动，无需额外处理
+18. 如果用户反馈壁纸变黑或丢失，立即调用 restore_wallpaper 工具恢复
 
 只返回JSON，不要其他内容。
 `

@@ -143,6 +143,10 @@ export interface ElectronAPI {
     desktopDir: () => Promise<string>
     documentsDir: () => Promise<string>
   }
+  wallpaper?: {
+    get: () => Promise<string | null>
+    restore: () => Promise<{ success: boolean; message: string; path?: string }>
+  }
   shell: {
     openExternal: (url: string) => Promise<void>
     openPath?: (path: string) => Promise<void>

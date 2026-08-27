@@ -60,7 +60,8 @@ function App() {
         window.electronAPI.fs.readDir.bind(window.electronAPI.fs),
         window.electronAPI.fs.readFile.bind(window.electronAPI.fs),
         window.electronAPI.os.homeDir.bind(window.electronAPI.os),
-        window.electronAPI.fs.moveFile ? window.electronAPI.fs.moveFile.bind(window.electronAPI.fs) : undefined
+        window.electronAPI.fs.moveFile ? window.electronAPI.fs.moveFile.bind(window.electronAPI.fs) : undefined,
+        window.electronAPI.wallpaper?.get ? window.electronAPI.wallpaper.get.bind(window.electronAPI.wallpaper) : undefined
       )
       setAgentTools(getTools())
     }
