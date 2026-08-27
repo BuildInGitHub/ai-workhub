@@ -47,5 +47,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
       console.log('[Preload] db:query called', sql.substring(0, 50), params)
       return ipcRenderer.invoke('db:query', sql, params)
     },
+    backupNow: () => ipcRenderer.invoke('db:backupNow'),
+    exportData: () => ipcRenderer.invoke('db:exportData'),
+    importData: () => ipcRenderer.invoke('db:importData'),
+    getBackupInfo: () => ipcRenderer.invoke('db:getBackupInfo'),
   },
 })

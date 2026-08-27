@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell, dialog } from 'electron'
 import path from 'path'
+import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { initDatabase, runQuery } from './database'
 
@@ -12,6 +13,129 @@ app.disableHardwareAcceleration()
 
 let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
+
+// ===========================
+// 数据备份管理
+// ===========================
+const BACKUP_KEEP_COUNT = 10
+
+function getDbPaths() {
+  const userDataPath = app.getPath('userData')
+  return {
+    dbPath: path.join(userDataPath, 'ai-workhub-data.json'),
+    backupDir: path.join(userDataPath, 'backups')
+  }
+}
+
+// 备份当前数据库到 backups 目录（保留最近 N 份）
+async function backupDatabase(): Promise<string | null> {
+  try {
+    const { dbPath, backupDir } = getDbPaths()
+    if (!fs.existsSync(dbPath)) return null
+    fs.mkdirSync(backupDir, { recursive: true })
+
+    const now = new Date()
+    const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`
+    const backupPath = path.join(backupDir, `ai-workhub-data-${stamp}.json`)
+    await fs.promises.copyFile(dbPath, backupPath)
+
+    // 清理旧备份，保留最近 N 份
+    const files = fs.readdirSync(backupDir)
+      .filter(f => f.startsWith('ai-workhub-data-') && f.endsWith('.json'))
+      .sort()
+    while (files.length > BACKUP_KEEP_COUNT) {
+      const oldest = files.shift()!
+      try { fs.unlinkSync(path.join(backupDir, oldest)) } catch { /* 忽略 */ }
+    }
+    return backupPath
+  } catch (error: any) {
+    console.error('[Main] 备份失败:', error.message)
+    return null
+  }
+}
+
+// 手动备份
+ipcMain.handle('db:backupNow', async () => {
+  const backupPath = await backupDatabase()
+  return backupPath
+    ? { success: true, message: `备份完成: ${path.basename(backupPath)}`, path: backupPath }
+    : { success: false, message: '备份失败' }
+})
+
+// 导出数据库
+ipcMain.handle('db:exportData', async () => {
+  try {
+    const { dbPath } = getDbPaths()
+    if (!fs.existsSync(dbPath)) return { success: false, message: '数据库文件不存在' }
+    const defaultName = `ai-workhub-export-${new Date().toISOString().slice(0,10)}.json`
+    const result = await dialog.showSaveDialog(mainWindow!, {
+      title: '导出数据',
+      defaultPath: path.join(app.getPath('documents'), defaultName),
+      filters: [{ name: 'JSON 数据文件', extensions: ['json'] }]
+    })
+    if (result.canceled || !result.filePath) return { success: false, message: '已取消导出' }
+    await fs.promises.copyFile(dbPath, result.filePath)
+    return { success: true, message: `已导出到 ${result.filePath}` }
+  } catch (error: any) {
+    return { success: false, message: `导出失败: ${error.message}` }
+  }
+})
+
+// 导入数据库（先备份现有数据再覆盖）
+ipcMain.handle('db:importData', async () => {
+  try {
+    const { dbPath } = getDbPaths()
+    const result = await dialog.showOpenDialog(mainWindow!, {
+      title: '导入数据（将覆盖当前数据）',
+      properties: ['openFile'],
+      filters: [{ name: 'JSON 数据文件', extensions: ['json'] }]
+    })
+    if (result.canceled || !result.filePaths[0]) return { success: false, message: '已取消导入' }
+
+    const importPath = result.filePaths[0]
+    // 校验 JSON 合法性
+    const content = fs.readFileSync(importPath, 'utf-8')
+    const parsed = JSON.parse(content)
+    if (!parsed || typeof parsed !== 'object') {
+      return { success: false, message: '文件不是有效的数据库备份' }
+    }
+
+    // 导入前自动备份现有数据
+    await backupDatabase()
+    await fs.promises.copyFile(importPath, dbPath)
+    // 重新初始化数据库（内存中重载新数据）
+    initDatabase()
+    return { success: true, message: '导入成功，数据已重新加载' }
+  } catch (error: any) {
+    return { success: false, message: `导入失败: ${error.message}` }
+  }
+})
+
+// 获取备份信息
+ipcMain.handle('db:getBackupInfo', async () => {
+  try {
+    const { dbPath, backupDir } = getDbPaths()
+    const dbSize = fs.existsSync(dbPath) ? fs.statSync(dbPath).size : 0
+    let backups: Array<{ name: string; size: number; time: string }> = []
+    if (fs.existsSync(backupDir)) {
+      backups = fs.readdirSync(backupDir)
+        .filter(f => f.endsWith('.json'))
+        .map(f => {
+          const s = fs.statSync(path.join(backupDir, f))
+          return { name: f, size: s.size, time: s.mtime.toISOString() }
+        })
+        .sort((a, b) => b.time.localeCompare(a.time))
+    }
+    return {
+      dbPath,
+      backupDir,
+      dbSize,
+      backups
+    }
+  } catch (error: any) {
+    return { error: error.message }
+  }
+})
 
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
 const isDev = !!VITE_DEV_SERVER_URL
@@ -153,6 +277,9 @@ process.on('unhandledRejection', (reason) => {
 })
 
 app.whenReady().then(async () => {
+  // 启动前自动备份上一份数据（保留最近10份）
+  await backupDatabase()
+  
   // 初始化数据库
   initDatabase()
   
@@ -211,6 +338,8 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   app.isQuitting = true
+  // 退出前备份（确保最新数据有存档）
+  backupDatabase()
 })
 
 // IPC 处理器

@@ -158,6 +158,15 @@ export interface ElectronAPI {
   }
   db: {
     query: (sql: string, params?: any[]) => Promise<{ data?: any; error?: string }>
+    backupNow?: () => Promise<{ success: boolean; message: string; path?: string }>
+    exportData?: () => Promise<{ success: boolean; message: string }>
+    importData?: () => Promise<{ success: boolean; message: string }>
+    getBackupInfo?: () => Promise<{
+      dbPath: string
+      backupDir: string
+      dbSize: number
+      backups: Array<{ name: string; size: number; time: string }>
+    }>
   }
 }
 

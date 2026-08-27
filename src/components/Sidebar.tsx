@@ -123,6 +123,7 @@ export default function Sidebar({
   const [input, setInput] = useState('')
   const [showSettings, setShowSettings] = useState(false)
   const [tempApiKey, setTempApiKey] = useState(apiKey)
+  const [backupInfo, setBackupInfo] = useState<string>('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -146,6 +147,30 @@ export default function Sidebar({
   const handleSaveSettings = () => {
     onSaveApiKey(tempApiKey)
     setShowSettings(false)
+  }
+
+  // 数据管理操作
+  const handleBackup = async () => {
+    const result = await window.electronAPI?.db.backupNow?.()
+    setBackupInfo(result?.message || '备份失败')
+    setTimeout(() => setBackupInfo(''), 4000)
+  }
+
+  const handleExport = async () => {
+    const result = await window.electronAPI?.db.exportData?.()
+    setBackupInfo(result?.message || '导出失败')
+    setTimeout(() => setBackupInfo(''), 4000)
+  }
+
+  const handleImport = async () => {
+    if (!confirm('导入将覆盖当前全部数据（导入前会自动备份现有数据）。确定继续吗？')) return
+    const result = await window.electronAPI?.db.importData?.()
+    setBackupInfo(result?.message || '导入失败')
+    if (result?.success) {
+      setTimeout(() => window.location.reload(), 800)
+    } else {
+      setTimeout(() => setBackupInfo(''), 4000)
+    }
   }
 
   // 快捷提示
@@ -381,6 +406,39 @@ export default function Sidebar({
               >
                 保存设置
               </button>
+
+              {/* 数据管理 */}
+              <div className="pt-4 mt-2 border-t border-studio-100">
+                <p className="text-sm font-medium text-studio-500 mb-3">数据管理</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleBackup}
+                    className="flex-1 py-2 rounded-xl text-xs font-medium bg-studio-100 text-studio-600 hover:bg-studio-200 transition-colors"
+                  >
+                    立即备份
+                  </button>
+                  <button
+                    onClick={handleExport}
+                    className="flex-1 py-2 rounded-xl text-xs font-medium bg-studio-100 text-studio-600 hover:bg-studio-200 transition-colors"
+                  >
+                    导出数据
+                  </button>
+                  <button
+                    onClick={handleImport}
+                    className="flex-1 py-2 rounded-xl text-xs font-medium bg-studio-100 text-studio-600 hover:bg-studio-200 transition-colors"
+                  >
+                    导入数据
+                  </button>
+                </div>
+                <p className="text-xs text-studio-400 mt-3 leading-relaxed">
+                  启动和退出时自动备份，保留最近10份
+                  <br />
+                  备份目录: %APPDATA%\ai-workhub\backups
+                </p>
+                {backupInfo && (
+                  <p className="text-xs text-caramel-500 mt-2">{backupInfo}</p>
+                )}
+              </div>
             </div>
           </div>
         </div>
