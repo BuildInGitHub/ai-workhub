@@ -110,6 +110,48 @@ declare module 'electron' {
   }
 }
 
+// ===========================
+// 全局错误防护（防止系统错误弹窗）
+// ===========================
+
+// 1. 处理 stdout/stderr 的 EPIPE 错误（start.bat 启动时控制台关闭导致管道破裂）
+if (process.stdout) {
+  process.stdout.on('error', (err: any) => {
+    if (err.code === 'EPIPE') return
+    throw err
+  })
+}
+if (process.stderr) {
+  process.stderr.on('error', (err: any) => {
+    if (err.code === 'EPIPE') return
+    throw err
+  })
+}
+
+// 2. 捕获未处理异常，阻止 Electron 默认错误弹窗
+process.on('uncaughtException', (error) => {
+  try {
+    console.error('[Main] Uncaught exception:', error.message || error)
+  } catch {
+    // 连 console 都失败时静默忽略（如 EPIPE）
+  }
+  // EPIPE / 管道类错误直接忽略，不影响应用运行
+  const code = (error as any)?.code
+  if (code === 'EPIPE' || code === 'ERR_STREAM_DESTROYED' || code === 'ERR_STREAM_WRITE_AFTER_END') {
+    return
+  }
+  // 其他严重错误只记录日志，仍然不弹窗，避免影响用户
+})
+
+// 3. 捕获未处理的 Promise 拒绝
+process.on('unhandledRejection', (reason) => {
+  try {
+    console.error('[Main] Unhandled rejection:', reason)
+  } catch {
+    // 忽略
+  }
+})
+
 app.whenReady().then(async () => {
   // 初始化数据库
   initDatabase()
@@ -122,6 +164,13 @@ app.whenReady().then(async () => {
       createWindow()
     }
   })
+}).catch((error) => {
+  // 初始化失败时不弹系统错误窗，仅记录日志
+  try {
+    console.error('[Main] Startup error:', error)
+  } catch {
+    // 忽略
+  }
 })
 
 app.on('window-all-closed', () => {
