@@ -51,7 +51,9 @@ export interface Task {
   description?: string
   completed: boolean
   priority: 'low' | 'medium' | 'high'
-  due_date?: string
+  due_date?: string | null
+  parent_id?: string | null        // 父任务ID（两级结构）
+  status?: 'todo' | 'doing' | 'done' // 看板状态
   created_at: string
   updated_at: string
 }

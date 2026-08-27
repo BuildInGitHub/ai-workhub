@@ -9,11 +9,17 @@ import {
   Calendar,
   Search,
   Filter,
-  TrendingUp
+  TrendingUp,
+  ChevronRight,
+  ChevronDown,
+  ListTodo,
+  GitBranch,
+  Kanban
 } from 'lucide-react'
 import type { Task } from '../types'
 import { v4 as uuidv4 } from 'uuid'
 import ConfirmDialog from './ConfirmDialog'
+import TaskKanban from './TaskKanban'
 
 export default function TaskManager() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -22,11 +28,15 @@ export default function TaskManager() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null)
+  const [kanbanTask, setKanbanTask] = useState<Task | null>(null)
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     priority: 'medium' as 'low' | 'medium' | 'high',
-    due_date: ''
+    due_date: '',
+    parent_id: '',
+    status: 'todo' as 'todo' | 'doing' | 'done'
   })
 
   useEffect(() => {
@@ -49,12 +59,13 @@ export default function TaskManager() {
     if (!window.electronAPI) return
     try {
       const result = await window.electronAPI.db.query(
-        "SELECT * FROM tasks ORDER BY completed ASC, created_at DESC"
+        "SELECT * FROM tasks ORDER BY created_at ASC"
       )
       if (result.data) {
         setTasks(result.data.map((t: any) => ({
           ...t,
-          completed: Boolean(t.completed)
+          completed: Boolean(t.completed),
+          status: t.status || (t.completed ? 'done' : 'todo')
         })))
       }
     } catch (error) {
@@ -62,13 +73,26 @@ export default function TaskManager() {
     }
   }
 
-  const filteredTasks = tasks.filter(task => {
-    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (task.description && task.description.toLowerCase().includes(searchQuery.toLowerCase()))
-    
-    if (filter === 'active') return matchesSearch && !task.completed
-    if (filter === 'completed') return matchesSearch && task.completed
-    return matchesSearch
+  // 一级任务与子任务分组
+  const parentTasks = tasks.filter(t => !t.parent_id)
+  const getSubtasks = (parentId: string) => tasks.filter(t => t.parent_id === parentId)
+
+  // 搜索过滤：一级任务匹配，或任一子任务匹配
+  const matchesQuery = (task: Task): boolean => {
+    const q = searchQuery.toLowerCase()
+    return task.title.toLowerCase().includes(q) ||
+      !!(task.description && task.description.toLowerCase().includes(q))
+  }
+
+  const filteredParents = parentTasks.filter(parent => {
+    const subs = getSubtasks(parent.id)
+    const matchParent = matchesQuery(parent)
+    const matchSub = subs.some(matchesQuery)
+    if (!matchParent && !matchSub) return false
+    // 状态过滤
+    if (filter === 'active') return !parent.completed || subs.some(s => !s.completed)
+    if (filter === 'completed') return parent.completed || subs.some(s => s.completed)
+    return true
   })
 
   const stats = {
@@ -77,12 +101,18 @@ export default function TaskManager() {
     completed: tasks.filter(t => t.completed).length
   }
 
+  const getStatus = (t: Task): 'todo' | 'doing' | 'done' => {
+    return t.status || (t.completed ? 'done' : 'todo')
+  }
+
+  // 切换完成状态（同时更新看板状态）
   const toggleComplete = async (task: Task) => {
     if (!window.electronAPI) return
+    const newDone = !task.completed
     try {
       await window.electronAPI.db.query(
-        "UPDATE tasks SET completed = ?, updated_at = datetime('now') WHERE id = ?",
-        [task.completed ? 0 : 1, task.id]
+        "UPDATE tasks SET completed = ?, status = ?, updated_at = datetime('now') WHERE id = ?",
+        [newDone ? 1 : 0, newDone ? 'done' : 'todo', task.id]
       )
       loadTasks()
     } catch (error) {
@@ -91,40 +121,35 @@ export default function TaskManager() {
   }
 
   const handleSave = async () => {
-    console.log('[TaskManager] handleSave called, formData:', formData)
-    console.log('[TaskManager] window.electronAPI:', window.electronAPI)
-    
-    if (!window.electronAPI) {
-      console.error('[TaskManager] electronAPI not available')
-      return
-    }
-    
-    if (!formData.title) {
-      console.warn('[TaskManager] title is empty')
-      return
-    }
+    if (!window.electronAPI || !formData.title) return
     
     try {
-      const taskId = uuidv4()
-      const sql = "INSERT INTO tasks (id, title, description, priority, due_date, completed, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, datetime('now'), datetime('now'))"
-      const params = [taskId, formData.title, formData.description, formData.priority, formData.due_date || null]
-      console.log('[TaskManager] Executing SQL:', sql)
-      console.log('[TaskManager] Params:', params)
+      const completed = formData.status === 'done' ? 1 : 0
+      if (editingTask) {
+        await window.electronAPI.db.query(
+          "UPDATE tasks SET title = ?, description = ?, priority = ?, due_date = ?, status = ?, completed = ?, updated_at = datetime('now') WHERE id = ?",
+          [formData.title, formData.description, formData.priority, formData.due_date || null, formData.status, completed, editingTask.id]
+        )
+      } else {
+        const parentId = formData.parent_id || null
+        await window.electronAPI.db.query(
+          "INSERT INTO tasks (id, title, description, priority, due_date, completed, status, parent_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
+          [uuidv4(), formData.title, formData.description, formData.priority, formData.due_date || null, completed, formData.status, parentId]
+        )
+      }
       
-      const result = await window.electronAPI.db.query(sql, params)
-      console.log('[TaskManager] Result:', result)
-      
-      // 重新加载任务列表
-      await loadTasks()
+      loadTasks()
       closeModal()
     } catch (error) {
       console.error('保存任务失败:', error)
     }
   }
 
+  // 删除任务（级联删除子任务）
   const handleDelete = async (id: string) => {
     if (!window.electronAPI) return
     try {
+      await window.electronAPI.db.query("DELETE FROM tasks WHERE parent_id = ?", [id])
       await window.electronAPI.db.query("DELETE FROM tasks WHERE id = ?", [id])
       loadTasks()
     } catch (error) {
@@ -138,27 +163,57 @@ export default function TaskManager() {
       title: task.title,
       description: task.description || '',
       priority: task.priority,
-      due_date: task.due_date || ''
+      due_date: task.due_date || '',
+      parent_id: task.parent_id || '',
+      status: getStatus(task)
     })
+    setShowAddModal(true)
+  }
+
+  // 为指定父任务添加子任务
+  const openAddSubtask = (parentId: string) => {
+    setEditingTask(null)
+    setFormData({ title: '', description: '', priority: 'medium', due_date: '', parent_id: parentId, status: 'todo' })
     setShowAddModal(true)
   }
 
   const closeModal = () => {
     setShowAddModal(false)
     setEditingTask(null)
-    setFormData({ title: '', description: '', priority: 'medium', due_date: '' })
+    setFormData({ title: '', description: '', priority: 'medium', due_date: '', parent_id: '', status: 'todo' })
   }
 
-  const priorityColors = {
+  const toggleExpand = (id: string) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const priorityColors: Record<string, string> = {
     low: 'bg-green-100 text-green-600',
     medium: 'bg-yellow-100 text-yellow-600',
     high: 'bg-red-100 text-red-600'
   }
 
-  const priorityBgColors = {
+  const priorityBgColors: Record<string, string> = {
     low: 'from-green-400 to-green-500',
     medium: 'from-yellow-400 to-yellow-500',
     high: 'from-red-400 to-red-500'
+  }
+
+  const statusLabels: Record<string, string> = {
+    todo: '待办',
+    doing: '进行中',
+    done: '已完成'
+  }
+
+  const statusColors: Record<string, string> = {
+    todo: 'text-studio-400',
+    doing: 'text-caramel-500',
+    done: 'text-green-500'
   }
 
   return (
@@ -172,7 +227,7 @@ export default function TaskManager() {
           任务管理
         </h2>
         <button
-          onClick={() => setShowAddModal(true)}
+          onClick={() => { setEditingTask(null); setShowAddModal(true) }}
           className="btn btn-primary flex items-center gap-2"
         >
           <Plus size={18} />
@@ -225,7 +280,7 @@ export default function TaskManager() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="搜索任务..."
+            placeholder="搜索任务（一级任务或子任务）..."
             className="w-full pl-12 pr-4 py-3 bg-white rounded-2xl border border-studio-200 focus:outline-none focus:border-caramel-400 focus:ring-2 focus:ring-caramel-100"
           />
         </div>
@@ -246,9 +301,9 @@ export default function TaskManager() {
         </div>
       </div>
 
-      {/* 任务列表 */}
+      {/* 任务列表（两级） */}
       <div className="flex-1 overflow-y-auto">
-        {filteredTasks.length === 0 ? (
+        {filteredParents.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-studio-400">
             <div className="w-20 h-20 rounded-2xl bg-studio-100 flex items-center justify-center mb-4">
               <CheckSquare size={40} className="text-studio-300" />
@@ -257,56 +312,152 @@ export default function TaskManager() {
           </div>
         ) : (
           <div className="space-y-3">
-            {filteredTasks.map((task) => (
-              <div
-                key={task.id}
-                className={`bg-white rounded-2xl p-5 transition-all hover:shadow-medium border border-studio-200 ${
-                  task.completed ? 'opacity-60' : ''
-                }`}
-              >
-                <div className="flex items-start gap-4">
-                  <input
-                    type="checkbox"
-                    checked={task.completed}
-                    onChange={() => toggleComplete(task)}
-                    className="mt-1 w-6 h-6 rounded-lg border-2 border-studio-300 text-caramel-400 focus:ring-caramel-200"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-1">
-                      <h3 className={`font-medium text-lg ${task.completed ? 'line-through text-studio-400' : 'text-ink-100'}`}>
-                        {task.title}
-                      </h3>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${priorityColors[task.priority]}`}>
-                        {task.priority === 'low' ? '低' : task.priority === 'medium' ? '中' : '高'}
-                      </span>
+            {filteredParents.map((task) => {
+              const subtasks = getSubtasks(task.id)
+              const doneCount = subtasks.filter(s => s.completed).length
+              const isExpanded = expandedIds.has(task.id)
+              const progress = subtasks.length > 0 ? Math.round(doneCount / subtasks.length * 100) : (task.completed ? 100 : 0)
+              return (
+                <div
+                  key={task.id}
+                  className={`bg-white rounded-2xl transition-all border border-studio-200 ${task.completed ? 'opacity-70' : ''} hover:shadow-medium`}
+                >
+                  {/* 一级任务行 */}
+                  <div className="flex items-start gap-4 p-5">
+                    <input
+                      type="checkbox"
+                      checked={task.completed}
+                      onChange={() => toggleComplete(task)}
+                      className="mt-1 w-6 h-6 rounded-lg border-2 border-studio-300 text-caramel-400 focus:ring-caramel-200"
+                    />
+                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setKanbanTask(task)} title="点击进入定制看板">
+                      <div className="flex items-center gap-3 mb-1">
+                        <h3 className={`font-medium text-lg ${task.completed ? 'line-through text-studio-400' : 'text-ink-100'}`}>
+                          {task.title}
+                        </h3>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${priorityColors[task.priority]}`}>
+                          {task.priority === 'low' ? '低' : task.priority === 'medium' ? '中' : '高'}
+                        </span>
+                        <span className={`text-xs flex items-center gap-1 ${statusColors[getStatus(task)]}`}>
+                          {statusLabels[getStatus(task)]}
+                        </span>
+                        {subtasks.length > 0 && (
+                          <span className="px-2 py-0.5 rounded-lg bg-studio-100 text-xs text-studio-500">
+                            {doneCount}/{subtasks.length} 子任务
+                          </span>
+                        )}
+                      </div>
+                      {task.description && (
+                        <p className="text-sm text-studio-500 mb-2 line-clamp-2">{task.description}</p>
+                      )}
+                      {task.due_date && (
+                        <p className="text-xs text-studio-400 flex items-center gap-1">
+                          <Calendar size={12} />
+                          截止: {task.due_date}
+                        </p>
+                      )}
+                      {/* 子任务进度条 */}
+                      {subtasks.length > 0 && (
+                        <div className="mt-3 flex items-center gap-3">
+                          <div className="flex-1 h-1.5 bg-studio-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-caramel-400 to-caramel-500 rounded-full transition-all duration-300"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-studio-400">{progress}%</span>
+                        </div>
+                      )}
                     </div>
-                    {task.description && (
-                      <p className="text-sm text-studio-500 mb-2">{task.description}</p>
-                    )}
-                    {task.due_date && (
-                      <p className="text-xs text-studio-400 flex items-center gap-1">
-                        <Calendar size={12} />
-                        截止: {task.due_date}
-                      </p>
-                    )}
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setKanbanTask(task)}
+                        className="p-2.5 rounded-xl hover:bg-studio-100 text-studio-400 hover:text-caramel-400"
+                        title="打开定制看板"
+                      >
+                        <Kanban size={18} />
+                      </button>
+                      <button
+                        onClick={() => openAddSubtask(task.id)}
+                        className="p-2.5 rounded-xl hover:bg-studio-100 text-studio-400 hover:text-green-500"
+                        title="添加子任务"
+                      >
+                        <GitBranch size={18} />
+                      </button>
+                      <button
+                        onClick={() => openEditModal(task)}
+                        className="p-2.5 rounded-xl hover:bg-studio-100 text-studio-400 hover:text-caramel-400"
+                      >
+                        <Edit size={18} />
+                      </button>
+                      <button
+                        onClick={() => setDeleteTarget(task)}
+                        className="p-2.5 rounded-xl hover:bg-studio-100 text-studio-400 hover:text-red-500"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                      {subtasks.length > 0 && (
+                        <button
+                          onClick={() => toggleExpand(task.id)}
+                          className="p-2.5 rounded-xl hover:bg-studio-100 text-studio-400"
+                          title={isExpanded ? '收起子任务' : '展开子任务'}
+                        >
+                          {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => openEditModal(task)}
-                      className="p-2.5 rounded-xl hover:bg-studio-100 text-studio-400 hover:text-caramel-400"
-                    >
-                      <Edit size={18} />
-                    </button>
-                    <button
-                      onClick={() => setDeleteTarget(task)}
-                      className="p-2.5 rounded-xl hover:bg-studio-100 text-studio-400 hover:text-red-500"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
+
+                  {/* 二级子任务 */}
+                  {isExpanded && subtasks.length > 0 && (
+                    <div className="px-5 pb-5 pl-16 space-y-2">
+                      {subtasks.map((sub) => (
+                        <div
+                          key={sub.id}
+                          className={`group flex items-start gap-3 p-3 rounded-xl bg-studio-50 border border-studio-100 ${
+                            sub.completed ? 'opacity-60' : ''
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={sub.completed}
+                            onChange={() => toggleComplete(sub)}
+                            className="mt-0.5 w-5 h-5 rounded-lg border-2 border-studio-300 text-caramel-400 focus:ring-caramel-200"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className={`text-sm ${sub.completed ? 'line-through text-studio-400' : 'text-ink-100'}`}>
+                                {sub.title}
+                              </p>
+                              <span className={`px-1.5 py-0.5 rounded-md text-xs ${priorityColors[sub.priority]}`}>
+                                {sub.priority === 'low' ? '低' : sub.priority === 'medium' ? '中' : '高'}
+                              </span>
+                            </div>
+                            {sub.due_date && (
+                              <p className="text-xs text-studio-400 mt-0.5">截止: {sub.due_date}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => openEditModal(sub)}
+                              className="p-1.5 rounded-lg hover:bg-white text-studio-400 hover:text-caramel-400"
+                            >
+                              <Edit size={14} />
+                            </button>
+                            <button
+                              onClick={() => setDeleteTarget(sub)}
+                              className="p-1.5 rounded-lg hover:bg-red-50 text-studio-400 hover:text-red-500"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
@@ -317,7 +468,7 @@ export default function TaskManager() {
           <div className="bg-white rounded-2xl p-6 w-[480px] shadow-elevated animate-slideIn">
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-display text-lg font-semibold">
-                {editingTask ? '编辑任务' : '新建任务'}
+                {editingTask ? '编辑任务' : formData.parent_id ? '添加子任务' : '新建任务'}
               </h3>
               <button onClick={closeModal} className="p-2 hover:bg-studio-100 rounded-xl">
                 <X size={20} />
@@ -335,66 +486,117 @@ export default function TaskManager() {
                   className="input"
                 />
               </div>
-              
+
+              {!editingTask && (
+                <div>
+                  <label className="block text-sm font-medium text-studio-500 mb-2">父任务（可选，作为子任务）</label>
+                  <select
+                    value={formData.parent_id}
+                    onChange={(e) => setFormData({ ...formData, parent_id: e.target.value })}
+                    className="input"
+                  >
+                    <option value="">无（一级任务）</option>
+                    {parentTasks.map((t) => (
+                      <option key={t.id} value={t.id}>{t.title}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-studio-500 mb-2">状态</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['todo', 'doing', 'done'] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, status: s })}
+                      className={`py-2.5 rounded-xl text-sm transition-colors ${
+                        formData.status === s
+                          ? 'bg-caramel-400 text-white'
+                          : 'bg-studio-100 text-studio-500 hover:text-ink-100'
+                      }`}
+                    >
+                      {statusLabels[s]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-studio-500 mb-2">描述</label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="输入任务描述（可选）"
-                  rows={3}
+                  rows={2}
                   className="input resize-none"
                 />
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-studio-500 mb-2">优先级</label>
-                <div className="flex gap-2">
-                  {(['low', 'medium', 'high'] as const).map((p) => (
-                    <button
-                      key={p}
-                      onClick={() => setFormData({ ...formData, priority: p })}
-                      className={`flex-1 py-3 rounded-xl text-sm font-medium transition-colors ${
-                        formData.priority === p 
-                          ? `bg-gradient-to-r ${priorityBgColors[p]} text-white` 
-                          : 'bg-studio-100 text-studio-500 hover:text-ink-100'
-                      }`}
-                    >
-                      {p === 'low' ? '🟢 低' : p === 'medium' ? '🟡 中' : '🔴 高'}
-                    </button>
-                  ))}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-studio-500 mb-2">优先级</label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {(['low', 'medium', 'high'] as const).map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, priority: p })}
+                        className={`py-2 rounded-lg text-sm transition-colors ${
+                          formData.priority === p
+                            ? `bg-gradient-to-br ${priorityBgColors[p]} text-white`
+                            : 'bg-studio-100 text-studio-500'
+                        }`}
+                      >
+                        {p === 'low' ? '低' : p === 'medium' ? '中' : '高'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-studio-500 mb-2">截止日期</label>
+                  <input
+                    type="date"
+                    value={formData.due_date}
+                    onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                    className="input"
+                  />
                 </div>
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-studio-500 mb-2">截止日期</label>
-                <input
-                  type="date"
-                  value={formData.due_date}
-                  onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                  className="input"
-                />
-              </div>
-              
               <button onClick={handleSave} className="w-full btn btn-primary mt-2">
-                {editingTask ? '保存修改' : '创建任务'}
+                {editingTask ? '保存修改' : formData.parent_id ? '添加子任务' : '新建任务'}
               </button>
             </div>
           </div>
         </div>
       )}
-      {/* 删除任务确认框 */}
+
+      {/* 删除确认框 */}
       <ConfirmDialog
         isOpen={!!deleteTarget}
         title="删除任务"
-        message="删除后该任务将无法恢复，确定要删除吗？"
+        message={deleteTarget?.parent_id
+          ? "删除后该子任务将无法恢复，确定要删除吗？"
+          : "删除后将同时删除其所有子任务，且无法恢复。确定要删除吗？"}
         itemName={deleteTarget?.title}
+        confirmText="删除"
         onConfirm={() => {
           if (deleteTarget) handleDelete(deleteTarget.id)
           setDeleteTarget(null)
         }}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      {/* 定制看板 */}
+      {kanbanTask && (
+        <TaskKanban
+          parentTask={kanbanTask}
+          onClose={() => setKanbanTask(null)}
+          onChanged={loadTasks}
+        />
+      )}
     </div>
   )
 }
