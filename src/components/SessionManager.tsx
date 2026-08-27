@@ -3,14 +3,12 @@ import {
   MessageSquare, 
   Plus, 
   Trash2, 
-  Edit,
   X,
-  FolderOpen,
-  ChevronRight,
   Sparkles,
   Clock
 } from 'lucide-react'
 import { v4 as uuidv4 } from 'uuid'
+import ConfirmDialog from './ConfirmDialog'
 
 interface Session {
   id: string
@@ -35,7 +33,7 @@ export default function SessionManager({
   const [sessions, setSessions] = useState<Session[]>([])
   const [showNewModal, setShowNewModal] = useState(false)
   const [newTitle, setNewTitle] = useState('')
-  const [isExpanded, setIsExpanded] = useState(true)
+  const [deleteTarget, setDeleteTarget] = useState<Session | null>(null)
 
   useEffect(() => {
     loadSessions()
@@ -77,10 +75,6 @@ export default function SessionManager({
 
   const deleteSession = async (id: string) => {
     if (!window.electronAPI) return
-    if (sessions.length <= 1) {
-      alert('至少保留一个会话')
-      return
-    }
     try {
       // 同时删除该会话的所有聊天记录
       await window.electronAPI.db.query(
@@ -93,11 +87,14 @@ export default function SessionManager({
       )
       loadSessions()
       
-      // 如果删除的是当前会话，切换到第一个
-      if (id === currentSessionId && sessions.length > 1) {
+      if (id === currentSessionId) {
         const remaining = sessions.filter(s => s.id !== id)
         if (remaining.length > 0) {
+          // 切换到剩余的第一个会话
           onSessionSelect(remaining[0].id)
+        } else {
+          // 删完了，新建一个空会话
+          onNewChat()
         }
       }
     } catch (error) {
@@ -199,9 +196,7 @@ export default function SessionManager({
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      if (confirm('确定删除这个会话吗？')) {
-                        deleteSession(session.id)
-                      }
+                      setDeleteTarget(session)
                     }}
                     className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-50 text-studio-400 hover:text-red-500 transition-all"
                   >
@@ -252,6 +247,19 @@ export default function SessionManager({
           </div>
         </div>
       )}
+      {/* 删除会话确认框 */}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        title="删除会话"
+        message="删除后将同时清除该会话的全部聊天记录，且无法恢复。确定要删除吗？"
+        itemName={deleteTarget?.title}
+        confirmText="删除会话"
+        onConfirm={() => {
+          if (deleteTarget) deleteSession(deleteTarget.id)
+          setDeleteTarget(null)
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </>
   )
 }

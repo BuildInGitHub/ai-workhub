@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import type { QuickLaunchItem } from '../types'
 import { v4 as uuidv4 } from 'uuid'
+import ConfirmDialog from './ConfirmDialog'
 
 const typeIcons = {
   file: <File size={24} />,
@@ -40,6 +41,7 @@ export default function QuickLaunch() {
   const [items, setItems] = useState<QuickLaunchItem[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingItem, setEditingItem] = useState<QuickLaunchItem | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<QuickLaunchItem | null>(null)
   const [formData, setFormData] = useState({
     name: '',
     type: 'folder' as 'file' | 'folder' | 'link' | 'app',
@@ -255,7 +257,7 @@ export default function QuickLaunch() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
-                        handleDelete(item.id)
+                        setDeleteTarget(item)
                       }}
                       className="p-1.5 rounded-lg hover:bg-studio-100 text-studio-400 hover:text-red-500"
                     >
@@ -353,6 +355,18 @@ export default function QuickLaunch() {
           </div>
         </div>
       )}
+      {/* 删除快速启动项确认框 */}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        title="删除快速启动项"
+        message="删除后该快捷入口将从列表中移除，不会影响原文件。确定要删除吗？"
+        itemName={deleteTarget?.name}
+        onConfirm={() => {
+          if (deleteTarget) handleDelete(deleteTarget.id)
+          setDeleteTarget(null)
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

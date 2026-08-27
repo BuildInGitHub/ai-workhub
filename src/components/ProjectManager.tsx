@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import type { Project, Link as LinkType, Task } from '../types'
 import { v4 as uuidv4 } from 'uuid'
+import ConfirmDialog from './ConfirmDialog'
 
 const projectColors = [
   '#0ea5e9',
@@ -28,6 +29,7 @@ export default function ProjectManager() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Project | null>(null)
   const [projectLinks, setProjectLinks] = useState<LinkType[]>([])
   const [projectTasks, setProjectTasks] = useState<Task[]>([])
   const [formData, setFormData] = useState({
@@ -205,7 +207,7 @@ export default function ProjectManager() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      handleDelete(project.id)
+                      setDeleteTarget(project)
                     }}
                     className="p-1.5 rounded-lg hover:bg-studio-100 text-studio-400 hover:text-red-500"
                   >
@@ -377,6 +379,19 @@ export default function ProjectManager() {
           </div>
         </div>
       )}
+      {/* 删除项目确认框 */}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        title="删除项目"
+        message="删除后项目及其关联内容将被移除，无法恢复。确定要删除吗？"
+        itemName={deleteTarget?.name}
+        confirmText="删除项目"
+        onConfirm={() => {
+          if (deleteTarget) handleDelete(deleteTarget.id)
+          setDeleteTarget(null)
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

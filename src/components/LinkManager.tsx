@@ -11,12 +11,14 @@ import {
 } from 'lucide-react'
 import type { Link as LinkType } from '../types'
 import { v4 as uuidv4 } from 'uuid'
+import ConfirmDialog from './ConfirmDialog'
 
 export default function LinkManager() {
   const [links, setLinks] = useState<LinkType[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingLink, setEditingLink] = useState<LinkType | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<LinkType | null>(null)
   const [formData, setFormData] = useState({
     title: '',
     url: '',
@@ -223,7 +225,7 @@ export default function LinkManager() {
                       <Edit size={18} />
                     </button>
                     <button
-                      onClick={() => handleDelete(link.id)}
+                      onClick={() => setDeleteTarget(link)}
                       className="p-2.5 rounded-xl hover:bg-studio-100 text-studio-400 hover:text-red-500"
                       title="删除"
                     >
@@ -302,6 +304,18 @@ export default function LinkManager() {
           </div>
         </div>
       )}
+      {/* 删除链接确认框 */}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        title="删除链接"
+        message="删除后该链接将从收藏中移除，确定要删除吗？"
+        itemName={deleteTarget?.title}
+        onConfirm={() => {
+          if (deleteTarget) handleDelete(deleteTarget.id)
+          setDeleteTarget(null)
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

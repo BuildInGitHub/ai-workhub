@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import type { Task } from '../types'
 import { v4 as uuidv4 } from 'uuid'
+import ConfirmDialog from './ConfirmDialog'
 
 export default function TaskManager() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -20,6 +21,7 @@ export default function TaskManager() {
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all')
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Task | null>(null)
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -296,7 +298,7 @@ export default function TaskManager() {
                       <Edit size={18} />
                     </button>
                     <button
-                      onClick={() => handleDelete(task.id)}
+                      onClick={() => setDeleteTarget(task)}
                       className="p-2.5 rounded-xl hover:bg-studio-100 text-studio-400 hover:text-red-500"
                     >
                       <Trash2 size={18} />
@@ -381,6 +383,18 @@ export default function TaskManager() {
           </div>
         </div>
       )}
+      {/* 删除任务确认框 */}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        title="删除任务"
+        message="删除后该任务将无法恢复，确定要删除吗？"
+        itemName={deleteTarget?.title}
+        onConfirm={() => {
+          if (deleteTarget) handleDelete(deleteTarget.id)
+          setDeleteTarget(null)
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }
