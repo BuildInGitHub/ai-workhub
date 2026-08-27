@@ -116,13 +116,24 @@ export default function QuickLaunch() {
     }
     
     let path: string | null = null
+    const dialogAPI = window.electronAPI.dialog
     
     if (formData.type === 'folder') {
-      path = await window.electronAPI.dialog.selectDirectory()
+      path = await dialogAPI.selectDirectory()
     } else if (formData.type === 'file') {
-      path = await window.electronAPI.dialog.selectFile?.() ?? null
+      if (dialogAPI.selectFile) {
+        path = await dialogAPI.selectFile()
+      } else {
+        alert('文件选择功能不可用')
+        return
+      }
     } else if (formData.type === 'app') {
-      path = await window.electronAPI.dialog.selectApp?.() ?? null
+      if (dialogAPI.selectApp) {
+        path = await dialogAPI.selectApp()
+      } else {
+        alert('应用选择功能不可用')
+        return
+      }
     }
     
     if (path) {
