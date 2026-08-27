@@ -50,6 +50,8 @@ function App() {
   // 会话状态
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
   const [showSessionPanel, setShowSessionPanel] = useState(false)
+  // 数据刷新信号：AI 任务执行完成后递增，驱动工作台等已挂载组件实时刷新
+  const [dataRefreshKey, setDataRefreshKey] = useState(0)
 
   // 初始化Agent工具
   useEffect(() => {
@@ -211,7 +213,7 @@ function App() {
   // 渲染当前标签页内容
   const renderContent = () => {
     const activeTab = tabs.find(t => t.id === activeTabId)
-    if (!activeTab) return <Home onAddTab={handleAddTab} />
+    if (!activeTab) return <Home onAddTab={handleAddTab} refreshKey={dataRefreshKey} />
 
     switch (activeTab.type) {
       case 'files':
@@ -223,14 +225,14 @@ function App() {
       case 'projects':
         return <ProjectManager />
       case 'quick-launch':
-        return <QuickLaunch />
+        return <QuickLaunch refreshKey={dataRefreshKey} />
       case 'calendar':
         return <Calendar />
       case 'search':
         return <GlobalSearch onClose={() => handleAddTab('home', '工作台')} />
       case 'home':
       default:
-        return <Home onAddTab={handleAddTab} />
+        return <Home onAddTab={handleAddTab} refreshKey={dataRefreshKey} />
     }
   }
 
@@ -383,6 +385,8 @@ function App() {
         saveChatMessage(assistantMessage)
       }
       setCurrentPlan(null)
+      // AI 可能创建/修改了数据（快速启动、任务、链接等），通知已挂载组件实时刷新
+      setDataRefreshKey(k => k + 1)
     } catch (error: any) {
       console.error('AI请求失败:', error)
       const errorMessage: ChatMessage = {

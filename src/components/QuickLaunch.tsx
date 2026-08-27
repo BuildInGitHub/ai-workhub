@@ -37,7 +37,11 @@ const typeBgColors = {
   app: 'bg-purple-50 text-purple-500'
 }
 
-export default function QuickLaunch() {
+interface QuickLaunchProps {
+  refreshKey?: number
+}
+
+export default function QuickLaunch({ refreshKey }: QuickLaunchProps) {
   const [items, setItems] = useState<QuickLaunchItem[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingItem, setEditingItem] = useState<QuickLaunchItem | null>(null)
@@ -50,7 +54,7 @@ export default function QuickLaunch() {
 
   useEffect(() => {
     loadItems()
-  }, [])
+  }, [refreshKey])
 
   const loadItems = async () => {
     if (!window.electronAPI) return

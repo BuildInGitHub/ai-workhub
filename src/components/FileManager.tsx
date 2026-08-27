@@ -182,7 +182,8 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
                     : 'hover:bg-studio-100 text-ink-100'
                 }`}
               >
-                💾 {drive}
+                <HardDrive size={16} className="inline mr-1.5 text-studio-400" />
+                {drive}
               </button>
             ))}
           </div>
