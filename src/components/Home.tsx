@@ -14,7 +14,8 @@ import {
   Hand,
   File,
   AppWindow,
-  ExternalLink
+  ExternalLink,
+  RefreshCw
 } from 'lucide-react'
 import MiniCalendar from './MiniCalendar'
 import type { Tab, Link as LinkType, Task } from '../types'
@@ -138,11 +139,41 @@ export default function Home({ onAddTab, refreshKey }: HomeProps) {
     { icon: <Briefcase size={28} />, label: '创建项目', type: 'projects' as Tab['type'], color: 'from-orange-400 to-orange-500' },
   ]
 
-  const tips = [
-    "试试告诉AI助手「帮我整理桌面」",
-    "可以将常用链接添加到快速访问",
-    "用项目来组织相关的工作内容"
+  // 预设智能建议（分类：ai=AI指令 / tip=使用技巧）
+  const tips: Array<{ text: string; type: 'ai' | 'tip'; target?: Tab['type'] }> = [
+    // AI 指令类
+    { text: '试试告诉AI助手「帮我整理桌面」', type: 'ai' },
+    { text: '让AI把常用应用加到快速启动，例如「把微信加到快速启动」', type: 'ai' },
+    { text: '给任务拆分子任务：「给AI出海添加子任务：Agent、SEO」', type: 'ai' },
+    { text: '让AI收集链接：「添加百度到链接收藏，分类工作」', type: 'ai' },
+    { text: '创建带截止日期的任务：「下周五前完成周报」', type: 'ai' },
+    { text: '让AI找文件：「查找最近的文档」', type: 'ai' },
+    { text: '建项目：「创建一个项目：V2.0发布」', type: 'ai' },
+    { text: '壁纸丢失时对AI说「恢复壁纸」', type: 'ai' },
+    // 功能技巧类
+    { text: '任务支持两级：一级任务卡片可展开子任务，还能进入定制看板拖拽管理', type: 'tip', target: 'tasks' },
+    { text: '链接可以存账号（一键复制）和密码提示（不存明文密码）', type: 'tip', target: 'links' },
+    { text: '链接支持分类：工作/学习/生活/购物/娱乐/工具，一键筛选', type: 'tip', target: 'links' },
+    { text: '看板中横向拖拽跨列移动，纵向拖拽列内排序', type: 'tip', target: 'tasks' },
+    { text: '数据在启动和退出时自动备份，保留最近10份', type: 'tip' },
+    { text: '数据是 SQLite，可用 DBeaver 直接连接管理', type: 'tip' },
+    { text: '整理桌面会保护壁纸、主题和快捷方式，放心使用', type: 'tip' },
+    { text: 'AI 回复默认折叠，点击摘要可展开查看详情', type: 'tip' },
+    { text: '会话管理：不同话题用不同会话，AI 上下文互不干扰', type: 'tip' },
+    { text: '工作台迷你日历显示近期日程，点「查看全部」进完整日历', type: 'tip', target: 'calendar' },
   ]
+  // 当前建议索引（加载时随机选一条，之后手动切换）
+  const [tipIndex, setTipIndex] = useState(() => Math.floor(Math.random() * tips.length))
+
+  const nextTip = () => {
+    setTipIndex(prev => {
+      let next = Math.floor(Math.random() * tips.length)
+      if (next === prev) next = (prev + 1) % tips.length
+      return next
+    })
+  }
+
+  const currentTip = tips[tipIndex]
 
   return (
     <div className="h-full overflow-y-auto p-8">
@@ -155,12 +186,34 @@ export default function Home({ onAddTab, refreshKey }: HomeProps) {
           <p className="text-studio-500">今天的工作从这里开始</p>
         </div>
         {/* AI 智能建议 */}
-        <div className="bg-gradient-to-r from-caramel-50 to-caramel-100 rounded-2xl p-4 max-w-xs border border-caramel-200">
-          <div className="flex items-center gap-2 mb-2">
-            <Sparkles size={16} className="text-caramel-400" />
-            <span className="text-sm font-medium text-caramel-600">智能建议</span>
+        <div className="bg-gradient-to-r from-caramel-50 to-caramel-100 rounded-2xl p-4 w-[340px] border border-caramel-200">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Sparkles size={16} className="text-caramel-400" />
+              <span className="text-sm font-medium text-caramel-600">智能建议</span>
+              <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-medium ${
+                currentTip.type === 'ai' ? 'bg-caramel-400 text-white' : 'bg-white text-caramel-500 border border-caramel-200'
+              }`}>
+                {currentTip.type === 'ai' ? 'AI指令' : '技巧'}
+              </span>
+            </div>
+            <button
+              onClick={nextTip}
+              className="p-1.5 rounded-lg hover:bg-caramel-200/60 transition-colors text-caramel-500"
+              title="换一条建议"
+            >
+              <RefreshCw size={14} />
+            </button>
           </div>
-          <p className="text-sm text-ink-100">{tips[Math.floor(Math.random() * tips.length)]}</p>
+          <button
+            onClick={() => currentTip.target && onAddTab(currentTip.target, '')}
+            className={`text-left text-sm text-ink-100 leading-relaxed ${
+              currentTip.target ? 'hover:text-caramel-600 cursor-pointer' : ''
+            }`}
+            title={currentTip.target ? '点击前往' : undefined}
+          >
+            {currentTip.text}
+          </button>
         </div>
       </div>
 
