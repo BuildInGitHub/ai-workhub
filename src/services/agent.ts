@@ -1020,6 +1020,7 @@ ${toolsList.map(t => `- ${t.name}: ${t.description}
 16. 添加网址到快速启动直接用 add_quick_launch(type="link")，无需搜索
 17. 整理桌面会自动保护壁纸、系统文件(desktop.ini)和快捷方式(.lnk)，这些文件不会被移动，无需额外处理
 18. 壁纸原则: 绝不更换用户的壁纸或主题。整理桌面会自动保护壁纸、主题文件(.theme)和快捷方式。只有当用户主动反馈壁纸变黑/丢失时才调用 restore_wallpaper（它只会找回用户原来的壁纸文件，不会换图）；找不到时提醒用户自行在"个性化"中设置
+19. 创建子任务的标准流程: 第一步 search_tasks 查找父任务(参数keyword用父任务名)，第二步 create_task(title=子任务名, parent_task_id=第一步找到的父任务id)
 
 只返回JSON，不要其他内容。
 `
@@ -1086,8 +1087,40 @@ export async function executePlan(plan: PlanResult): Promise<ExecutionResult> {
     return null
   }
   
+  // 从用户请求中提取父任务名（"给X加子任务"、"在X下创建子任务"）
+  const extractParentName = (input: string): string | null => {
+    const patterns = [
+      /(?:给|为|在|对)\s*["「『]?(.+?)["」』]?\s*(?:加|创建|新建|添加)\s*(?:一个|个)?\s*子任务/,
+      /(?:给|为|在|对)\s*["「『]?(.+?)["」』]?\s*(?:加|创建|新建|添加)\s*(?:一个|个)?\s*下级任务/,
+    ]
+    for (const p of patterns) {
+      const m = input.match(p)
+      if (m && m[1] && m[1].length <= 30) {
+        return m[1].replace(/^(在|给|为|对)/, '').replace(/(下|里|中|下面)$/, '').trim()
+      }
+    }
+    return null
+  }
+  
+  // 在已执行步骤结果中查找父任务
+  const findParentInSteps = (parentName: string): string | null => {
+    const lower = parentName.toLowerCase()
+    for (const s of steps) {
+      const outputs = Array.isArray(s.output) ? s.output : s.output?.items
+      if (Array.isArray(outputs)) {
+        for (const t of outputs) {
+          const title = t?.title ? String(t.title) : ''
+          if (title && (title.toLowerCase().includes(lower) || lower.includes(title.toLowerCase()))) {
+            return t.id || null
+          }
+        }
+      }
+    }
+    return null
+  }
+  
   // 参数兜底推断：缺失的必填参数从用户请求或上一步结果中补全
-  const inferParams = (toolName: string, rawParams: Record<string, any>): Record<string, any> => {
+  const inferParams = async (toolName: string, rawParams: Record<string, any>): Promise<Record<string, any>> => {
     const params = { ...rawParams }
     const userInput = plan.task || ''
     const name = extractName(userInput)
@@ -1132,6 +1165,32 @@ export async function executePlan(plan: PlanResult): Promise<ExecutionResult> {
       }
     }
     
+    // 创建子任务：自动补全父任务ID
+    if (toolName === 'create_task' && !params.parent_task_id && /子任务|下级任务/.test(userInput)) {
+      const parentName = extractParentName(userInput) || name
+      if (parentName) {
+        // 1. 从之前 search_tasks 步骤的结果中找
+        let parentId = findParentInSteps(parentName)
+        // 2. 兜底：直接查数据库按标题匹配
+        if (!parentId && (globalThis as any).window?.electronAPI?.db) {
+          try {
+            const res = await (globalThis as any).window.electronAPI.db.query("SELECT * FROM tasks")
+            const allTasks = res.data || []
+            const lower = parentName.toLowerCase()
+            const match = allTasks.find((t: any) =>
+              t.title && (String(t.title).toLowerCase().includes(lower) || lower.includes(String(t.title).toLowerCase()))
+            )
+            if (match) parentId = match.id
+          } catch {
+            // 查询失败则跳过
+          }
+        }
+        if (parentId) {
+          params.parent_task_id = parentId
+        }
+      }
+    }
+    
     return params
   }
   
@@ -1139,7 +1198,7 @@ export async function executePlan(plan: PlanResult): Promise<ExecutionResult> {
     if (!step.tool) continue
     
     step.status = 'executing'
-    const finalParams = inferParams(step.tool, step.params || {})
+    const finalParams = await inferParams(step.tool, step.params || {})
     
     try {
       const result = await executeTool(step.tool, finalParams)
