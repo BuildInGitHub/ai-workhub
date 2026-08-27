@@ -15,6 +15,7 @@ interface Session {
   title: string
   created_at: string
   updated_at: string
+  messageCount?: number
 }
 
 interface SessionManagerProps {
@@ -45,8 +46,23 @@ export default function SessionManager({
       const result = await window.electronAPI.db.query(
         "SELECT * FROM sessions ORDER BY updated_at DESC"
       )
+      // 客户端统计每个会话的消息数（JSON 存储不支持 GROUP BY）
+      const historyResult = await window.electronAPI.db.query(
+        "SELECT * FROM chat_history"
+      )
+      const countMap = new Map<string, number>()
+      if (historyResult.data) {
+        historyResult.data.forEach((m: any) => {
+          if (m.session_id) {
+            countMap.set(m.session_id, (countMap.get(m.session_id) || 0) + 1)
+          }
+        })
+      }
       if (result.data) {
-        setSessions(result.data)
+        setSessions(result.data.map((s: Session) => ({
+          ...s,
+          messageCount: countMap.get(s.id) || 0
+        })))
       }
     } catch (error) {
       console.error('加载会话失败:', error)
@@ -188,9 +204,14 @@ export default function SessionManager({
                     }`}>
                       {session.title}
                     </p>
-                    <p className="text-xs text-studio-400 flex items-center gap-1">
+                    <p className="text-xs text-studio-400 flex items-center gap-1.5">
                       <Clock size={10} />
                       {formatDate(session.updated_at)}
+                      {!!session.messageCount && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-studio-100 text-studio-500">
+                          {session.messageCount} 条
+                        </span>
+                      )}
                     </p>
                   </div>
                   <button
@@ -251,9 +272,13 @@ export default function SessionManager({
       <ConfirmDialog
         isOpen={!!deleteTarget}
         title="删除会话"
-        message="删除后将同时清除该会话的全部聊天记录，且无法恢复。确定要删除吗？"
+        message="此操作会连同聊天记录一起删除，且无法恢复。"
         itemName={deleteTarget?.title}
-        confirmText="删除会话"
+        details={deleteTarget ? [
+          { label: '聊天记录', value: `${deleteTarget.messageCount || 0} 条消息` },
+          { label: '创建时间', value: formatDate(deleteTarget.created_at) }
+        ] : undefined}
+        confirmText="永久删除"
         onConfirm={() => {
           if (deleteTarget) deleteSession(deleteTarget.id)
           setDeleteTarget(null)
