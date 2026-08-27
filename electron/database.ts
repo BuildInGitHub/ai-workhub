@@ -214,18 +214,40 @@ export function runQuery(sql: string, params?: any[]): any {
       const tableMatch = sqlLower.match(/into\s+(\w+)/)
       if (tableMatch && params) {
         const table = tableMatch[1]
-        const fieldsMatch = sqlLower.match(/\(([^)]+)\)\s*values/)
+        
+        // 提取字段名
+        const fieldsMatch = sqlLower.match(/\(([^)]+)\)\s*values\s*\((.+)\)/)
         if (fieldsMatch) {
           const fields = fieldsMatch[1].split(',').map(f => f.trim())
+          const valuesPart = fieldsMatch[2]
+          
+          // 解析值，判断是 ? 占位符还是字面量
+          const valueParts = valuesPart.split(',').map((v: string) => v.trim())
           const obj: any = {}
-          fields.forEach((field, i) => {
-            let value = params[i]
-            // 处理 datetime('now')
-            if (value === "datetime('now')" || value === "datetime('now')") {
+          let paramIndex = 0
+          
+          fields.forEach((field: string, i: number) => {
+            let value: any
+            const vp = valueParts[i]
+            
+            if (vp === '?') {
+              // 是占位符，从params获取
+              value = params[paramIndex]
+              paramIndex++
+            } else if (vp.includes('datetime') && vp.includes('now')) {
+              // datetime('now')
               value = new Date().toISOString()
+            } else if (!isNaN(Number(vp))) {
+              // 数字字面量
+              value = Number(vp)
+            } else {
+              // 字符串字面量
+              value = vp.replace(/'/g, '')
             }
+            
             obj[field] = value
           })
+          
           return query(table, 'insert', obj)
         }
       }
@@ -240,14 +262,28 @@ export function runQuery(sql: string, params?: any[]): any {
         const whereField = whereMatch[1]
         const whereValue = params[params.length - 1]
         
-        // 解析SET部分
+        // 解析SET部分 - 支持 ? 和字面量
         const setMatch = sqlLower.match(/set\s+(.+?)\s+where/)
         if (setMatch) {
-          const setFields = setMatch[1].split(',').map(s => s.trim())
+          const setParts = setMatch[1].split(',').map((s: string) => s.trim())
           const updateData: any = {}
-          setFields.forEach((sf, i) => {
-            const fieldName = sf.split('=')[0].trim()
-            updateData[fieldName] = params[i]
+          let paramIndex = 0
+          
+          setParts.forEach((sf: string) => {
+            const parts = sf.split('=').map((s: string) => s.trim())
+            const fieldName = parts[0]
+            const valuePart = parts[1]
+            
+            if (valuePart === '?') {
+              updateData[fieldName] = params[paramIndex]
+              paramIndex++
+            } else if (valuePart.includes('datetime') && valuePart.includes('now')) {
+              updateData[fieldName] = new Date().toISOString()
+            } else if (!isNaN(Number(valuePart))) {
+              updateData[fieldName] = Number(valuePart)
+            } else {
+              updateData[fieldName] = valuePart.replace(/'/g, '')
+            }
           })
           return query(table, 'update', updateData, { field: whereField, value: whereValue })
         }
