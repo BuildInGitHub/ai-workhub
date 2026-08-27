@@ -431,6 +431,8 @@ export default function Sidebar({
                   </button>
                 </div>
                 <p className="text-xs text-studio-400 mt-3 leading-relaxed">
+                  数据存储: SQLite (ai-workhub.db)
+                  <br />
                   启动和退出时自动备份，保留最近10份
                   <br />
                   备份目录: %APPDATA%\ai-workhub\backups

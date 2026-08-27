@@ -1,374 +1,187 @@
 import path from 'path'
 import { app } from 'electron'
 import fs from 'fs'
+import Database from 'better-sqlite3'
 
-// 简单的JSON文件存储
-interface Database {
-  links: any[]
-  favorite_files: any[]
-  tasks: any[]
-  chat_history: any[]
-  sessions: any[]
-  projects: any[]
-  project_items: any[]
-  settings: any[]
-  quick_launch: any[]
-  calendar_events: any[]
-  quick_notes: any[]
-}
+// ===========================
+// SQLite 数据库（better-sqlite3）
+// 首次运行自动从旧 JSON 文件迁移数据
+// ===========================
 
-let db: Database = {
-  links: [],
-  favorite_files: [],
-  tasks: [],
-  chat_history: [],
-  sessions: [],
-  projects: [],
-  project_items: [],
-  settings: [],
-  quick_launch: [],
-  calendar_events: [],
-  quick_notes: []
-}
-
+let db: Database.Database | null = null
 let dbPath: string = ''
+let jsonPath: string = ''
+
+// 所有表的建表语句（列名与旧 JSON 字段一一对应）
+const TABLES: Record<string, string> = {
+  links: `id TEXT PRIMARY KEY, title TEXT, url TEXT, description TEXT, tags TEXT,
+          category TEXT, account TEXT, password_hint TEXT, favicon TEXT,
+          created_at TEXT, updated_at TEXT`,
+  favorite_files: `id TEXT PRIMARY KEY, name TEXT, path TEXT, type TEXT, size INTEGER, created_at TEXT`,
+  tasks: `id TEXT PRIMARY KEY, title TEXT, description TEXT, completed INTEGER DEFAULT 0,
+          priority TEXT, due_date TEXT, parent_id TEXT, status TEXT, position INTEGER,
+          created_at TEXT, updated_at TEXT`,
+  chat_history: `id TEXT PRIMARY KEY, session_id TEXT, role TEXT, content TEXT, created_at TEXT`,
+  sessions: `id TEXT PRIMARY KEY, title TEXT, created_at TEXT, updated_at TEXT`,
+  projects: `id TEXT PRIMARY KEY, name TEXT, description TEXT, color TEXT, created_at TEXT, updated_at TEXT`,
+  project_items: `id TEXT PRIMARY KEY, project_id TEXT, item_type TEXT, item_id TEXT, created_at TEXT`,
+  settings: `id TEXT PRIMARY KEY, key TEXT, value TEXT, created_at TEXT`,
+  quick_launch: `id TEXT PRIMARY KEY, name TEXT, type TEXT, path TEXT, position INTEGER`,
+  calendar_events: `id TEXT PRIMARY KEY, title TEXT, date TEXT, time TEXT, type TEXT, description TEXT, created_at TEXT`,
+  quick_notes: `id TEXT PRIMARY KEY, title TEXT, content TEXT, created_at TEXT`
+}
 
 export function initDatabase(): void {
   const userDataPath = app.getPath('userData')
-  dbPath = path.join(userDataPath, 'ai-workhub-data.json')
-  
-  // 确保目录存在
+  dbPath = path.join(userDataPath, 'ai-workhub.db')
+  jsonPath = path.join(userDataPath, 'ai-workhub-data.json')
+
   if (!fs.existsSync(userDataPath)) {
     fs.mkdirSync(userDataPath, { recursive: true })
   }
-  
-  // 加载现有数据
-  if (fs.existsSync(dbPath)) {
+
+  const isNewDb = !fs.existsSync(dbPath)
+  db = new Database(dbPath)
+  db.pragma('journal_mode = WAL')
+
+  // 建表
+  for (const [name, schema] of Object.entries(TABLES)) {
+    db.exec(`CREATE TABLE IF NOT EXISTS ${name} (${schema})`)
+  }
+
+  // 首次创建且存在旧 JSON 数据 → 自动迁移
+  if (isNewDb && fs.existsSync(jsonPath)) {
     try {
-      const data = fs.readFileSync(dbPath, 'utf-8')
-      const loadedDb = JSON.parse(data)
-      // 合并现有数据，确保所有表都存在
-      db = {
-        links: loadedDb.links || [],
-        favorite_files: loadedDb.favorite_files || [],
-        tasks: loadedDb.tasks || [],
-        chat_history: loadedDb.chat_history || [],
-        sessions: loadedDb.sessions || [],
-        projects: loadedDb.projects || [],
-        project_items: loadedDb.project_items || [],
-        settings: loadedDb.settings || [],
-        quick_launch: loadedDb.quick_launch || [],
-        calendar_events: loadedDb.calendar_events || [],
-        quick_notes: loadedDb.quick_notes || []
-      }
-    } catch (error) {
-      console.error('[Database] Failed to load database, creating new one:', error)
-      saveDatabase()
+      migrateFromJson()
+    } catch (error: any) {
+      console.error('[Database] JSON 迁移失败:', error.message)
     }
-  } else {
-    saveDatabase()
   }
-  
-  console.log('[Database] JSON storage initialized at:', dbPath)
-  console.log('[Database] Tables:', Object.keys(db))
+
+  console.log('[Database] SQLite initialized at:', dbPath)
 }
 
-function saveDatabase(): void {
-  try {
-    fs.writeFileSync(dbPath, JSON.stringify(db, null, 2), 'utf-8')
-  } catch (error) {
-    console.error('[Database] Failed to save database:', error)
+// 从旧 JSON 文件迁移数据到 SQLite（迁移后 JSON 改名保留为备份）
+function migrateFromJson(): void {
+  if (!db) return
+  const raw = fs.readFileSync(jsonPath, 'utf-8')
+  const json = JSON.parse(raw)
+  if (!json || typeof json !== 'object') return
+
+  let total = 0
+  for (const [table, schema] of Object.entries(TABLES)) {
+    const rows = (json as any)[table]
+    if (!Array.isArray(rows) || rows.length === 0) continue
+
+    // 用数据行的实际字段插入（仅插入表中存在的列）
+    const firstRow = rows[0]
+    const insertCols = Object.keys(firstRow).filter(c => schema.includes(c))
+    if (insertCols.length === 0) continue
+
+    const insert = db.prepare(
+      `INSERT OR IGNORE INTO ${table} (${insertCols.join(', ')}) VALUES (${insertCols.map(() => '?').join(', ')})`
+    )
+    const tx = db.transaction((items: any[]) => {
+      for (const item of items) {
+        const values = insertCols.map(c => item[c] ?? null)
+        insert.run(...values)
+      }
+    })
+    tx(rows)
+    total += rows.length
+    console.log(`[Database] 迁移 ${table}: ${rows.length} 条`)
   }
+
+  // 迁移完成，旧 JSON 改名保留（不删除）
+  const backupJsonPath = jsonPath + '.bak'
+  if (fs.existsSync(backupJsonPath)) fs.unlinkSync(backupJsonPath)
+  fs.renameSync(jsonPath, backupJsonPath)
+  console.log(`[Database] JSON 迁移完成，共 ${total} 条，原文件保留为 ${path.basename(backupJsonPath)}`)
 }
 
-export function query(table: string, operation: 'select' | 'insert' | 'update' | 'delete', data?: any, condition?: { field: string, value: any }): any {
-  const tableName = table as keyof Database
-  
-  console.log('[Query] Operation:', operation, 'Table:', tableName, 'Data:', data, 'Condition:', condition)
-  
-  if (!db[tableName]) {
-    console.log('[Query] Table not found:', tableName)
-    return { error: `Table ${table} does not exist` }
-  }
-
-  switch (operation) {
-    case 'select':
-      const selectResult = condition 
-        ? db[tableName].filter((item: any) => item[condition.field] === condition.value)
-        : db[tableName]
-      console.log('[Query] Select result:', selectResult.length, 'items')
-      return selectResult
-    
-    case 'insert':
-      const newItem = { ...data, id: data.id || require('uuid').v4() }
-      if (data.created_at === undefined) {
-        newItem.created_at = new Date().toISOString()
-      }
-      db[tableName].push(newItem)
-      saveDatabase()
-      console.log('[Query] Inserted:', newItem.id)
-      return newItem
-    
-    case 'update':
-      const index = db[tableName].findIndex((item: any) => item[condition!.field] === condition!.value)
-      if (index !== -1) {
-        db[tableName][index] = { ...db[tableName][index], ...data }
-        saveDatabase()
-        console.log('[Query] Updated:', index)
-        return db[tableName][index]
-      }
-      console.log('[Query] Update item not found')
-      return { error: 'Item not found' }
-    
-    case 'delete':
-      const deleteIndex = db[tableName].findIndex((item: any) => item[condition!.field] === condition!.value)
-      if (deleteIndex !== -1) {
-        const deleted = db[tableName].splice(deleteIndex, 1)[0]
-        saveDatabase()
-        return deleted
-      }
-      return { error: 'Item not found' }
-    
-    default:
-      return { error: 'Invalid operation' }
-  }
-}
-
+// 统一的查询入口（与旧的迷你解析器接口一致，现在是真实 SQL）
 export function runQuery(sql: string, params?: any[]): any {
-  // 简单的SQL解析（仅支持基本操作）
-  const sqlLower = sql.toLowerCase().trim()
-  
   console.log('[DB] Query:', sql, 'Params:', params)
-  
+  if (!db) return { error: '数据库未初始化' }
+
+  const cleanParams = (params || []).map(p => p === undefined ? null : p)
+
   try {
-    // SELECT
-    if (sqlLower.startsWith('select')) {
-      const tableMatch = sqlLower.match(/from\s+(\w+)/)
-      if (tableMatch) {
-        const table = tableMatch[1]
-        let results = db[table as keyof Database] || []
-        
-        // WHERE clause - 支持简单条件
-        const whereMatch = sqlLower.match(/where\s+(.+?)(?:\s+order|\s+limit|$)/)
-        if (whereMatch) {
-          const whereClause = whereMatch[1]
-          const conditions = whereClause.split(/\s+and\s+/i)
-          
-          // 先解析所有条件并绑定参数（一次性，避免 filter 内重复消耗参数）
-          let paramIndex = 0
-          const parsedConditions = conditions.map(cond => {
-            // 恒真条件（如 WHERE 1=1）直接跳过
-            if (/^\s*\d+\s*=\s*\d+\s*$/.test(cond)) {
-              return { type: 'always' as const, field: '', value: true }
-            }
-            if (cond.includes('like')) {
-              const fieldMatch = cond.match(/(\w+)\s+like/)
-              if (fieldMatch) {
-                const value = params?.[paramIndex]?.toString() || ''
-                paramIndex++
-                return { type: 'like' as const, field: fieldMatch[1], value }
-              }
-              return null
-            }
-            if (cond.includes('=')) {
-              // ? 占位符
-              const paramMatch = cond.match(/(\w+)\s*=\s*\?/)
-              if (paramMatch) {
-                const value = params?.[paramIndex]
-                paramIndex++
-                return { type: 'eq' as const, field: paramMatch[1], value }
-              }
-              // 数字字面量，如 completed = 1
-              const numMatch = cond.match(/(\w+)\s*=\s*(\d+)/)
-              if (numMatch) {
-                return { type: 'eq' as const, field: numMatch[1], value: parseInt(numMatch[2]) }
-              }
-              // 字符串字面量，如 key = 'xxx'（注意取原始大小写）
-              const strMatch = cond.match(/(\w+)\s*=\s*'([^']*)'/)
-              if (strMatch) {
-                return { type: 'eq' as const, field: strMatch[1], value: strMatch[2] }
-              }
-            }
-            return null
-          }).filter(Boolean) as Array<{ type: 'eq' | 'like' | 'always', field: string, value: any }>
-          
-          results = results.filter((item: any) => {
-            return parsedConditions.every(pc => {
-              if (pc.type === 'always') return true
-              if (pc.type === 'like') {
-                let pattern = pc.value || ''
-                const isStartsWith = pattern.startsWith('%')
-                const isEndsWith = pattern.endsWith('%')
-                pattern = pattern.replace(/%/g, '')
-                const itemValue = item[pc.field]?.toString().toLowerCase() || ''
-                const searchValue = pattern.toLowerCase()
-                if (isStartsWith && isEndsWith) return itemValue.includes(searchValue)
-                if (isStartsWith) return itemValue.endsWith(searchValue)
-                if (isEndsWith) return itemValue.startsWith(searchValue)
-                return itemValue.includes(searchValue)
-              }
-              return item[pc.field] === pc.value
-            })
-          })
-        }
-        
-        // 处理 COUNT(*) 查询 (在 WHERE 过滤之后)
-        if (sqlLower.includes('count(*)')) {
-          return { data: [{ count: results.length }] }
-        }
-        
-        // ORDER BY
-        const orderMatch = sqlLower.match(/order\s+by\s+(\w+)\s+(asc|desc)?/)
-        if (orderMatch) {
-          const orderField = orderMatch[1]
-          const orderDir = orderMatch[2] || 'asc'
-          results.sort((a: any, b: any) => {
-            if (orderDir === 'asc') {
-              return a[orderField] > b[orderField] ? 1 : -1
-            }
-            return a[orderField] < b[orderField] ? 1 : -1
-          })
-        }
-        
-        // LIMIT
-        const limitMatch = sqlLower.match(/limit\s+(\d+)/)
-        if (limitMatch) {
-          results = results.slice(0, parseInt(limitMatch[1]))
-        }
-        
-        return { data: results }
-      }
-      return { data: [] }
+    const stmt = db.prepare(sql)
+
+    if (/^\s*select\b/i.test(sql)) {
+      return { data: stmt.all(...cleanParams) }
     }
-    
-    // INSERT
-    if (sqlLower.startsWith('insert')) {
-      const tableMatch = sqlLower.match(/into\s+(\w+)/)
-      if (tableMatch && params) {
-        const table = tableMatch[1]
-        
-        // 提取字段名
-        const fieldsMatch = sqlLower.match(/\(([^)]+)\)\s*values\s*\((.+)\)/)
-        if (fieldsMatch) {
-          const fields = fieldsMatch[1].split(',').map(f => f.trim())
-          const valuesPart = fieldsMatch[2]
-          
-          // 解析值 - 需要智能拆分，处理函数调用如 datetime('now')
-          const valueParts: string[] = []
-          let current = ''
-          let parenDepth = 0
-          for (const char of valuesPart) {
-            if (char === '(') {
-              parenDepth++
-              current += char
-            } else if (char === ')') {
-              parenDepth--
-              current += char
-            } else if (char === ',' && parenDepth === 0) {
-              valueParts.push(current.trim())
-              current = ''
-            } else {
-              current += char
-            }
-          }
-          if (current.trim()) {
-            valueParts.push(current.trim())
-          }
-          
-          const obj: any = {}
-          let paramIndex = 0
-          
-          fields.forEach((field: string, i: number) => {
-            let value: any
-            const vp = valueParts[i]
-            
-            if (vp === '?') {
-              // 是占位符，从params获取
-              value = params[paramIndex]
-              paramIndex++
-            } else if (vp && vp.includes('datetime') && vp.includes('now')) {
-              // datetime('now')
-              value = new Date().toISOString()
-            } else if (vp && !isNaN(Number(vp))) {
-              // 数字字面量
-              value = Number(vp)
-            } else if (vp && vp.startsWith("'") && vp.endsWith("'")) {
-              // 字符串字面量
-              value = vp.slice(1, -1)
-            } else {
-              // 其他
-              value = vp ? vp.replace(/'/g, '') : null
-            }
-            
-            obj[field] = value
-          })
-          
-          return query(table, 'insert', obj)
-        }
-      }
+    if (/^\s*insert\b/i.test(sql)) {
+      const info = stmt.run(...cleanParams)
+      return { data: { lastInsertRowid: Number(info.lastInsertRowid), changes: info.changes } }
     }
-    
-    // UPDATE
-    if (sqlLower.startsWith('update')) {
-      const tableMatch = sqlLower.match(/update\s+(\w+)/)
-      const whereMatch = sqlLower.match(/where\s+(\w+)\s*=\s*\?/)
-      if (tableMatch && whereMatch && params) {
-        const table = tableMatch[1]
-        const whereField = whereMatch[1]
-        const whereValue = params[params.length - 1]
-        
-        // 解析SET部分 - 支持 ? 和字面量
-        const setMatch = sqlLower.match(/set\s+(.+?)\s+where/)
-        if (setMatch) {
-          const setParts = setMatch[1].split(',').map((s: string) => s.trim())
-          const updateData: any = {}
-          let paramIndex = 0
-          
-          setParts.forEach((sf: string) => {
-            const parts = sf.split('=').map((s: string) => s.trim())
-            const fieldName = parts[0]
-            const valuePart = parts[1]
-            
-            if (valuePart === '?') {
-              updateData[fieldName] = params[paramIndex]
-              paramIndex++
-            } else if (valuePart.includes('datetime') && valuePart.includes('now')) {
-              updateData[fieldName] = new Date().toISOString()
-            } else if (!isNaN(Number(valuePart))) {
-              updateData[fieldName] = Number(valuePart)
-            } else {
-              updateData[fieldName] = valuePart.replace(/'/g, '')
-            }
-          })
-          return query(table, 'update', updateData, { field: whereField, value: whereValue })
-        }
-      }
+    if (/^\s*update\b/i.test(sql)) {
+      const info = stmt.run(...cleanParams)
+      return { data: { changes: info.changes } }
     }
-    
-    // DELETE
-    if (sqlLower.startsWith('delete')) {
-      const tableMatch = sqlLower.match(/from\s+(\w+)/)
-      const whereMatch = sqlLower.match(/where\s+(\w+)\s*=\s*\?/)
-      if (tableMatch && whereMatch && params) {
-        const table = tableMatch[1]
-        const whereField = whereMatch[1]
-        const whereValue = params[0]
-        return query(table, 'delete', null, { field: whereField, value: whereValue })
-      }
+    if (/^\s*delete\b/i.test(sql)) {
+      const info = stmt.run(...cleanParams)
+      return { data: { changes: info.changes } }
     }
-    
-    console.log('[DB] Returning unsupported operation for:', sqlLower.substring(0, 50))
-    return { error: 'Unsupported SQL operation: ' + sqlLower.substring(0, 30) }
+
+    // 其他语句
+    const info = stmt.run(...cleanParams)
+    return { data: { changes: info.changes } }
   } catch (error: any) {
-    console.log('[DB] Error:', error.message)
+    console.error('[DB] Error:', error.message)
     return { error: error.message }
   }
 }
 
-export function getDatabase(): Database {
+// 兼容旧接口（按表名/操作直接操作）
+export function query(table: string, operation: 'select' | 'insert' | 'update' | 'delete', data?: any, condition?: { field: string, value: any }): any {
+  if (!db) return { error: '数据库未初始化' }
+
+  try {
+    switch (operation) {
+      case 'select': {
+        const rows = condition
+          ? db.prepare(`SELECT * FROM ${table} WHERE ${condition.field} = ?`).all(condition.value)
+          : db.prepare(`SELECT * FROM ${table}`).all()
+        return rows
+      }
+      case 'insert': {
+        const cols = Object.keys(data || {})
+        if (cols.length === 0) return { error: '无数据' }
+        const info = db.prepare(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`)
+          .run(...cols.map(c => (data[c] === undefined ? null : data[c])))
+        return { ...data, id: data.id || info.lastInsertRowid }
+      }
+      case 'update': {
+        if (!condition) return { error: '缺少条件' }
+        const cols = Object.keys(data || {})
+        if (cols.length === 0) return { error: '无数据' }
+        const info = db.prepare(`UPDATE ${table} SET ${cols.map(c => `${c} = ?`).join(', ')} WHERE ${condition.field} = ?`)
+          .run(...cols.map(c => (data[c] === undefined ? null : data[c])), condition.value)
+        return { changes: info.changes }
+      }
+      case 'delete': {
+        if (!condition) return { error: '缺少条件' }
+        const info = db.prepare(`DELETE FROM ${table} WHERE ${condition.field} = ?`).run(condition.value)
+        return { changes: info.changes }
+      }
+      default:
+        return { error: 'Invalid operation' }
+    }
+  } catch (error: any) {
+    return { error: error.message }
+  }
+}
+
+export function getDatabase(): Database.Database | null {
   return db
 }
 
-export function closeDatabase() {
-  saveDatabase()
+export function closeDatabase(): void {
+  try {
+    db?.close()
+  } catch {
+    // 忽略关闭错误
+  }
 }

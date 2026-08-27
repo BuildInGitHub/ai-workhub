@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell, dialog } f
 import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
-import { initDatabase, runQuery } from './database'
+import { initDatabase, runQuery, closeDatabase } from './database'
 
 // ESM __dirname polyfill
 const __filename = fileURLToPath(import.meta.url)
@@ -22,7 +22,7 @@ const BACKUP_KEEP_COUNT = 10
 function getDbPaths() {
   const userDataPath = app.getPath('userData')
   return {
-    dbPath: path.join(userDataPath, 'ai-workhub-data.json'),
+    dbPath: path.join(userDataPath, 'ai-workhub.db'),
     backupDir: path.join(userDataPath, 'backups')
   }
 }
@@ -36,12 +36,12 @@ async function backupDatabase(): Promise<string | null> {
 
     const now = new Date()
     const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`
-    const backupPath = path.join(backupDir, `ai-workhub-data-${stamp}.json`)
+    const backupPath = path.join(backupDir, `ai-workhub-data-${stamp}.db`)
     await fs.promises.copyFile(dbPath, backupPath)
 
-    // 清理旧备份，保留最近 N 份
+    // 清理旧备份，保留最近 N 份（兼容旧的 .json 备份）
     const files = fs.readdirSync(backupDir)
-      .filter(f => f.startsWith('ai-workhub-data-') && f.endsWith('.json'))
+      .filter(f => f.startsWith('ai-workhub-data-'))
       .sort()
     while (files.length > BACKUP_KEEP_COUNT) {
       const oldest = files.shift()!
@@ -67,11 +67,11 @@ ipcMain.handle('db:exportData', async () => {
   try {
     const { dbPath } = getDbPaths()
     if (!fs.existsSync(dbPath)) return { success: false, message: '数据库文件不存在' }
-    const defaultName = `ai-workhub-export-${new Date().toISOString().slice(0,10)}.json`
+    const defaultName = `ai-workhub-export-${new Date().toISOString().slice(0,10)}.db`
     const result = await dialog.showSaveDialog(mainWindow!, {
       title: '导出数据',
       defaultPath: path.join(app.getPath('documents'), defaultName),
-      filters: [{ name: 'JSON 数据文件', extensions: ['json'] }]
+      filters: [{ name: 'SQLite 数据库文件', extensions: ['db'] }]
     })
     if (result.canceled || !result.filePath) return { success: false, message: '已取消导出' }
     await fs.promises.copyFile(dbPath, result.filePath)
@@ -88,22 +88,27 @@ ipcMain.handle('db:importData', async () => {
     const result = await dialog.showOpenDialog(mainWindow!, {
       title: '导入数据（将覆盖当前数据）',
       properties: ['openFile'],
-      filters: [{ name: 'JSON 数据文件', extensions: ['json'] }]
+      filters: [
+        { name: '数据库备份文件', extensions: ['db', 'json'] }
+      ]
     })
     if (result.canceled || !result.filePaths[0]) return { success: false, message: '已取消导入' }
 
     const importPath = result.filePaths[0]
-    // 校验 JSON 合法性
-    const content = fs.readFileSync(importPath, 'utf-8')
-    const parsed = JSON.parse(content)
-    if (!parsed || typeof parsed !== 'object') {
-      return { success: false, message: '文件不是有效的数据库备份' }
+    // 简单校验：JSON 需可解析；db 文件需存在
+    if (importPath.toLowerCase().endsWith('.json')) {
+      const content = fs.readFileSync(importPath, 'utf-8')
+      const parsed = JSON.parse(content)
+      if (!parsed || typeof parsed !== 'object') {
+        return { success: false, message: '文件不是有效的数据库备份' }
+      }
     }
 
     // 导入前自动备份现有数据
     await backupDatabase()
+    // 关闭数据库连接后覆盖文件，再重新打开
+    closeDatabase()
     await fs.promises.copyFile(importPath, dbPath)
-    // 重新初始化数据库（内存中重载新数据）
     initDatabase()
     return { success: true, message: '导入成功，数据已重新加载' }
   } catch (error: any) {
