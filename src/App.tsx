@@ -8,6 +8,7 @@ import {
   Image, Video, Music, Archive, AppWindow
 } from 'lucide-react'
 import Sidebar from './components/Sidebar'
+import SessionManager from './components/SessionManager'
 import TabBar from './components/TabBar'
 import TaskBar from './components/TaskBar'
 import FileManager from './components/FileManager'
@@ -45,6 +46,10 @@ function App() {
   // DeepSeek API 配置
   const [apiKey, setApiKey] = useState('')
   const [apiKeySet, setApiKeySet] = useState(false)
+  
+  // 会话状态
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
+  const [showSessionPanel, setShowSessionPanel] = useState(false)
 
   // 初始化Agent工具
   useEffect(() => {
@@ -76,6 +81,97 @@ function App() {
     }
     loadApiKey()
   }, [])
+
+  // 加载或创建默认会话
+  useEffect(() => {
+    const initSession = async () => {
+      if (!window.electronAPI) return
+      
+      // 获取最近的会话
+      const result = await window.electronAPI.db.query(
+        "SELECT * FROM sessions ORDER BY updated_at DESC LIMIT 1"
+      )
+      
+      if (result.data && result.data.length > 0) {
+        setCurrentSessionId(result.data[0].id)
+        // 加载该会话的聊天记录
+        loadChatHistory(result.data[0].id)
+      } else {
+        // 创建新会话
+        const sessionId = uuidv4()
+        const now = new Date().toISOString()
+        await window.electronAPI.db.query(
+          "INSERT INTO sessions (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
+          [sessionId, '新会话', now, now]
+        )
+        setCurrentSessionId(sessionId)
+      }
+    }
+    initSession()
+  }, [])
+
+  // 加载聊天历史
+  const loadChatHistory = async (sessionId: string) => {
+    if (!window.electronAPI) return
+    const result = await window.electronAPI.db.query(
+      "SELECT * FROM chat_history WHERE session_id = ? ORDER BY created_at ASC",
+      [sessionId]
+    )
+    if (result.data) {
+      setChatMessages(result.data.map((m: any) => ({
+        ...m,
+        role: m.role as 'user' | 'assistant'
+      })))
+    }
+  }
+
+  // 保存聊天消息到会话
+  const saveChatMessage = async (message: ChatMessage) => {
+    if (!window.electronAPI || !currentSessionId) return
+    await window.electronAPI.db.query(
+      "INSERT INTO chat_history (id, session_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
+      [message.id, currentSessionId, message.role, message.content, message.created_at]
+    )
+    // 更新会话时间
+    await window.electronAPI.db.query(
+      "UPDATE sessions SET updated_at = datetime('now') WHERE id = ?",
+      [currentSessionId]
+    )
+    // 如果是首条用户消息且会话还是默认标题，自动命名会话
+    if (message.role === 'user') {
+      const sessionResult = await window.electronAPI.db.query(
+        "SELECT * FROM sessions WHERE id = ?",
+        [currentSessionId]
+      )
+      const session = sessionResult.data?.[0]
+      if (session && /^新会话/.test(session.title)) {
+        const autoTitle = message.content.slice(0, 20) + (message.content.length > 20 ? '...' : '')
+        await window.electronAPI.db.query(
+          "UPDATE sessions SET title = ? WHERE id = ?",
+          [autoTitle, currentSessionId]
+        )
+      }
+    }
+  }
+
+  // 切换会话
+  const handleSessionSelect = async (sessionId: string) => {
+    setCurrentSessionId(sessionId)
+    await loadChatHistory(sessionId)
+  }
+
+  // 新建会话
+  const handleNewChat = async () => {
+    if (!window.electronAPI) return
+    const sessionId = uuidv4()
+    const now = new Date().toISOString()
+    await window.electronAPI.db.query(
+      "INSERT INTO sessions (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
+      [sessionId, '新会话', now, now]
+    )
+    setCurrentSessionId(sessionId)
+    setChatMessages([])
+  }
 
   // 切换标签页
   const handleTabChange = useCallback((tabId: string) => {
@@ -148,6 +244,7 @@ function App() {
       created_at: new Date().toISOString()
     }
     setChatMessages(prev => [...prev, userMessage])
+    saveChatMessage(userMessage)
     setIsLoading(true)
 
     if (!apiKey) {
@@ -158,6 +255,7 @@ function App() {
         created_at: new Date().toISOString()
       }
       setChatMessages(prev => [...prev, errorMessage])
+      saveChatMessage(errorMessage)
       setIsLoading(false)
       return
     }
@@ -177,6 +275,7 @@ function App() {
         created_at: new Date().toISOString()
       }
       setChatMessages(prev => [...prev, thoughtMessage])
+      saveChatMessage(thoughtMessage)
       
       let responseContent = ''
       
@@ -248,6 +347,7 @@ function App() {
           created_at: new Date().toISOString()
         }
         setChatMessages(prev => [...prev, resultMessage])
+        saveChatMessage(resultMessage)
         setCurrentPlan(null)
       } else {
         // 不需要执行，使用普通对话
@@ -279,18 +379,7 @@ function App() {
         }
         
         setChatMessages(prev => [...prev, assistantMessage])
-        
-        // 保存到数据库
-        if (window.electronAPI) {
-          await window.electronAPI.db.query(
-            "INSERT INTO chat_history (id, role, content) VALUES (?, ?, ?)",
-            [userMessage.id, userMessage.role, userMessage.content]
-          )
-          await window.electronAPI.db.query(
-            "INSERT INTO chat_history (id, role, content) VALUES (?, ?, ?)",
-            [assistantMessage.id, assistantMessage.role, assistantMessage.content]
-          )
-        }
+        saveChatMessage(assistantMessage)
       }
       setCurrentPlan(null)
     } catch (error: any) {
@@ -302,11 +391,12 @@ function App() {
         created_at: new Date().toISOString()
       }
       setChatMessages(prev => [...prev, errorMessage])
+      saveChatMessage(errorMessage)
       setCurrentPlan(null)
     } finally {
       setIsLoading(false)
     }
-  }, [apiKey, chatMessages])
+  }, [apiKey, chatMessages, currentSessionId])
 
   // 保存API Key
   const handleSaveApiKey = useCallback(async (key: string) => {
@@ -325,8 +415,19 @@ function App() {
     <div className="flex flex-col h-screen bg-studio-100 text-ink-100">
       {/* 主内容区 */}
       <div className="flex-1 flex min-h-0">
+        {/* 会话管理面板 */}
+        {showSessionPanel && (
+          <div className="w-64 flex-shrink-0 animate-slideIn">
+            <SessionManager
+              currentSessionId={currentSessionId}
+              onSessionSelect={handleSessionSelect}
+              onNewChat={handleNewChat}
+            />
+          </div>
+        )}
+
         {/* 左侧边栏 - AI助手 */}
-        <Sidebar 
+        <Sidebar
           isExpanded={isChatExpanded}
           onToggle={() => setIsChatExpanded(!isChatExpanded)}
           messages={chatMessages}
@@ -336,6 +437,8 @@ function App() {
           onSaveApiKey={handleSaveApiKey}
           apiKeySet={apiKeySet}
           onNavigate={handleAddTab}
+          onShowSessions={() => setShowSessionPanel(!showSessionPanel)}
+          isSessionPanelOpen={showSessionPanel}
         />
 
         {/* 中间工作区 */}

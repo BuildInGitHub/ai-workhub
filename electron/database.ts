@@ -8,6 +8,7 @@ interface Database {
   favorite_files: any[]
   tasks: any[]
   chat_history: any[]
+  sessions: any[]
   projects: any[]
   project_items: any[]
   settings: any[]
@@ -21,6 +22,7 @@ let db: Database = {
   favorite_files: [],
   tasks: [],
   chat_history: [],
+  sessions: [],
   projects: [],
   project_items: [],
   settings: [],
@@ -51,6 +53,7 @@ export function initDatabase(): void {
         favorite_files: loadedDb.favorite_files || [],
         tasks: loadedDb.tasks || [],
         chat_history: loadedDb.chat_history || [],
+        sessions: loadedDb.sessions || [],
         projects: loadedDb.projects || [],
         project_items: loadedDb.project_items || [],
         settings: loadedDb.settings || [],

@@ -103,6 +103,8 @@ interface SidebarProps {
   onSaveApiKey: (key: string) => void
   apiKeySet: boolean
   onNavigate: (type: Tab['type'], title: string) => void
+  onShowSessions?: () => void
+  isSessionPanelOpen?: boolean
 }
 
 export default function Sidebar({
@@ -114,7 +116,9 @@ export default function Sidebar({
   apiKey,
   onSaveApiKey,
   apiKeySet,
-  onNavigate
+  onNavigate,
+  onShowSessions,
+  isSessionPanelOpen = false
 }: SidebarProps) {
   const [input, setInput] = useState('')
   const [showSettings, setShowSettings] = useState(false)
@@ -173,12 +177,27 @@ export default function Sidebar({
               </div>
             </div>
           )}
-          <button 
-            onClick={onToggle}
-            className="p-2 rounded-xl hover:bg-studio-200 transition-colors text-studio-500"
-          >
-            {isExpanded ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
-          </button>
+          <div className="flex items-center gap-1">
+            {isExpanded && onShowSessions && (
+              <button 
+                onClick={onShowSessions}
+                className={`p-2 rounded-xl transition-colors ${
+                  isSessionPanelOpen 
+                    ? 'bg-caramel-100 text-caramel-600' 
+                    : 'hover:bg-studio-200 text-studio-500'
+                }`}
+                title={isSessionPanelOpen ? '隐藏会话列表' : '显示会话列表'}
+              >
+                <MessageSquare size={20} />
+              </button>
+            )}
+            <button 
+              onClick={onToggle}
+              className="p-2 rounded-xl hover:bg-studio-200 transition-colors text-studio-500"
+            >
+              {isExpanded ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
+            </button>
+          </div>
         </div>
 
         {/* 快速导航按钮 */}
