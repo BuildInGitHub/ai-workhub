@@ -16,6 +16,7 @@ import {
   AppWindow,
   ExternalLink
 } from 'lucide-react'
+import MiniCalendar from './MiniCalendar'
 import type { Tab, Link as LinkType, Task } from '../types'
 
 interface HomeProps {
@@ -273,8 +274,8 @@ export default function Home({ onAddTab, refreshKey }: HomeProps) {
         </div>
       </div>
 
-      {/* 最近项目和任务 */}
-      <div className="grid grid-cols-2 gap-6">
+      {/* 最近链接、任务和迷你日历 */}
+      <div className="grid grid-cols-3 gap-6">
         {/* 最近链接 */}
         <div className="bg-white rounded-2xl p-5 border border-studio-200 shadow-soft">
           <div className="flex items-center justify-between mb-4">
@@ -361,6 +362,9 @@ export default function Home({ onAddTab, refreshKey }: HomeProps) {
             )}
           </div>
         </div>
+
+        {/* 迷你日历 */}
+        <MiniCalendar onAddTab={onAddTab} refreshKey={refreshKey} />
       </div>
     </div>
   )
