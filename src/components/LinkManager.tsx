@@ -9,7 +9,9 @@ import {
   X,
   Tag,
   User,
-  KeyRound
+  KeyRound,
+  Copy,
+  Check
 } from 'lucide-react'
 import type { Link as LinkType } from '../types'
 import { v4 as uuidv4 } from 'uuid'
@@ -166,6 +168,18 @@ export default function LinkManager() {
     return tagsStr.split(',').map(t => t.trim()).filter(Boolean)
   }
 
+  // 复制文本到剪贴板（带状态反馈）
+  const [copiedText, setCopiedText] = useState('')
+  const copyText = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedText(label)
+      setTimeout(() => setCopiedText(''), 1500)
+    } catch (error) {
+      console.error('复制失败:', error)
+    }
+  }
+
   return (
     <div className="h-full flex flex-col p-6 bg-studio-50">
       {/* 头部 */}
@@ -271,7 +285,16 @@ export default function LinkManager() {
                         {(link as any).account && (
                           <span className="flex items-center gap-1.5">
                             <User size={13} className="text-studio-400" />
-                            {String((link as any).account)}
+                            <span className="truncate max-w-[160px]">{String((link as any).account)}</span>
+                            <button
+                              onClick={() => copyText(String((link as any).account), 'account')}
+                              className="p-1 rounded-md hover:bg-studio-100 text-studio-400 hover:text-caramel-400 transition-colors"
+                              title="复制账号"
+                            >
+                              {copiedText === 'account'
+                                ? <Check size={12} className="text-green-500" />
+                                : <Copy size={12} />}
+                            </button>
                           </span>
                         )}
                         {(link as any).password_hint && (
