@@ -307,12 +307,27 @@ export function initBuiltinTools(
         'C:\\Program Files (x86)'
       ]
 
-      const found: Array<{ name: string; path: string; type: string }> = []
-      const seen = new Set<string>()
+      // 垃圾项过滤：卸载程序/更新器/帮助文档等绝不能当应用入口
+      const isJunk = (lowerName: string): boolean =>
+        /卸载|uninstall|uninst\d*|卸.*载/.test(lowerName) ||
+        /readme|帮助|说明|help$/.test(lowerName.replace(/\.(lnk|exe)$/,''))
+
+      // 匹配度打分（越高越优先）
+      const score = (lowerName: string): number => {
+        const base = lowerName.replace(/\.(lnk|exe)$/, '')
+        if (base === keyword) return 100          // 完全同名
+        if (base.startsWith(keyword)) return 85   // 以关键词开头
+        if (lowerName.includes(keyword)) return 65 // 文件名包含关键词
+        if (keyword.includes(base)) return 40     // 关键词包含文件名
+        return 0
+      }
+
+      const found: Array<{ name: string; path: string, type: string, score: number }> = []
+      const seen = new Map<string, number>() // name -> index，用于同名去重保留高分
 
       // 递归扫描（限制深度避免太慢）
       const scanDir = async (dir: string, depth: number) => {
-        if (depth > 2 || found.length >= 10) return
+        if (depth > 2 || found.length >= 20) return
         let entries: any
         try {
           entries = await fsReadDir(dir)
@@ -321,18 +336,32 @@ export function initBuiltinTools(
         }
         if (!Array.isArray(entries)) return
         for (const e of entries) {
-          if (found.length >= 10) break
+          if (found.length >= 20) break
           const lowerName = (e.name || '').toLowerCase()
           if (e.isFile && (lowerName.endsWith('.lnk') || lowerName.endsWith('.exe'))) {
-            // 匹配：关键词包含于文件名，或文件名包含关键词
-            if (lowerName.includes(keyword) || keyword.includes(lowerName.replace(/\.(lnk|exe)$/, ''))) {
-              const key = e.name + '|' + e.path
-              if (!seen.has(key)) {
-                seen.add(key)
+            // 跳过卸载程序等垃圾项
+            if (isJunk(lowerName)) continue
+            const s = score(lowerName)
+            if (s > 0) {
+              const displayName = e.name.replace(/\.(lnk|exe)$/i, '')
+              const prevIdx = seen.get(displayName)
+              if (prevIdx !== undefined) {
+                // 同名去重：保留得分高、路径短的
+                if (s > found[prevIdx].score || (s === found[prevIdx].score && e.path.length < found[prevIdx].path.length)) {
+                  found[prevIdx] = {
+                    name: displayName,
+                    path: e.path,
+                    type: lowerName.endsWith('.lnk') ? 'shortcut' : 'executable',
+                    score: s
+                  }
+                }
+              } else {
+                seen.set(displayName, found.length)
                 found.push({
-                  name: e.name.replace(/\.(lnk|exe)$/i, ''),
+                  name: displayName,
                   path: e.path,
-                  type: lowerName.endsWith('.lnk') ? 'shortcut' : 'executable'
+                  type: lowerName.endsWith('.lnk') ? 'shortcut' : 'executable',
+                  score: s
                 })
               }
             }
@@ -343,17 +372,20 @@ export function initBuiltinTools(
       }
 
       for (const root of searchRoots) {
-        if (found.length >= 10) break
         await scanDir(root, 0)
       }
 
-      if (found.length === 0) {
+      // 按匹配度排序，最相关的排第一
+      found.sort((a, b) => b.score - a.score || a.path.length - b.path.length)
+      const top = found.slice(0, 10).map(({ score: _s, ...rest }) => rest)
+
+      if (top.length === 0) {
         return {
           message: `未找到与「${params.keyword}」匹配的应用`,
           hint: '可尝试其他关键词（英文名），或让用户手动通过快速启动的「添加」按钮选择应用'
         }
       }
-      return { apps: found, message: `找到 ${found.length} 个匹配的应用` }
+      return { apps: top, message: `找到 ${top.length} 个匹配的应用，已按匹配度排序` }
     }
   })
 
