@@ -9,7 +9,7 @@ import {
   StarOff,
   RefreshCw,
   Upload,
-  FolderPlus,
+  FolderInput,
   Search,
   Eye
 } from 'lucide-react'
@@ -249,7 +249,7 @@ export default function FileManager({ onFilePreview }: FileManagerProps) {
             className="p-2.5 rounded-xl hover:bg-studio-100 text-studio-500"
             title="选择文件夹"
           >
-            <FolderPlus size={20} />
+            <FolderInput size={20} />
           </button>
           
           {/* 搜索 */}
