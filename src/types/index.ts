@@ -135,6 +135,8 @@ export interface ElectronAPI {
   }
   dialog: {
     selectDirectory: () => Promise<string | null>
+    selectFile?: (options?: { filters?: { name: string; extensions: string[] }[] }) => Promise<string | null>
+    selectApp?: () => Promise<string | null>
   }
   os: {
     homeDir: () => Promise<string>
@@ -143,6 +145,7 @@ export interface ElectronAPI {
   }
   shell: {
     openExternal: (url: string) => Promise<void>
+    openPath?: (path: string) => Promise<void>
   }
   db: {
     query: (sql: string, params?: any[]) => Promise<{ data?: any; error?: string }>

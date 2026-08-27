@@ -17,6 +17,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 对话框
   dialog: {
     selectDirectory: () => ipcRenderer.invoke('dialog:selectDirectory'),
+    selectFile: (options?: { filters?: { name: string; extensions: string[] }[] }) => 
+      ipcRenderer.invoke('dialog:selectFile', options),
+    selectApp: () => ipcRenderer.invoke('dialog:selectApp'),
   },
   
   // 系统
@@ -29,6 +32,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Shell
   shell: {
     openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url),
+    openPath: (path: string) => ipcRenderer.invoke('shell:openPath', path),
   },
   
   // 数据库

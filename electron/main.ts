@@ -208,6 +208,38 @@ ipcMain.handle('dialog:selectDirectory', async () => {
   return result.canceled ? null : result.filePaths[0]
 })
 
+// 打开系统对话框选择文件
+ipcMain.handle('dialog:selectFile', async (_, options?: { filters?: { name: string; extensions: string[] }[] }) => {
+  const result = await dialog.showOpenDialog(mainWindow!, {
+    properties: ['openFile'],
+    filters: options?.filters || [
+      { name: '所有文件', extensions: ['*'] }
+    ]
+  })
+  return result.canceled ? null : result.filePaths[0]
+})
+
+// 打开系统对话框选择应用(.exe)
+ipcMain.handle('dialog:selectApp', async () => {
+  const result = await dialog.showOpenDialog(mainWindow!, {
+    properties: ['openFile'],
+    filters: [
+      { name: '应用程序', extensions: ['exe', 'bat', 'cmd'] },
+      { name: '所有文件', extensions: ['*'] }
+    ]
+  })
+  return result.canceled ? null : result.filePaths[0]
+})
+
+// 使用默认应用打开文件或文件夹
+ipcMain.handle('shell:openPath', async (_, path: string) => {
+  try {
+    await shell.openPath(path)
+  } catch (error: any) {
+    console.error('[Main] openPath error:', error.message)
+  }
+})
+
 // 打开外部链接
 ipcMain.handle('shell:openExternal', async (_, url: string) => {
   try {

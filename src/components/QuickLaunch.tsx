@@ -99,9 +99,12 @@ export default function QuickLaunch() {
 
   const openItem = (item: QuickLaunchItem) => {
     if (item.type === 'link') {
-      window.electronAPI?.shell.openExternal(item.path)
+      // 确保链接有 https 前缀
+      const url = item.path.match(/^https?:\/\//i) ? item.path : 'https://' + item.path
+      window.electronAPI?.shell.openExternal(url)
     } else {
-      window.electronAPI?.shell.openExternal(item.path)
+      // 使用 openPath 打开文件、文件夹、应用
+      window.electronAPI?.shell.openPath?.(item.path)
     }
   }
 
@@ -112,9 +115,20 @@ export default function QuickLaunch() {
       return
     }
     
-    const path = await window.electronAPI.dialog.selectDirectory()
+    let path: string | null = null
+    
+    if (formData.type === 'folder') {
+      path = await window.electronAPI.dialog.selectDirectory()
+    } else if (formData.type === 'file') {
+      path = await window.electronAPI.dialog.selectFile?.() ?? null
+    } else if (formData.type === 'app') {
+      path = await window.electronAPI.dialog.selectApp?.() ?? null
+    }
+    
     if (path) {
-      setFormData({ ...formData, path })
+      // 自动从路径提取名称
+      const name = path.split(/[/\\]/).pop() || formData.name
+      setFormData({ ...formData, path, name: formData.name || name })
     }
   }
 
