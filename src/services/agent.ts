@@ -576,23 +576,33 @@ export function initBuiltinTools(
           categories: Object.values(categories).filter(c => c.count > 0)
         }
         
-        // 建议
+        // 建议：只要有待整理文件就给出建议（不再用"超过3个才建议"的阈值）
         const suggestions: string[] = []
-        if (files.length > 20) {
-          suggestions.push(`桌面有 ${files.length} 个文件，建议整理`)
-        }
         for (const cat of stats.categories) {
-          if (cat.count > 3) {
-            suggestions.push(`建议创建"${cat.name}"文件夹，将 ${cat.count} 个文件移动进去`)
+          const folderExists = folders.some((f: any) => f.name === cat.name)
+          const fileList = cat.files.length > 8
+            ? cat.files.slice(0, 8).join('、') + ` 等 ${cat.files.length} 个文件`
+            : cat.files.join('、')
+          if (folderExists) {
+            suggestions.push(`将「${fileList}」移入已有"${cat.name}"文件夹`)
+          } else {
+            suggestions.push(`创建"${cat.name}"文件夹，将「${fileList}」移入`)
           }
         }
+        // 单独的文件夹不需要整理，仅提示
+        if (suggestions.length === 0 && folders.length > 0) {
+          suggestions.push('桌面文件均已分类整理，无需移动')
+        }
+        
+        const protectedNote = skipped.length > 0 ? `（已保护 ${skipped.length} 个系统/壁纸/快捷方式文件）` : ''
         
         return {
           desktopPath,
           stats,
           suggestions,
-          message: suggestions.length > 0 ? '整理建议已生成' : '桌面很整洁'
-            + (skipped.length > 0 ? `（已保护 ${skipped.length} 个系统/壁纸/快捷方式文件不参与整理）` : '')
+          message: files.length > 0
+            ? `发现 ${files.length} 个待整理文件${protectedNote}`
+            : '桌面很整洁' + protectedNote
         }
       } catch (error: any) {
         return { error: error.message }
