@@ -125,7 +125,9 @@ export default function TaskKanban({ parentTask, onClose, onChanged }: TaskKanba
         if (from === -1 || from === insertIndex) return
         const newCol = [...srcCol]
         newCol.splice(from, 1)
-        newCol.splice(insertIndex, 0, task)
+        // 关键：向下移动时，移除自身后目标索引会前移一位，需要修正
+        const adjustedIdx = from < insertIndex ? insertIndex - 1 : insertIndex
+        newCol.splice(adjustedIdx, 0, task)
         await persistColumn(srcStatus, newCol)
       } else {
         // 跨列移动
