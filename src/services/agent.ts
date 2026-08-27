@@ -141,6 +141,8 @@ export function initBuiltinTools(
     if (name.startsWith('.')) return true
     // 快捷方式（移动会破坏桌面应用入口）
     if (name.endsWith('.lnk') || name.endsWith('.url')) return true
+    // 主题/壁纸相关文件（移动会导致主题丢失、壁纸变黑）
+    if (name.endsWith('.theme') || name.endsWith('.themepack') || name.endsWith('.deskthemepack')) return true
     // 当前壁纸文件
     if (wallpaperPaths.has(filePath)) return true
     return false
@@ -407,10 +409,10 @@ export function initBuiltinTools(
     }
   })
 
-  // 恢复壁纸（壁纸被误动导致黑屏时使用）
+  // 恢复壁纸（仅在用户反馈壁纸丢失时使用；只找回原文件，绝不更换图片）
   registerTool({
     name: 'restore_wallpaper',
-    description: '恢复桌面壁纸。当用户反馈壁纸变黑/丢失时使用，会自动从桌面分类文件夹找回壁纸文件并重新应用',
+    description: '恢复用户丢失的桌面壁纸。严格只找回用户原来的壁纸文件（按注册表记录的文件名精确匹配），绝不会更换成其他图片。找不到时返回提示让用户手动设置',
     parameters: [],
     execute: async () => {
       const wallpaperApi = (globalThis as any).window?.electronAPI?.wallpaper
@@ -968,7 +970,7 @@ ${toolsList.map(t => `- ${t.name}: ${t.description}
 15. 查看快速启动内容用 list_quick_launch；移除用 remove_quick_launch
 16. 添加网址到快速启动直接用 add_quick_launch(type="link")，无需搜索
 17. 整理桌面会自动保护壁纸、系统文件(desktop.ini)和快捷方式(.lnk)，这些文件不会被移动，无需额外处理
-18. 如果用户反馈壁纸变黑或丢失，立即调用 restore_wallpaper 工具恢复
+18. 壁纸原则: 绝不更换用户的壁纸或主题。整理桌面会自动保护壁纸、主题文件(.theme)和快捷方式。只有当用户主动反馈壁纸变黑/丢失时才调用 restore_wallpaper（它只会找回用户原来的壁纸文件，不会换图）；找不到时提醒用户自行在"个性化"中设置
 
 只返回JSON，不要其他内容。
 `
