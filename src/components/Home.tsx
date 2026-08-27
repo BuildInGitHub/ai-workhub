@@ -11,7 +11,10 @@ import {
   Sparkles,
   TrendingUp,
   Calendar,
-  Hand
+  Hand,
+  File,
+  AppWindow,
+  ExternalLink
 } from 'lucide-react'
 import type { Tab, Link as LinkType, Task } from '../types'
 
@@ -23,6 +26,7 @@ interface HomeProps {
 export default function Home({ onAddTab, refreshKey }: HomeProps) {
   const [recentLinks, setRecentLinks] = useState<LinkType[]>([])
   const [recentTasks, setRecentTasks] = useState<Task[]>([])
+  const [quickLaunchItems, setQuickLaunchItems] = useState<any[]>([])
   const [stats, setStats] = useState({
     totalLinks: 0,
     totalTasks: 0,
@@ -67,6 +71,14 @@ export default function Home({ onAddTab, refreshKey }: HomeProps) {
         })))
       }
 
+      // 加载快速启动项
+      const quickResult = await window.electronAPI.db.query(
+        "SELECT * FROM quick_launch ORDER BY position ASC LIMIT 8"
+      )
+      if (quickResult.data) {
+        setQuickLaunchItems(quickResult.data)
+      }
+
       const linkCount = await window.electronAPI.db.query("SELECT COUNT(*) as count FROM links")
       const taskCount = await window.electronAPI.db.query("SELECT COUNT(*) as count FROM tasks")
       const completedCount = await window.electronAPI.db.query(
@@ -84,6 +96,37 @@ export default function Home({ onAddTab, refreshKey }: HomeProps) {
       })
     } catch (error) {
       console.error('加载数据失败:', error)
+    }
+  }
+
+  // 打开快速启动项
+  const openQuickItem = (item: any) => {
+    if (item.type === 'link') {
+      const url = item.path.match(/^https?:\/\//i) ? item.path : 'https://' + item.path
+      window.electronAPI?.shell.openExternal(url)
+    } else {
+      window.electronAPI?.shell.openPath?.(item.path)
+    }
+  }
+
+  // 快速启动项图标
+  const quickItemIcon = (item: any, size = 20) => {
+    switch (item.type) {
+      case 'app': return <AppWindow size={size} />
+      case 'file': return <File size={size} />
+      case 'folder': return <FolderOpen size={size} />
+      case 'link': return <ExternalLink size={size} />
+      default: return <Zap size={size} />
+    }
+  }
+
+  const quickItemColor = (type: string) => {
+    switch (type) {
+      case 'app': return 'bg-purple-50 text-purple-500'
+      case 'file': return 'bg-blue-50 text-blue-500'
+      case 'folder': return 'bg-amber-50 text-amber-500'
+      case 'link': return 'bg-green-50 text-green-500'
+      default: return 'bg-studio-100 text-studio-500'
     }
   }
 
@@ -137,6 +180,49 @@ export default function Home({ onAddTab, refreshKey }: HomeProps) {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* 快速启动 */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-display text-lg font-semibold text-ink-100 flex items-center gap-2">
+            <Zap size={18} className="text-caramel-400" />
+            快速启动
+          </h2>
+          <button 
+            onClick={() => onAddTab('quick-launch', '快速启动')}
+            className="text-sm text-caramel-400 hover:text-caramel-500 flex items-center gap-1"
+          >
+            管理 <ArrowRight size={14} />
+          </button>
+        </div>
+        {quickLaunchItems.length === 0 ? (
+          <div className="bg-white rounded-2xl p-6 border border-dashed border-studio-300 text-center">
+            <p className="text-studio-400 text-sm mb-2">暂无快速启动项</p>
+            <button 
+              onClick={() => onAddTab('quick-launch', '快速启动')}
+              className="text-sm text-caramel-400 hover:text-caramel-500"
+            >
+              去添加常用应用 →
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-8 gap-3">
+            {quickLaunchItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => openQuickItem(item)}
+                className="flex flex-col items-center gap-2 p-3 bg-white rounded-2xl hover:shadow-medium transition-all group card-hover border border-studio-200"
+                title={`${item.name}\n${item.path}`}
+              >
+                <div className={`p-3 rounded-xl ${quickItemColor(item.type)} group-hover:scale-110 transition-transform`}>
+                  {quickItemIcon(item)}
+                </div>
+                <span className="text-xs text-ink-100 truncate w-full text-center">{item.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* 统计卡片 */}

@@ -255,6 +255,148 @@ export function initBuiltinTools(
     }
   })
 
+  // 搜索已安装应用（扫描开始菜单/桌面/常见安装目录）
+  registerTool({
+    name: 'search_apps',
+    description: '按名称搜索本机已安装的应用程序，返回应用名称和快捷方式路径（.lnk 或 .exe）',
+    parameters: [
+      { name: 'keyword', type: 'string', description: '应用名称关键词，如 "网易云音乐"、"微信"、"cloudmusic"', required: true }
+    ],
+    execute: async (params) => {
+      const keyword = String(params.keyword || '').toLowerCase().trim()
+      if (!keyword) return { error: '请提供搜索关键词' }
+
+      const home = await osHomeDir()
+      // 快捷方式常见位置（开始菜单 + 桌面）
+      const searchRoots = [
+        'C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs',
+        home + '\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs',
+        home + '\\Desktop',
+        'C:\\Program Files',
+        'C:\\Program Files (x86)'
+      ]
+
+      const found: Array<{ name: string; path: string; type: string }> = []
+      const seen = new Set<string>()
+
+      // 递归扫描（限制深度避免太慢）
+      const scanDir = async (dir: string, depth: number) => {
+        if (depth > 2 || found.length >= 10) return
+        let entries: any
+        try {
+          entries = await fsReadDir(dir)
+        } catch {
+          return
+        }
+        if (!Array.isArray(entries)) return
+        for (const e of entries) {
+          if (found.length >= 10) break
+          const lowerName = (e.name || '').toLowerCase()
+          if (e.isFile && (lowerName.endsWith('.lnk') || lowerName.endsWith('.exe'))) {
+            // 匹配：关键词包含于文件名，或文件名包含关键词
+            if (lowerName.includes(keyword) || keyword.includes(lowerName.replace(/\.(lnk|exe)$/, ''))) {
+              const key = e.name + '|' + e.path
+              if (!seen.has(key)) {
+                seen.add(key)
+                found.push({
+                  name: e.name.replace(/\.(lnk|exe)$/i, ''),
+                  path: e.path,
+                  type: lowerName.endsWith('.lnk') ? 'shortcut' : 'executable'
+                })
+              }
+            }
+          } else if (e.isDirectory && depth < 2) {
+            await scanDir(e.path, depth + 1)
+          }
+        }
+      }
+
+      for (const root of searchRoots) {
+        if (found.length >= 10) break
+        await scanDir(root, 0)
+      }
+
+      if (found.length === 0) {
+        return {
+          message: `未找到与「${params.keyword}」匹配的应用`,
+          hint: '可尝试其他关键词（英文名），或让用户手动通过快速启动的「添加」按钮选择应用'
+        }
+      }
+      return { apps: found, message: `找到 ${found.length} 个匹配的应用` }
+    }
+  })
+
+  // 查看快速启动列表
+  registerTool({
+    name: 'list_quick_launch',
+    description: '查看当前快速启动项列表',
+    parameters: [],
+    execute: async () => {
+      const result = await dbQuery("SELECT * FROM quick_launch ORDER BY position ASC")
+      const items = result.data || []
+      return {
+        count: items.length,
+        items: items.map((i: any) => ({ name: i.name, type: i.type, path: i.path }))
+      }
+    }
+  })
+
+  // 添加快速启动项
+  registerTool({
+    name: 'add_quick_launch',
+    description: '添加快速启动项（应用/文件/文件夹/链接）。添加应用前应先用 search_apps 找到应用路径',
+    parameters: [
+      { name: 'name', type: 'string', description: '显示名称', required: true },
+      { name: 'type', type: 'string', description: '类型: app/file/folder/link', required: true },
+      { name: 'path', type: 'string', description: '应用路径(.lnk/.exe)、文件/文件夹路径或网址', required: true }
+    ],
+    execute: async (params) => {
+      if (!params.name || !params.path || !params.type) {
+        return { error: '需要提供 name、type、path 参数' }
+      }
+      const validTypes = ['app', 'file', 'folder', 'link']
+      if (!validTypes.includes(params.type)) {
+        return { error: `type 必须是 ${validTypes.join('/')} 之一` }
+      }
+      // 检查是否已存在同名项
+      const existing = await dbQuery("SELECT * FROM quick_launch")
+      const items = existing.data || []
+      const dup = items.find((i: any) => i.name === params.name)
+      if (dup) {
+        return { message: `「${params.name}」已在快速启动中，无需重复添加` }
+      }
+      const id = uuidv4()
+      await dbQuery(
+        "INSERT INTO quick_launch (id, name, type, path, position) VALUES (?, ?, ?, ?, ?)",
+        [id, params.name, params.type, params.path, items.length]
+      )
+      return {
+        success: true,
+        message: `已添加「${params.name}」到快速启动`,
+        item: { name: params.name, type: params.type, path: params.path }
+      }
+    }
+  })
+
+  // 移除快速启动项
+  registerTool({
+    name: 'remove_quick_launch',
+    description: '按名称移除快速启动项',
+    parameters: [
+      { name: 'name', type: 'string', description: '要移除的快速启动项名称', required: true }
+    ],
+    execute: async (params) => {
+      const existing = await dbQuery("SELECT * FROM quick_launch")
+      const items = existing.data || []
+      const target = items.find((i: any) => i.name === params.name)
+      if (!target) {
+        return { message: `快速启动中没有找到「${params.name}」` }
+      }
+      await dbQuery("DELETE FROM quick_launch WHERE id = ?", [target.id])
+      return { success: true, message: `已从快速启动移除「${params.name}」` }
+    }
+  })
+
   // 读取文件内容
   registerTool({
     name: 'read_file',
@@ -746,6 +888,9 @@ ${toolsList.map(t => `- ${t.name}: ${t.description}`).join('\n')}
 11. 用户主目录是: "C:\\\\Users\\\\dot backup"
 12. 整理桌面文件用 organize_desktop 工具，它会自动获取桌面路径
 13. 如果需要分析桌面文件并整理，直接调用 organize_desktop 或 execute_organize_desktop 工具
+14. 添加应用到快速启动的标准流程: 第一步 search_apps 搜索应用路径，第二步 add_quick_launch 添加(type="app"，path用搜索到的.lnk或.exe路径)
+15. 查看快速启动内容用 list_quick_launch；移除用 remove_quick_launch
+16. 添加网址到快速启动直接用 add_quick_launch(type="link")，无需搜索
 
 只返回JSON，不要其他内容。
 `
