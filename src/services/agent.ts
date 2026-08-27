@@ -917,8 +917,9 @@ export async function planTask(userInput: string, apiKey: string): Promise<PlanR
   const prompt = `
 你是一个AI任务规划助手(Pi Agent)。用户请求: "${userInput}"
 
-可用工具(必须使用以下精确的工具名):
-${toolsList.map(t => `- ${t.name}: ${t.description}`).join('\n')}
+可用工具(必须使用以下精确的工具名，并正确填写每个参数):
+${toolsList.map(t => `- ${t.name}: ${t.description}
+  参数: ${t.parameters.map(p => `${p.name}${p.required ? '(必填)' : '(可选)'}: ${p.description}`).join('; ') || '无'}`).join('\n')}
 
 请按以下JSON格式分析并规划任务:
 {
@@ -928,11 +929,26 @@ ${toolsList.map(t => `- ${t.name}: ${t.description}`).join('\n')}
       "id": 1,
       "description": "步骤描述",
       "tool": "工具名",
-      "params": {参数}
+      "params": {"参数名": "实际值"}
     }
   ],
   "needsExecution": true
 }
+
+示例 - 用户请求"把网易云音乐加到快速启动":
+{
+  "thought": "需要先搜索应用路径，再添加到快速启动",
+  "steps": [
+    {"id": 1, "description": "搜索网易云音乐的安装路径", "tool": "search_apps", "params": {"keyword": "网易云音乐"}},
+    {"id": 2, "description": "将网易云音乐添加到快速启动", "tool": "add_quick_launch", "params": {"name": "网易云音乐", "type": "app", "path": null}}
+  ],
+  "needsExecution": true
+}
+
+参数填写规则:
+- params 必须填写实际值，不能省略必填参数
+- 如果参数依赖上一步的执行结果(如搜索到的应用路径)，该参数填 null，系统会自动使用上一步的结果
+- 从用户请求中提取参数值（如应用名、链接地址、任务标题）
 
 强制规则:
 1. 大部分任务都可以用工具完成，needsExecution始终为true
@@ -984,7 +1000,7 @@ ${toolsList.map(t => `- ${t.name}: ${t.description}`).join('\n')}
         id: s.id || i + 1,
         description: s.description,
         tool: s.tool,
-        params: s.params || {},
+        params: s.params || s.parameters || {},
         status: 'pending' as const
       })),
       needsExecution: result.needsExecution !== false
@@ -1004,20 +1020,85 @@ ${toolsList.map(t => `- ${t.name}: ${t.description}`).join('\n')}
 export async function executePlan(plan: PlanResult): Promise<ExecutionResult> {
   const steps: ExecutionResult['steps'] = []
   
+  // 从用户请求中提取应用/项目名称（去掉动作词）
+  const extractName = (input: string): string | null => {
+    const patterns = [
+      /(?:把|将|添加|加入?)\s*["「『]?(.+?)["」』]?\s*(?:加到|加入|添加到|放到|放至|移到|设置|设为|创建为|到)/,
+      /(?:打开|启动|运行|搜索|查找|查看)\s*["「『]?(.+?)["」』]?\s*(?:的|应用|程序|文件|链接|任务|$)/,
+    ]
+    for (const p of patterns) {
+      const m = input.match(p)
+      if (m && m[1] && m[1].length <= 30) {
+        return m[1].replace(/(应用|程序|到快速启动|快速启动)/g, '').trim()
+      }
+    }
+    return null
+  }
+  
+  // 参数兜底推断：缺失的必填参数从用户请求或上一步结果中补全
+  const inferParams = (toolName: string, rawParams: Record<string, any>): Record<string, any> => {
+    const params = { ...rawParams }
+    const userInput = plan.task || ''
+    const name = extractName(userInput)
+    
+    // 清理 null 和占位符值（模型按规则填 null，或不守规则填说明文字）
+    for (const k of Object.keys(params)) {
+      const v = params[k]
+      if (v === null || v === undefined) {
+        delete params[k]
+      } else if (typeof v === 'string' && (
+        /^\(.*\)$/.test(v.trim()) ||          // (使用第1步结果)
+        /第\s*\d+\s*步/.test(v) ||            // 第1步的结果
+        /上一步|搜索到|待定|unknown|todo/i.test(v)
+      )) {
+        delete params[k]
+      }
+    }
+    
+    if (toolName === 'search_apps' && !params.keyword) {
+      params.keyword = name || userInput.slice(0, 20)
+    }
+    
+    if (toolName === 'add_quick_launch') {
+      if (!params.name) params.name = name || userInput.slice(0, 20)
+      if (!params.type) {
+        if (/链接|网址|http/i.test(userInput)) params.type = 'link'
+        else if (/文件夹|目录/.test(userInput)) params.type = 'folder'
+        else if (/文件/.test(userInput)) params.type = 'file'
+        else params.type = 'app'
+      }
+      if (!params.path) {
+        // 从之前步骤的 search_apps 结果中取应用路径
+        for (const s of steps) {
+          if (s.output?.apps?.length > 0) {
+            params.path = s.output.apps[0].path
+            if (!params.name || params.name === userInput.slice(0, 20)) {
+              params.name = s.output.apps[0].name
+            }
+            break
+          }
+        }
+      }
+    }
+    
+    return params
+  }
+  
   for (const step of plan.steps) {
     if (!step.tool) continue
     
     step.status = 'executing'
+    const finalParams = inferParams(step.tool, step.params || {})
     
     try {
-      const result = await executeTool(step.tool, step.params || {})
+      const result = await executeTool(step.tool, finalParams)
       step.status = result.success ? 'completed' : 'failed'
       step.result = result.success ? result.data : undefined
       step.error = result.error
       
       steps.push({
         tool: step.tool,
-        input: step.params,
+        input: finalParams,
         output: result.success ? result.data : undefined,
         error: result.error
       })
@@ -1038,7 +1119,6 @@ export async function executePlan(plan: PlanResult): Promise<ExecutionResult> {
       break
     }
   }
-
   const allSuccess = plan.steps.every(s => s.status === 'completed')
   
   return {
