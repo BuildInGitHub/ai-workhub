@@ -67,7 +67,7 @@ npm run dev
 2. AI 支持自然语言操作，例如：
    - 「帮我整理桌面文件」
    - 「把网易云音乐加到快速启动」
-   - 「给 AI 出海添加子任务：Agent、SEO、自媒体」
+   - 「给 X 任务添加子任务：A、B」
    - 「添加一个链接，分类工作，账号 admin」
 
 ### 数据管理
@@ -171,7 +171,7 @@ npm run dev        # Option 1: development mode
 2. The AI understands natural language, e.g.:
    - "Organize my desktop files"
    - "Add NetEase Cloud Music to quick launch"
-   - "Add subtasks Agent, SEO, and 自媒体 to the AI出海 task"
+   - "Add subtasks A, B to the X task"
    - "Add a link, category work, account admin"
 
 ### Data Management
