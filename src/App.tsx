@@ -431,7 +431,7 @@ function App() {
           </div>
         )}
 
-        {/* 左侧边栏 - AI助手 */}
+        {/* 左侧边栏 - AI伙伴 */}
         <Sidebar
           isExpanded={isChatExpanded}
           onToggle={() => setIsChatExpanded(!isChatExpanded)}

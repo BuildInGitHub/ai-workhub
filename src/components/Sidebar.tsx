@@ -229,8 +229,8 @@ export default function Sidebar({
                 <Sparkles size={18} className="text-white" />
               </div>
               <div>
-                <h2 className="font-display font-semibold text-ink-100">AI 助手</h2>
-                <p className="text-xs text-studio-500">智能办公伙伴</p>
+                <h2 className="font-display font-semibold text-ink-100">AI 伙伴</h2>
+                {/* <p className="text-xs text-studio-500">智能办公伙伴</p> */}
               </div>
             </div>
           )}
@@ -296,7 +296,7 @@ export default function Sidebar({
                   <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-caramel-50 to-caramel-100 flex items-center justify-center">
                     <Zap size={32} className="text-caramel-400" />
                   </div>
-                  <h3 className="font-display text-lg text-ink-100 mb-1">你好，我是 AI 助手</h3>
+                  <h3 className="font-display text-lg text-ink-100 mb-1">你好，我是 AI 伙伴</h3>
                   <p className="text-sm text-studio-500 mb-4">可以帮你管理文件、链接和任务</p>
                   
                   {/* 快捷提示 */}
@@ -412,7 +412,7 @@ export default function Sidebar({
             <button 
               onClick={onToggle}
               className="p-3 rounded-xl hover:bg-studio-100 transition-colors"
-              title="展开AI助手"
+              title="展开AI伙伴"
             >
               <MessageSquare size={24} className="text-caramel-400" />
             </button>

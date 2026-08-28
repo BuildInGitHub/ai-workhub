@@ -142,7 +142,7 @@ export default function Home({ onAddTab, refreshKey }: HomeProps) {
   // 预设智能建议（分类：ai=AI指令 / tip=使用技巧）
   const tips: Array<{ text: string; type: 'ai' | 'tip'; target?: Tab['type'] }> = [
     // AI 指令类
-    { text: '试试告诉AI助手「帮我整理桌面」', type: 'ai' },
+    { text: '试试告诉AI伙伴「帮我整理桌面」', type: 'ai' },
     { text: '让AI把常用应用加到快速启动，例如「把微信加到快速启动」', type: 'ai' },
     { text: '给任务拆分子任务：「给X任务添加子任务：A、B」', type: 'ai' },
     { text: '让AI收集链接：「添加百度到链接收藏，分类工作」', type: 'ai' },

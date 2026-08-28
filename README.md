@@ -63,7 +63,7 @@ npm run dev
 ./start.bat
 ```
 
-1. 点击 AI 助手侧边栏底部 ⚙️，配置 DeepSeek API Key 启用 AI 功能
+1. 点击 AI 伙伴侧边栏底部 ⚙️，配置 DeepSeek API Key 启用 AI 功能
 2. AI 支持自然语言操作，例如：
    - 「帮我整理桌面文件」
    - 「把网易云音乐加到快速启动」
@@ -87,7 +87,7 @@ npm run dev
 │   └── database.ts        # SQLite 数据库（自动从旧 JSON 迁移）
 ├── src/
 │   ├── components/        # React 组件
-│   │   ├── Sidebar.tsx        # AI 助手面板（可折叠回复）
+│   │   ├── Sidebar.tsx        # AI 伙伴面板（可折叠回复）
 │   │   ├── SessionManager.tsx # 会话管理
 │   │   ├── TaskManager.tsx    # 两级任务列表
 │   │   ├── TaskKanban.tsx     # 任务定制看板（拖拽）
