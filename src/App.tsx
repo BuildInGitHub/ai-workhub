@@ -20,6 +20,7 @@ import Calendar from './components/Calendar'
 import GlobalSearch from './components/GlobalSearch'
 import FilePreview from './components/FilePreview'
 import Home from './components/Home'
+import FeedbackDialog from './components/FeedbackDialog'
 import { initBuiltinTools, getTools, planTask, executePlan, type PlanResult } from './services/agent'
 import type { Tab, ChatMessage, FileEntry } from './types'
 
@@ -33,6 +34,7 @@ function App() {
   // 面板状态
   const [showSearch, setShowSearch] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showFeedback, setShowFeedback] = useState(false)
   const [previewFile, setPreviewFile] = useState<{ path: string; name: string } | null>(null)
   
   // AI聊天状态
@@ -469,10 +471,14 @@ function App() {
         activeTabCount={tabs.length}
         onSearchClick={() => setShowSearch(true)}
         onSettingsClick={() => setShowSettings(true)}
+        onFeedbackClick={() => setShowFeedback(true)}
       />
 
       {/* 全局搜索 */}
       {showSearch && <GlobalSearch onClose={() => setShowSearch(false)} />}
+
+      {/* 意见反馈 */}
+      {showFeedback && <FeedbackDialog onClose={() => setShowFeedback(false)} />}
 
       {/* 文件预览 */}
       {previewFile && (

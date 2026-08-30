@@ -13,16 +13,18 @@ import {
   Maximize2,
   Folder,
   CheckSquare,
-  Calendar
+  Calendar,
+  MessageSquarePlus
 } from 'lucide-react'
 
 interface TaskBarProps {
   activeTabCount: number
   onSearchClick: () => void
   onSettingsClick: () => void
+  onFeedbackClick: () => void
 }
 
-export default function TaskBar({ activeTabCount, onSearchClick, onSettingsClick }: TaskBarProps) {
+export default function TaskBar({ activeTabCount, onSearchClick, onSettingsClick, onFeedbackClick }: TaskBarProps) {
   const [time, setTime] = useState(new Date())
   const [isOnline, setIsOnline] = useState(true)
 
@@ -86,6 +88,15 @@ export default function TaskBar({ activeTabCount, onSearchClick, onSettingsClick
         <button className="p-1.5 rounded hover:bg-studio-100 relative" title="通知">
           <Bell size={16} className="text-studio-500" />
           <span className="absolute top-0.5 right-0.5 w-2 h-2 bg-caramel-400 rounded-full"></span>
+        </button>
+
+        {/* 意见反馈 */}
+        <button 
+          onClick={onFeedbackClick}
+          className="p-1.5 rounded hover:bg-studio-100"
+          title="意见反馈 (GitHub Issues)"
+        >
+          <MessageSquarePlus size={16} className="text-studio-500" />
         </button>
 
         {/* 分割线 */}
