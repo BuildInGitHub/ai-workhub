@@ -116,14 +116,16 @@ export default function QuickLaunch({ refreshKey }: QuickLaunchProps) {
 
   const handleSelectPath = async () => {
     if (!window.electronAPI) return
-    
+
+    // 链接类型：打开收藏链接选择器
     if (formData.type === 'link') {
+      openLinkPicker()
       return
     }
-    
+
     let path: string | null = null
     const dialogAPI = window.electronAPI.dialog
-    
+
     if (formData.type === 'folder') {
       path = await dialogAPI.selectDirectory()
     } else if (formData.type === 'file') {
@@ -141,12 +143,37 @@ export default function QuickLaunch({ refreshKey }: QuickLaunchProps) {
         return
       }
     }
-    
+
     if (path) {
       // 自动从路径提取名称
       const name = path.split(/[/\\]/).pop() || formData.name
       setFormData({ ...formData, path, name: formData.name || name })
     }
+  }
+
+  // ============ 收藏链接选择器 ============
+  const [showLinkPicker, setShowLinkPicker] = useState(false)
+  const [availableLinks, setAvailableLinks] = useState<any[]>([])
+
+  const openLinkPicker = async () => {
+    if (!window.electronAPI) return
+    try {
+      const result = await window.electronAPI.db.query("SELECT * FROM links ORDER BY created_at DESC")
+      setAvailableLinks(result.data || [])
+      setShowLinkPicker(true)
+    } catch (error) {
+      console.error('加载收藏链接失败:', error)
+    }
+  }
+
+  // 选中收藏链接：名称取标题，路径取 URL
+  const pickLink = (link: any) => {
+    setFormData(prev => ({
+      ...prev,
+      path: link.url,
+      name: prev.name || link.title
+    }))
+    setShowLinkPicker(false)
   }
 
   const openEditModal = (item: QuickLaunchItem) => {
@@ -334,17 +361,15 @@ export default function QuickLaunch({ refreshKey }: QuickLaunchProps) {
                     type="text"
                     value={formData.path}
                     onChange={(e) => setFormData({ ...formData, path: e.target.value })}
-                    placeholder={formData.type === 'link' ? 'https://example.com' : '选择路径'}
+                    placeholder={formData.type === 'link' ? 'https://example.com 或点右侧从收藏选择' : '选择路径'}
                     className="input"
                   />
-                  {formData.type !== 'link' && (
-                    <button
-                      onClick={handleSelectPath}
-                      className="px-4 btn btn-secondary"
-                    >
-                      选择
-                    </button>
-                  )}
+                  <button
+                    onClick={handleSelectPath}
+                    className="px-4 btn btn-secondary whitespace-nowrap"
+                  >
+                    {formData.type === 'link' ? '从收藏选择' : '选择'}
+                  </button>
                 </div>
               </div>
               
@@ -359,6 +384,55 @@ export default function QuickLaunch({ refreshKey }: QuickLaunchProps) {
           </div>
         </div>
       )}
+      {/* 收藏链接选择器 */}
+      {showLinkPicker && (
+        <div className="fixed inset-0 bg-ink-400/40 flex items-center justify-center z-[60] backdrop-blur-sm"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowLinkPicker(false) }}>
+          <div className="bg-white rounded-2xl p-6 w-[440px] shadow-elevated animate-slideIn">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-display text-lg font-semibold">从收藏链接选择</h3>
+              <button onClick={() => setShowLinkPicker(false)} className="p-2 hover:bg-studio-100 rounded-xl">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="max-h-[360px] overflow-y-auto space-y-2 mb-4">
+              {availableLinks.length === 0 ? (
+                <p className="text-studio-400 text-sm text-center py-8">
+                  收藏夹中还没有链接
+                  <span className="block text-xs mt-1">先到「链接收藏」中添加，或直接在左侧输入网址</span>
+                </p>
+              ) : (
+                availableLinks.map((link) => (
+                  <button
+                    key={link.id}
+                    onClick={() => pickLink(link)}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-caramel-50 transition-colors text-left group"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
+                      <Link size={14} className="text-green-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-ink-100 truncate">{link.title}</p>
+                      <p className="text-xs text-studio-400 truncate">{link.url}</p>
+                    </div>
+                    {link.category && (
+                      <span className="px-2 py-0.5 rounded-md bg-studio-100 text-xs text-studio-500 flex-shrink-0">
+                        {link.category}
+                      </span>
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+
+            <button onClick={() => setShowLinkPicker(false)} className="w-full btn btn-secondary">
+              取消，手动输入网址
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 删除快速启动项确认框 */}
       <ConfirmDialog
         isOpen={!!deleteTarget}
