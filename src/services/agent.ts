@@ -699,6 +699,49 @@ export function initBuiltinTools(
     }
   })
 
+  // ============ 长期记忆 ============
+  // 保存记忆（用户说"记住X"时使用）
+  registerTool({
+    name: 'save_memory',
+    description: '保存一条长期记忆。用户明确说"记住…"、"以后…"这类需要跨会话记住的信息时使用',
+    parameters: [
+      { name: 'content', type: 'string', description: '记忆内容，一句话概括', required: true }
+    ],
+    execute: async (params) => {
+      if (!params.content) return { error: '需要提供记忆内容' }
+      const id = uuidv4()
+      await dbQuery(
+        "INSERT INTO memories (id, content, source, created_at) VALUES (?, ?, ?, datetime('now'))",
+        [id, params.content, 'user']
+      )
+      return { success: true, message: `已记住: ${params.content}` }
+    }
+  })
+
+  // 搜索记忆
+  registerTool({
+    name: 'search_memory',
+    description: '搜索长期记忆',
+    parameters: [
+      { name: 'keyword', type: 'string', description: '搜索关键词', required: false }
+    ],
+    execute: async (params) => {
+      let sql = "SELECT * FROM memories"
+      const queryParams: string[] = []
+      if (params.keyword) {
+        sql += " WHERE content LIKE ?"
+        queryParams.push(`%${params.keyword}%`)
+      }
+      sql += " ORDER BY created_at DESC LIMIT 20"
+      const result = await dbQuery(sql, queryParams)
+      const items = result.data || []
+      return {
+        count: items.length,
+        items: items.map((m: any) => ({ content: m.content, created_at: m.created_at }))
+      }
+    }
+  })
+
   // 列出收藏的文件
   registerTool({
     name: 'list_favorite_files',
@@ -960,14 +1003,29 @@ export interface PlanResult {
   needsExecution: boolean
 }
 
-// 复杂任务规划器 - 拆解任务为步骤
-export async function planTask(userInput: string, apiKey: string): Promise<PlanResult> {
+// 复杂任务规划器 - 拆解任务为步骤（带对话上下文与长期记忆）
+export async function planTask(userInput: string, apiKey: string, history?: Array<{ role: string, content: string }>): Promise<PlanResult> {
   const toolsList = getTools()
   console.log('[Agent] planTask 获取工具列表:', toolsList.map(t => t.name))
-  
+
+  // 最近对话上下文（供追问理解，如"再添加一个"）
+  const historySection = (history && history.length > 0)
+    ? `\n最近对话（最新在下，用于理解指代和追问）:\n${history.slice(-6).map(m => `${m.role === 'user' ? '用户' : 'AI'}: ${m.content.replace(/\[[A-Za-z0-9]+\]/g, '').slice(0, 80)}`).join('\n')}\n`
+    : ''
+
+  // 长期记忆注入
+  let memorySection = ''
+  try {
+    const memResult = await (globalThis as any).window?.electronAPI?.db?.query?.("SELECT * FROM memories ORDER BY created_at DESC LIMIT 5")
+    const memories = memResult?.data || []
+    if (memories.length > 0) {
+      memorySection = `\n用户长期记忆（对话时适当参考）:\n${memories.map((m: any) => `- ${m.content}`).join('\n')}\n`
+    }
+  } catch { /* 记忆读取失败不影响 */ }
+
   const prompt = `
 你是一个AI任务规划助手(Pi Agent)。用户请求: "${userInput}"
-
+${historySection}${memorySection}
 可用工具(必须使用以下精确的工具名，并正确填写每个参数):
 ${toolsList.map(t => `- ${t.name}: ${t.description}
   参数: ${t.parameters.map(p => `${p.name}${p.required ? '(必填)' : '(可选)'}: ${p.description}`).join('; ') || '无'}`).join('\n')}
@@ -1001,11 +1059,15 @@ ${toolsList.map(t => `- ${t.name}: ${t.description}
 - 如果参数依赖上一步的执行结果(如搜索到的应用路径)，该参数填 null，系统会自动使用上一步的结果
 - 从用户请求中提取参数值（如应用名、链接地址、任务标题）
 
-强制规则:
-1. 大部分任务都可以用工具完成，needsExecution始终为true
-2. 如果不知道具体参数，至少选择一个相关工具
-3. 不要返回needsExecution: false
-4. 如果需要搜索文件，用browse_directory或read_file
+needsExecution 判定规则（重要）:
+- 需要操作数据/文件/系统（创建、搜索、添加、整理、打开等）→ true，规划工具步骤
+- 以下情况必须设为 false 且 steps 为空数组: 日常问候(你好/早上好)、闲聊、概念解释(什么是MCP)、征求建议/意见、翻译写作、与工具无关的任何纯对话
+- 纯聊天一律 needsExecution: false，不要硬造工具步骤
+
+其他强制规则:
+1. 工具步骤只覆盖真正需要执行的操作，纯对话绝不编造步骤
+2. 结合最近对话理解追问（如"再添加一个"指代上一轮的对象）
+3. 如果需要搜索文件，用browse_directory或read_file
 5. 如果需要搜索任务，用search_tasks
 6. 如果需要搜索日历，用search_calendar
 7. 如果需要创建任务，用create_task
@@ -1022,6 +1084,7 @@ ${toolsList.map(t => `- ${t.name}: ${t.description}
 17. 整理桌面会自动保护壁纸、系统文件(desktop.ini)和快捷方式(.lnk)，这些文件不会被移动，无需额外处理
 18. 壁纸原则: 绝不更换用户的壁纸或主题。整理桌面会自动保护壁纸、主题文件(.theme)和快捷方式。只有当用户主动反馈壁纸变黑/丢失时才调用 restore_wallpaper（它只会找回用户原来的壁纸文件，不会换图）；找不到时提醒用户自行在"个性化"中设置
 19. 创建子任务的标准流程: 第一步 search_tasks 查找父任务(参数keyword用父任务名)，第二步 create_task(title=子任务名, parent_task_id=第一步找到的父任务id)
+20. 用户说"记住X"/"以后要X"/"别忘了X"时，用 save_memory 保存为长期记忆；用户问"你记得什么"时用 search_memory
 
 只返回JSON，不要其他内容。
 `

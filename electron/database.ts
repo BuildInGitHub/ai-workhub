@@ -28,7 +28,8 @@ const TABLES: Record<string, string> = {
   settings: `id TEXT PRIMARY KEY, key TEXT, value TEXT, created_at TEXT`,
   quick_launch: `id TEXT PRIMARY KEY, name TEXT, type TEXT, path TEXT, position INTEGER`,
   calendar_events: `id TEXT PRIMARY KEY, title TEXT, date TEXT, time TEXT, type TEXT, description TEXT, created_at TEXT`,
-  quick_notes: `id TEXT PRIMARY KEY, title TEXT, content TEXT, created_at TEXT`
+  quick_notes: `id TEXT PRIMARY KEY, title TEXT, content TEXT, created_at TEXT`,
+  memories: `id TEXT PRIMARY KEY, content TEXT, source TEXT, created_at TEXT`
 }
 
 export function initDatabase(): void {

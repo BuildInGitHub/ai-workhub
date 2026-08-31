@@ -238,6 +238,59 @@ function App() {
     }
   }
 
+  // 纯对话模式：带完整会话历史 + 长期记忆
+  const handlePlainChat = async (message: string) => {
+    // 读取长期记忆注入系统提示
+    let memoryPrompt = ''
+    try {
+      const memResult = await window.electronAPI?.db.query(
+        "SELECT * FROM memories ORDER BY created_at DESC LIMIT 10"
+      )
+      const memories = memResult?.data || []
+      if (memories.length > 0) {
+        memoryPrompt = '\n\n用户长期记忆（自然地参考，不要生硬罗列）:\n' + memories.map((m: any) => `- ${m.content}`).join('\n')
+      }
+    } catch { /* 忽略 */ }
+
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [
+          {
+            role: 'system',
+            content: '你是AI WorkHub的智能助手，一个专业的桌面办公伙伴。既能自然地聊天、解答问题、提供建议，也能操作文件、链接、任务等（需要操作时系统会自动执行工具）。用友好、自然的中文回复，保持简洁。' + memoryPrompt
+          },
+          ...chatMessages.map(m => ({ role: m.role, content: m.content })),
+          { role: 'user', content: message }
+        ],
+        temperature: 0.7,
+        max_tokens: 2048
+      })
+    })
+
+    const data = await response.json()
+
+    // 检查 API 错误响应，抛出真实原因
+    if (!response.ok || !data.choices || !data.choices[0]) {
+      const apiError = data?.error?.message || data?.message || `HTTP ${response.status}`
+      throw new Error(`DeepSeek API 错误: ${apiError}`)
+    }
+
+    const assistantMessage: ChatMessage = {
+      id: uuidv4(),
+      role: 'assistant',
+      content: data.choices[0].message.content,
+      created_at: new Date().toISOString()
+    }
+    setChatMessages(prev => [...prev, assistantMessage])
+    saveChatMessage(assistantMessage)
+  }
+
   // AI聊天功能
   const handleSendMessage = useCallback(async (message: string) => {
     if (!message.trim()) return
@@ -266,12 +319,21 @@ function App() {
     }
 
     try {
-      // 使用Pi Agent增强任务规划
-      const taskPlan = await planTask(message, apiKey)
-      
+      // 使用Pi Agent增强任务规划（带最近对话上下文）
+      const taskPlan = await planTask(message, apiKey, chatMessages.map(m => ({ role: m.role, content: m.content })))
+
+      // 纯聊天：无需执行工具，直接走对话（不显示思考过程）
+      if (!taskPlan.needsExecution || taskPlan.steps.length === 0) {
+        await handlePlainChat(message)
+        setCurrentPlan(null)
+        setDataRefreshKey(k => k + 1)
+        setIsLoading(false)
+        return
+      }
+
       // 显示思考过程
       setCurrentPlan(taskPlan)
-      
+
       // 添加思考过程消息 - 更友好的格式
       const thoughtMessage: ChatMessage = {
         id: uuidv4(),
@@ -405,43 +467,6 @@ function App() {
         setChatMessages(prev => [...prev, resultMessage])
         saveChatMessage(resultMessage)
         setCurrentPlan(null)
-      } else {
-        // 不需要执行，使用普通对话
-        const response = await fetch('https://api.deepseek.com/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({
-            model: 'deepseek-chat',
-            messages: [
-              { role: 'system', content: '你是AI WorkHub的智能助手，一个专业的桌面办公助手。可以帮助用户管理文件、链接、任务，进行智能分析和建议。用友好，专业的中文回复。' },
-              ...chatMessages.map(m => ({ role: m.role, content: m.content })),
-              { role: 'user', content: message }
-            ],
-            temperature: 0.7,
-            max_tokens: 2048
-          })
-        })
-
-        const data = await response.json()
-
-        // 检查 API 错误响应，抛出真实原因
-        if (!response.ok || !data.choices || !data.choices[0]) {
-          const apiError = data?.error?.message || data?.message || `HTTP ${response.status}`
-          throw new Error(`DeepSeek API 错误: ${apiError}`)
-        }
-
-        const assistantMessage: ChatMessage = {
-          id: uuidv4(),
-          role: 'assistant',
-          content: data.choices[0].message.content,
-          created_at: new Date().toISOString()
-        }
-        
-        setChatMessages(prev => [...prev, assistantMessage])
-        saveChatMessage(assistantMessage)
       }
       setCurrentPlan(null)
       // AI 可能创建/修改了数据（快速启动、任务、链接等），通知已挂载组件实时刷新
