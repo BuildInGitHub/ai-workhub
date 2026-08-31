@@ -263,7 +263,7 @@ function App() {
         messages: [
           {
             role: 'system',
-            content: '你是AI WorkHub的智能助手，一个专业的桌面办公伙伴。既能自然地聊天、解答问题、提供建议，也能操作文件、链接、任务等（需要操作时系统会自动执行工具）。用友好、自然的中文回复，保持简洁。' + memoryPrompt
+            content: '你是AI WorkHub的智能助手，一个专业的桌面办公伙伴。既能自然地聊天、解答问题、提供建议，也能操作文件、链接、任务等（需要操作时系统会自动执行工具）。用友好、自然的中文回复，保持简洁。对话历史里可能包含之前执行过的工具操作记录（如任务/链接的操作结果），请自然地延续对话，不要重复执行操作或复述工具细节。' + memoryPrompt
           },
           ...chatMessages.map(m => ({ role: m.role, content: m.content })),
           { role: 'user', content: message }
