@@ -1011,6 +1011,7 @@ ${toolsList.map(t => `- ${t.name}: ${t.description}
 7. 如果需要创建任务，用create_task
 8. 如果需要创建日历事件，用create_calendar_event
 9. 如果需要搜索项目，用search_projects
+10. 用户问"收藏了什么链接/我的链接/搜链接"时，用search_links（不带keyword即可列出全部）
 10. 桌面路径直接使用: "C:\\\\Users\\\\dot backup\\\\Desktop" (Windows默认桌面)
 11. 用户主目录是: "C:\\\\Users\\\\dot backup"
 12. 整理桌面文件用 organize_desktop 工具，它会自动获取桌面路径

@@ -295,23 +295,62 @@ function App() {
             if (s.output) {
               // 简化输出显示
               if (typeof s.output === 'object') {
-                // browse_directory 结果格式化
+                // 数组结果：按数据形态分类渲染
                 if (Array.isArray(s.output)) {
-                  const files = s.output.filter((f: any) => f.isFile).slice(0, 10)
-                  const folders = s.output.filter((f: any) => f.isDirectory).slice(0, 5)
-                  if (files.length > 0 || folders.length > 0) {
-                    resultText = '[FolderOpen] 文件/文件夹:\n'
-                    folders.forEach((f: any) => {
-                      resultText += `   [Folder] ${f.name}/\n`
+                  const items = s.output
+                  const hasFileFields = items.some((x: any) => x.isFile !== undefined || x.isDirectory !== undefined)
+                  const hasLinkFields = items.some((x: any) => x.url !== undefined && x.title !== undefined)
+                  const hasTaskFields = items.some((x: any) => x.completed !== undefined && x.title !== undefined)
+
+                  if (hasLinkFields) {
+                    // 链接列表
+                    const links = items.slice(0, 10)
+                    resultText = `[Link2] 找到 ${items.length} 个收藏链接:\n`
+                    links.forEach((l: any) => {
+                      resultText += `   [Link2] ${l.title} - ${l.url}`
+                      if (l.category) resultText += ` (${l.category})`
+                      resultText += '\n'
                     })
-                    files.forEach((f: any) => {
-                      resultText += `   [FileText] ${f.name}\n`
+                    if (items.length > 10) {
+                      resultText += `   ... 还有 ${items.length - 10} 个链接`
+                    }
+                  } else if (hasTaskFields) {
+                    // 任务列表
+                    const tasks = items.slice(0, 10)
+                    resultText = `[ListChecks] 找到 ${items.length} 个任务:\n`
+                    tasks.forEach((t: any) => {
+                      const statusMark = t.completed ? '[CheckCircle] ' : (t.status === 'doing' ? '[Zap] ' : '')
+                      resultText += `   ${statusMark}${t.title}`
+                      if (t.parent_id) resultText += ' (子任务)'
+                      resultText += '\n'
                     })
-                    if (s.output.length > 15) {
-                      resultText += `   ... 还有 ${s.output.length - 15} 个项目`
+                    if (items.length > 10) {
+                      resultText += `   ... 还有 ${items.length - 10} 个任务`
+                    }
+                  } else if (hasFileFields) {
+                    // 目录列表
+                    const files = items.filter((f: any) => f.isFile).slice(0, 10)
+                    const folders = items.filter((f: any) => f.isDirectory).slice(0, 5)
+                    if (files.length > 0 || folders.length > 0) {
+                      resultText = '[FolderOpen] 文件/文件夹:\n'
+                      folders.forEach((f: any) => {
+                        resultText += `   [Folder] ${f.name}/\n`
+                      })
+                      files.forEach((f: any) => {
+                        resultText += `   [FileText] ${f.name}\n`
+                      })
+                      if (items.length > 15) {
+                        resultText += `   ... 还有 ${items.length - 15} 个项目`
+                      }
+                    } else {
+                      resultText = '[FolderOpen] 目录为空'
                     }
                   } else {
-                    resultText = '[FolderOpen] 目录为空'
+                    // 其他数组：逐项展示 title/name
+                    resultText = `[ListChecks] 共 ${items.length} 项:\n`
+                    items.slice(0, 10).forEach((x: any) => {
+                      resultText += `   • ${x.title || x.name || JSON.stringify(x).slice(0, 50)}\n`
+                    })
                   }
                 } else if (s.output.message) {
                   resultText = s.output.message
