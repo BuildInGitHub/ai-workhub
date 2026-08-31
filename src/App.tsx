@@ -414,7 +414,13 @@ function App() {
         })
 
         const data = await response.json()
-        
+
+        // 检查 API 错误响应，抛出真实原因
+        if (!response.ok || !data.choices || !data.choices[0]) {
+          const apiError = data?.error?.message || data?.message || `HTTP ${response.status}`
+          throw new Error(`DeepSeek API 错误: ${apiError}`)
+        }
+
         const assistantMessage: ChatMessage = {
           id: uuidv4(),
           role: 'assistant',

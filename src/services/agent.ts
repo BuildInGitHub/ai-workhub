@@ -1044,8 +1044,19 @@ ${toolsList.map(t => `- ${t.name}: ${t.description}
     })
 
     const data = await response.json()
-    const result = JSON.parse(data.choices[0].message.content)
-    
+
+    // 检查 API 错误响应（无 choices 字段），抛出真实原因
+    if (!response.ok || !data.choices || !data.choices[0]) {
+      const apiError = data?.error?.message || data?.message || `HTTP ${response.status}`
+      throw new Error(`DeepSeek API 错误: ${apiError}`)
+    }
+
+    // 提取 JSON（兼容模型用 \`\`\`json 包裹的情况）
+    let content: string = data.choices[0].message.content || ''
+    const jsonMatch = content.match(/\{[\s\S]*\}/)
+    if (jsonMatch) content = jsonMatch[0]
+    const result = JSON.parse(content)
+
     return {
       task: userInput,
       thought: result.thought || '分析任务中...',
@@ -1058,8 +1069,12 @@ ${toolsList.map(t => `- ${t.name}: ${t.description}
       })),
       needsExecution: result.needsExecution !== false
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('任务规划失败:', error)
+    // API 错误直接上抛，让用户看到真实原因（如 Key 无效、余额不足）
+    if (error?.message?.includes('DeepSeek API 错误')) {
+      throw error
+    }
     return {
       task: userInput,
       thought: '任务规划遇到错误',
