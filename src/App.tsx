@@ -21,7 +21,7 @@ import GlobalSearch from './components/GlobalSearch'
 import FilePreview from './components/FilePreview'
 import Home from './components/Home'
 import FeedbackDialog from './components/FeedbackDialog'
-import { initBuiltinTools, getTools, planTask, executePlan, type PlanResult } from './services/agent'
+import { initBuiltinTools, getTools, runAgentLoop, type PlanResult } from './services/agent'
 import type { Tab, ChatMessage, FileEntry } from './types'
 
 function App() {
@@ -319,11 +319,11 @@ function App() {
     }
 
     try {
-      // 使用Pi Agent增强任务规划（带最近对话上下文）
-      const taskPlan = await planTask(message, apiKey, chatMessages.map(m => ({ role: m.role, content: m.content })))
+      // 图式循环引擎：规划 → 执行 → 校验 → 重规划（最多2轮）
+      const loopOutcome = await runAgentLoop(message, apiKey, chatMessages.map(m => ({ role: m.role, content: m.content })))
 
       // 纯聊天：无需执行工具，直接走对话（不显示思考过程）
-      if (!taskPlan.needsExecution || taskPlan.steps.length === 0) {
+      if (!loopOutcome.needsExecution) {
         await handlePlainChat(message)
         setCurrentPlan(null)
         setDataRefreshKey(k => k + 1)
@@ -331,14 +331,20 @@ function App() {
         return
       }
 
-      // 显示思考过程
+      const taskPlan = loopOutcome.plan
+
+      // 显示思考过程（重规划过程透明可见）
       setCurrentPlan(taskPlan)
+
+      const replanSection = loopOutcome.rounds > 1
+        ? `[RefreshCw] 首轮结果未完全满足需求，已自动重规划（共 ${loopOutcome.rounds} 轮）\n${loopOutcome.feedbacks.map(f => `   → ${f.slice(0, 80)}`).join('\n')}\n\n`
+        : ''
 
       // 添加思考过程消息 - 更友好的格式
       const thoughtMessage: ChatMessage = {
         id: uuidv4(),
         role: 'assistant',
-        content: `[Brain] ${taskPlan.thought}\n\n[ListChecks] 计划执行 ${taskPlan.steps.length} 个步骤:\n${taskPlan.steps.map((s, i) => `${i+1}. ${s.description}`).join('\n')}`,
+        content: `${replanSection}[Brain] ${taskPlan.thought}\n\n[ListChecks] 计划执行 ${taskPlan.steps.length} 个步骤:\n${taskPlan.steps.map((s, i) => `${i+1}. ${s.description}`).join('\n')}`,
         created_at: new Date().toISOString()
       }
       setChatMessages(prev => [...prev, thoughtMessage])
@@ -347,8 +353,8 @@ function App() {
       let responseContent = ''
       
       if (taskPlan.needsExecution && taskPlan.steps.length > 0) {
-        // 执行计划
-        const execResult = await executePlan(taskPlan)
+        // 循环引擎已执行完所有轮次，直接使用最终执行结果
+        const execResult = loopOutcome.execResult
         
         if (execResult.success) {
           // 格式化执行结果

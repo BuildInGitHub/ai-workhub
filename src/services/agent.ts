@@ -1003,8 +1003,8 @@ export interface PlanResult {
   needsExecution: boolean
 }
 
-// 复杂任务规划器 - 拆解任务为步骤（带对话上下文与长期记忆）
-export async function planTask(userInput: string, apiKey: string, history?: Array<{ role: string, content: string }>): Promise<PlanResult> {
+// 复杂任务规划器 - 拆解任务为步骤（带对话上下文、长期记忆与上轮反馈）
+export async function planTask(userInput: string, apiKey: string, history?: Array<{ role: string, content: string }>, feedback?: string): Promise<PlanResult> {
   const toolsList = getTools()
   console.log('[Agent] planTask 获取工具列表:', toolsList.map(t => t.name))
 
@@ -1023,9 +1023,14 @@ export async function planTask(userInput: string, apiKey: string, history?: Arra
     }
   } catch { /* 记忆读取失败不影响 */ }
 
+  // 上轮执行反馈注入（图式循环的重规划路径）
+  const feedbackSection = feedback
+    ? `\n上一轮执行反馈（重要！请据此重新规划，换一种策略，不要重复上一轮完全相同的步骤）:\n${feedback}\n`
+    : ''
+
   const prompt = `
 你是一个AI任务规划助手(Pi Agent)。用户请求: "${userInput}"
-${historySection}${memorySection}
+${historySection}${memorySection}${feedbackSection}
 可用工具(仅当确实需要执行操作时才规划工具步骤，工具名必须精确匹配以下列表；纯聊天不要调用任何工具):
 ${toolsList.map(t => `- ${t.name}: ${t.description}
   参数: ${t.parameters.map(p => `${p.name}${p.required ? '(必填)' : '(可选)'}: ${p.description}`).join('; ') || '无'}`).join('\n')}
@@ -1094,6 +1099,7 @@ needsExecution 判定规则（重要）:
 18. 壁纸原则: 绝不更换用户的壁纸或主题。整理桌面会自动保护壁纸、主题文件(.theme)和快捷方式。只有当用户主动反馈壁纸变黑/丢失时才调用 restore_wallpaper（它只会找回用户原来的壁纸文件，不会换图）；找不到时提醒用户自行在"个性化"中设置
 19. 创建子任务的标准流程: 第一步 search_tasks 查找父任务(参数keyword用父任务名)，第二步 create_task(title=子任务名, parent_task_id=第一步找到的父任务id)
 20. 用户说"记住X"/"以后要X"/"别忘了X"时，用 save_memory 保存为长期记忆；用户问"你记得什么"时用 search_memory
+21. 收到"上一轮执行反馈"时：根据反馈调整策略（换工具/换参数/改关键词/补充步骤），绝不重复与上一轮完全相同的步骤
 
 只返回JSON，不要其他内容。
 `
@@ -1326,6 +1332,118 @@ export async function executePlan(plan: PlanResult): Promise<ExecutionResult> {
       ? `已完成${plan.steps.length}个步骤`
       : `执行中断，共完成${steps.length}个步骤`
   }
+}
+
+// ============ 图式循环引擎（规划 → 执行 → 校验 → 重规划） ============
+
+// 校验节点：用 LLM 判定执行结果是否真正满足用户需求
+export async function verifyExecution(
+  userInput: string,
+  plan: PlanResult,
+  exec: ExecutionResult,
+  apiKey: string
+): Promise<{ passed: boolean; feedback: string }> {
+  // 执行本身失败：直接不通过，无需额外 LLM 调用
+  if (!exec.success) {
+    const errors = exec.steps.filter(s => s.error).map(s => `${s.tool}: ${s.error}`).join('; ')
+    return { passed: false, feedback: `步骤执行失败: ${errors}` }
+  }
+
+  const stepsText = exec.steps.map((s, i) => {
+    const out = s.output !== undefined ? JSON.stringify(s.output).slice(0, 300) : '(无输出)'
+    return `步骤${i + 1} ${s.tool}: ${out}`
+  }).join('\n')
+
+  const prompt = `你是AI WorkHub的执行结果校验员。判断以下工具执行结果是否真正满足了用户的需求。
+
+用户请求: "${userInput}"
+
+执行计划:
+${plan.steps.map((s, i) => `${i + 1}. ${s.description}`).join('\n')}
+
+实际执行结果:
+${stepsText}
+
+判定标准:
+- 通过(passed=true): 结果已满足用户需求；或结果合理但确实没有更好的做法（如搜索确实无结果但已正确报告）
+- 不通过(passed=false): 结果与需求不符、关键信息缺失、参数错误、或者明显存在更好的策略。feedback 用一句话写清楚哪里不行、该怎么改进（如"未找到应用，换搜索关键词X"、"需要补充Y步骤"）
+
+只返回JSON: {"passed": true或false, "feedback": "说明"}`
+
+  try {
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [
+          { role: 'system', content: '你是执行结果校验员，严格但务实：结果达标就通过，搜索类无结果但已如实报告也算通过。只输出JSON。' },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.3
+      })
+    })
+
+    const data = await response.json()
+    if (!response.ok || !data.choices || !data.choices[0]) {
+      throw new Error(`DeepSeek API 错误: ${data?.error?.message || data?.message || `HTTP ${response.status}`}`)
+    }
+
+    let content: string = data.choices[0].message.content || ''
+    const jsonMatch = content.match(/\{[\s\S]*\}/)
+    if (jsonMatch) content = jsonMatch[0]
+    const result = JSON.parse(content)
+    return {
+      passed: result.passed !== false,
+      feedback: typeof result.feedback === 'string' ? result.feedback : ''
+    }
+  } catch (error: any) {
+    console.error('结果校验失败:', error)
+    // fail-open：校验节点故障不阻塞任务交付
+    return { passed: true, feedback: '' }
+  }
+}
+
+// 图式循环结果：未执行（纯聊天）或已执行
+export type AgentLoopOutcome =
+  | { needsExecution: false }
+  | { needsExecution: true; plan: PlanResult; execResult: ExecutionResult; rounds: number; feedbacks: string[] }
+
+const MAX_LOOP_ROUNDS = 2
+
+// 循环编排（迷你状态图：规划节点 → 执行节点 → 校验节点 → 条件边 → 重规划/结束）
+export async function runAgentLoop(
+  userInput: string,
+  apiKey: string,
+  history?: Array<{ role: string, content: string }>
+): Promise<AgentLoopOutcome> {
+  let plan = await planTask(userInput, apiKey, history)
+  if (!plan.needsExecution || plan.steps.length === 0) {
+    return { needsExecution: false }
+  }
+
+  const feedbacks: string[] = []
+  let exec = await executePlan(plan)
+  let rounds = 1
+
+  while (rounds < MAX_LOOP_ROUNDS) {
+    const verify = await verifyExecution(userInput, plan, exec, apiKey)
+    if (verify.passed) break
+
+    feedbacks.push(verify.feedback || '执行结果未满足需求')
+    const nextPlan = await planTask(userInput, apiKey, history, verify.feedback)
+    // 重规划后仍判定无需执行 → 停止循环，返回当前结果
+    if (!nextPlan.needsExecution || nextPlan.steps.length === 0) break
+
+    plan = nextPlan
+    exec = await executePlan(plan)
+    rounds++
+  }
+
+  return { needsExecution: true, plan, execResult: exec, rounds, feedbacks }
 }
 
 // 完整的任务执行（规划+执行）
