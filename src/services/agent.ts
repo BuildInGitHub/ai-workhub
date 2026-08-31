@@ -1026,7 +1026,7 @@ export async function planTask(userInput: string, apiKey: string, history?: Arra
   const prompt = `
 你是一个AI任务规划助手(Pi Agent)。用户请求: "${userInput}"
 ${historySection}${memorySection}
-可用工具(必须使用以下精确的工具名，并正确填写每个参数):
+可用工具(仅当确实需要执行操作时才规划工具步骤，工具名必须精确匹配以下列表；纯聊天不要调用任何工具):
 ${toolsList.map(t => `- ${t.name}: ${t.description}
   参数: ${t.parameters.map(p => `${p.name}${p.required ? '(必填)' : '(可选)'}: ${p.description}`).join('; ') || '无'}`).join('\n')}
 
@@ -1054,6 +1054,13 @@ ${toolsList.map(t => `- ${t.name}: ${t.description}
   "needsExecution": true
 }
 
+示例 - 用户请求"睡了一觉"(纯聊天，不能创建任务):
+{
+  "thought": "这是日常闲聊，不需要执行任何操作",
+  "steps": [],
+  "needsExecution": false
+}
+
 参数填写规则:
 - params 必须填写实际值，不能省略必填参数
 - 如果参数依赖上一步的执行结果(如搜索到的应用路径)，该参数填 null，系统会自动使用上一步的结果
@@ -1061,8 +1068,9 @@ ${toolsList.map(t => `- ${t.name}: ${t.description}
 
 needsExecution 判定规则（重要）:
 - 需要操作数据/文件/系统（创建、搜索、添加、整理、打开等）→ true，规划工具步骤
-- 以下情况必须设为 false 且 steps 为空数组: 日常问候(你好/早上好)、闲聊、概念解释(什么是MCP)、征求建议/意见、翻译写作、与工具无关的任何纯对话
-- 纯聊天一律 needsExecution: false，不要硬造工具步骤
+- 以下情况必须设为 false 且 steps 为空数组: 日常问候(你好/早上好)、闲聊、状态陈述(如"睡了一觉"、"今天好累"、"我吃饭了")、概念解释(什么是MCP)、征求建议/意见、翻译写作、与工具无关的任何纯对话
+- 状态陈述绝不创建任务或记录，除非用户明确说"记下来/帮我记录"
+- 纯聊天一律 needsExecution: false，不要硬造工具步骤，不要为了用工具而用工具
 
 其他强制规则:
 1. 工具步骤只覆盖真正需要执行的操作，纯对话绝不编造步骤
@@ -1099,7 +1107,7 @@ needsExecution 判定规则（重要）:
       body: JSON.stringify({
         model: 'deepseek-chat',
         messages: [
-          { role: 'system', content: '你是一个专业的任务规划助手，擅长将复杂任务拆解为可执行的步骤。' },
+          { role: 'system', content: '你是一个专业的任务规划助手，擅长判断用户请求是否需要执行工具操作。真正需要操作数据/文件/系统时才规划步骤；纯聊天、问候、闲聊、状态陈述、咨询建议一律 needsExecution=false 且 steps 为空。' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7
