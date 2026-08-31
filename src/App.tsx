@@ -354,6 +354,18 @@ function App() {
                   }
                 } else if (s.output.message) {
                   resultText = s.output.message
+                } else if (s.output.items && s.output.count !== undefined) {
+                  // 快速启动列表
+                  const items = s.output.items || []
+                  const typeLabels: Record<string, string> = { app: '应用', file: '文件', folder: '文件夹', link: '链接' }
+                  const typeIcons: Record<string, string> = { app: '[AppWindow]', file: '[FileText]', folder: '[Folder]', link: '[Link2]' }
+                  resultText = `[Zap] 共 ${s.output.count} 个快速启动项:\n`
+                  items.slice(0, 8).forEach((x: any) => {
+                    resultText += `   ${typeIcons[x.type] || '[Zap]'} ${x.name} (${typeLabels[x.type] || x.type})\n`
+                  })
+                  if (items.length > 8) {
+                    resultText += `   ... 还有 ${items.length - 8} 个项目`
+                  }
                 } else if (s.output.stats) {
                   resultText = `[BarChart3] 统计: ${s.output.stats.totalFiles}个文件, ${s.output.stats.totalFolders}个文件夹`
                   if (s.output.suggestions?.length > 0) {

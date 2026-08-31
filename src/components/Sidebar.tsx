@@ -325,7 +325,7 @@ export default function Sidebar({
                     </div>
                   ) : (
                     // AI 消息：可折叠/展开，默认折叠
-                    <div className="max-w-[85%] bg-white border border-studio-300 rounded-2xl overflow-hidden">
+                    <div className="max-w-[85%] min-w-0 bg-white border border-studio-300 rounded-2xl overflow-hidden">
                       <button
                         onClick={() => {
                           setCollapsedIds(prev => {
@@ -339,7 +339,7 @@ export default function Sidebar({
                         title={collapsedIds.has(msg.id) ? '展开' : '折叠'}
                       >
                         <Sparkles size={14} className="text-caramel-400 flex-shrink-0" />
-                        <span className="flex-1 text-xs text-studio-500 truncate">
+                        <span className="flex-1 min-w-0 text-xs text-studio-500 truncate">
                           {collapsedIds.has(msg.id)
                             ? getMessageSummary(msg.content)
                             : 'AI 回复'}
@@ -349,8 +349,8 @@ export default function Sidebar({
                           : <ChevronUp size={14} className="text-studio-400 flex-shrink-0" />}
                       </button>
                       {!collapsedIds.has(msg.id) && (
-                        <div className="px-4 pb-3 text-ink-100">
-                          <p className="text-sm whitespace-pre-wrap">{parseMessageContent(msg.content)}</p>
+                        <div className="px-4 pb-3 text-ink-100 overflow-hidden">
+                          <p className="text-sm whitespace-pre-wrap break-all">{parseMessageContent(msg.content)}</p>
                         </div>
                       )}
                     </div>
