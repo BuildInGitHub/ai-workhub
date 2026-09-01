@@ -29,7 +29,18 @@ const TABLES: Record<string, string> = {
   quick_launch: `id TEXT PRIMARY KEY, name TEXT, type TEXT, path TEXT, position INTEGER`,
   calendar_events: `id TEXT PRIMARY KEY, title TEXT, date TEXT, time TEXT, type TEXT, description TEXT, created_at TEXT`,
   quick_notes: `id TEXT PRIMARY KEY, title TEXT, content TEXT, created_at TEXT`,
-  memories: `id TEXT PRIMARY KEY, content TEXT, source TEXT, created_at TEXT`
+  memories: `id TEXT PRIMARY KEY, content TEXT, source TEXT, created_at TEXT`,
+  // v2 引擎扩展：MCP / Skills / CLI 三类扩展服务持久化
+  mcp_servers: `id TEXT PRIMARY KEY, name TEXT, package TEXT,
+          command TEXT, args TEXT, env TEXT,
+          status TEXT DEFAULT 'disabled', last_error TEXT,
+          installed_at TEXT, updated_at TEXT`,
+  skills: `id TEXT PRIMARY KEY, name TEXT, version TEXT,
+          source TEXT, manifest TEXT, enabled INTEGER DEFAULT 0,
+          installed_at TEXT, path TEXT`,
+  cli_commands: `id TEXT PRIMARY KEY, name TEXT, install_cmd TEXT,
+          uninstall_cmd TEXT, bin TEXT, version TEXT,
+          installed INTEGER DEFAULT 0, installed_at TEXT, source TEXT`
 }
 
 export function initDatabase(): void {

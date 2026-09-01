@@ -88,6 +88,7 @@ $RECYCLE.BIN/
 *.json
 !package-lock.json
 !tsconfig.json
+!electron/marketplace-seed.json
 
 # -----------------------
 # ZCode 配置 (包含计划模式等)

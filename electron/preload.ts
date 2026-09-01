@@ -52,4 +52,32 @@ contextBridge.exposeInMainWorld('electronAPI', {
     importData: () => ipcRenderer.invoke('db:importData'),
     getBackupInfo: () => ipcRenderer.invoke('db:getBackupInfo'),
   },
+
+  // v2 引擎扩展：MCP / Skills / CLI / Marketplace
+  market: {
+    fetch: () => ipcRenderer.invoke('market:fetch'),
+  },
+  mcp: {
+    listServers: () => ipcRenderer.invoke('mcp:listServers'),
+    start: (id: string) => ipcRenderer.invoke('mcp:start', id),
+    stop: (id: string) => ipcRenderer.invoke('mcp:stop', id),
+    install: (item: any) => ipcRenderer.invoke('mcp:install', item),
+    uninstall: (id: string) => ipcRenderer.invoke('mcp:uninstall', id),
+    listTools: () => ipcRenderer.invoke('mcp:listTools'),
+    callTool: (serverId: string, toolName: string, args: any) => ipcRenderer.invoke('mcp:callTool', serverId, toolName, args),
+  },
+  skill: {
+    list: () => ipcRenderer.invoke('skill:list'),
+    skillsRoot: () => ipcRenderer.invoke('skill:skillsRoot'),
+    installFromMarket: (item: any) => ipcRenderer.invoke('skill:installFromMarket', item),
+    remove: (name: string) => ipcRenderer.invoke('skill:remove', name),
+    readContent: (name: string) => ipcRenderer.invoke('skill:readContent', name),
+  },
+  cli: {
+    list: () => ipcRenderer.invoke('cli:list'),
+    detect: (bin: string) => ipcRenderer.invoke('cli:detect', bin),
+    install: (item: any) => ipcRenderer.invoke('cli:install', item),
+    uninstall: (row: any) => ipcRenderer.invoke('cli:uninstall', row),
+    remove: (id: string) => ipcRenderer.invoke('cli:remove', id),
+  },
 })

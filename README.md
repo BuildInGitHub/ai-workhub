@@ -89,6 +89,18 @@ npm run dev
 
 v1 与 v2 共用同一份 API Key、会话历史、工具 IPC 注入。切换后**立即生效**，不需要重启。v2 仍在灰度，遇到异常可一键切回 v1。
 
+### 扩展市场（MCP / Skills / CLI）
+
+v2 引擎独有。设置 → API 设置 → 展开三个抽屉（仅 v2 启用时可用）：
+
+| 抽屉 | 作用 | 一键市场 |
+|---|---|---|
+| **MCP Servers** | Model Context Protocol server，统一用 stdio 子进程拉工具 | 官方示例 (`@modelcontextprotocol/server-everything` 等) |
+| **Skills** | 把 `%APPDATA%/ai-workhub/skills/<name>/SKILL.md` 注入到 v2 系统提示词 | 自定义 skill 包 |
+| **CLI 工具** | 检测 PATH 中的 `node/npm/git` 等，并支持 winget 一键安装 | 常用 CLI（ripgrep、fd 等） |
+
+市场 JSON 远端优先（GitHub raw），拉不到时 fallback 内嵌 `electron/marketplace-seed.json`。**切换到 v2 后，启动 MCP 服务即可让 AI 伙伴直接调用该 server 的工具**。
+
 ### 项目结构
 
 ```

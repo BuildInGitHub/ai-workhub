@@ -33,7 +33,16 @@ import {
   Video,
   Music,
   Archive,
-  AppWindow
+  AppWindow,
+  Store,
+  Server,
+  Terminal,
+  Plus,
+  Power,
+  Trash2,
+  PlayCircle,
+  StopCircle,
+  Eye
 } from 'lucide-react'
 
 // 图标映射表
@@ -101,6 +110,7 @@ function getMessageSummary(content: string): string {
   return firstLine.length > 40 ? firstLine.slice(0, 40) + '…' : firstLine
 }
 import type { ChatMessage, Tab } from '../types'
+import MarketplaceModal from './MarketplaceModal'
 
 interface SidebarProps {
   isExpanded: boolean
@@ -116,6 +126,31 @@ interface SidebarProps {
   isSessionPanelOpen?: boolean
   engineVersion?: 'v1' | 'v2'
   onChangeEngine?: (v: 'v1' | 'v2') => void
+}
+
+// v2 抽屉小工具：折叠按钮 + 标题 + children
+function ExtensionSection({ icon, title, open, onToggle, children }: {
+  icon: ReactNode
+  title: string
+  open: boolean
+  onToggle: () => void
+  children: ReactNode
+}) {
+  return (
+    <div className="pt-3 border-t border-studio-100">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between text-sm font-medium text-studio-500 hover:text-ink-100"
+      >
+        <span className="flex items-center gap-2">
+          <span className="text-caramel-500">{icon}</span>
+          {title}
+        </span>
+        {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+      </button>
+      {open && <div className="mt-2 pl-1">{children}</div>}
+    </div>
+  )
 }
 
 export default function Sidebar({
@@ -136,6 +171,17 @@ export default function Sidebar({
   const [input, setInput] = useState('')
   const [showSettings, setShowSettings] = useState(false)
   const [tempApiKey, setTempApiKey] = useState(apiKey)
+
+  // v2 扩展抽屉开关
+  const [mcpOpen, setMcpOpen] = useState(false)
+  const [skillOpen, setSkillOpen] = useState(false)
+  const [cliOpen, setCliOpen] = useState(false)
+  const [marketType, setMarketType] = useState<null | 'mcp' | 'skill' | 'cli'>(null)
+  const [mcpServers, setMcpServers] = useState<any[]>([])
+  const [skills, setSkills] = useState<any[]>([])
+  const [cliRows, setCliRows] = useState<any[]>([])
+  const [expandedSkill, setExpandedSkill] = useState<string | null>(null)
+  const [skillContent, setSkillContent] = useState<Record<string, string>>({})
   const [backupInfo, setBackupInfo] = useState<string>('')
   // AI 消息折叠状态：id 在集合中 = 折叠（默认折叠）
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => {
@@ -196,6 +242,53 @@ export default function Sidebar({
     } catch (e) {
       console.error('保存引擎设置失败:', e)
     }
+  }
+
+  // ============ v2 扩展：MCP / Skills / CLI handlers ============
+  const refreshMcp = async () => {
+    const r = await window.electronAPI?.mcp?.listServers?.()
+    setMcpServers(r?.data || [])
+  }
+  const refreshSkills = async () => {
+    const r = await window.electronAPI?.skill?.list?.()
+    setSkills(r || [])
+  }
+  const refreshCli = async () => {
+    const r = await window.electronAPI?.cli?.list?.()
+    setCliRows(r?.data || [])
+  }
+  const mcpAction = async (id: string, act: 'start' | 'stop' | 'uninstall', _row?: any) => {
+    if (act === 'start') await window.electronAPI?.mcp?.start?.(id)
+    else if (act === 'stop') await window.electronAPI?.mcp?.stop?.(id)
+    else if (act === 'uninstall') await window.electronAPI?.mcp?.uninstall?.(id)
+    setTimeout(refreshMcp, 300)
+  }
+  const toggleSkillView = async (s: any) => {
+    if (expandedSkill === s.name) {
+      setExpandedSkill(null)
+      return
+    }
+    setExpandedSkill(s.name)
+    if (!skillContent[s.name]) {
+      const r = await window.electronAPI?.skill?.readContent?.(s.name)
+      if (r?.content) setSkillContent(prev => ({ ...prev, [s.name]: r.content! }))
+    }
+  }
+  const removeSkill = async (name: string) => {
+    await window.electronAPI?.skill?.remove?.(name)
+    refreshSkills()
+  }
+  const cliAction = async (id: string, act: 'detect' | 'uninstall' | 'remove', row?: any) => {
+    if (act === 'detect' && row?.bin) {
+      const r = await window.electronAPI?.cli?.detect?.(row.bin)
+      setBackupInfo(r?.installed ? `${row.bin}: 已装 (${r.version || r.path})` : `${row.bin}: 未找到`)
+      setTimeout(() => setBackupInfo(''), 4000)
+    } else if (act === 'uninstall') {
+      await window.electronAPI?.cli?.uninstall?.(row)
+    } else if (act === 'remove') {
+      await window.electronAPI?.cli?.remove?.(id)
+    }
+    setTimeout(refreshCli, 300)
   }
 
   // 数据管理操作
@@ -516,6 +609,127 @@ export default function Sidebar({
                 保存设置
               </button>
 
+              {/* ========== v2 扩展抽屉 ========== */}
+              {/* MCP Servers */}
+              <ExtensionSection
+                icon={<Server size={14} />}
+                title="MCP Servers"
+                open={mcpOpen}
+                onToggle={() => {
+                  setMcpOpen(o => !o)
+                  if (!mcpOpen && mcpServers.length === 0) refreshMcp()
+                }}
+              >
+                {mcpServers.length === 0 ? (
+                  <p className="text-xs text-studio-500 py-2">本地暂无 MCP server。点击"打开市场"一键安装。</p>
+                ) : mcpServers.map(s => (
+                  <div key={s.id} className="border border-studio-200 rounded-lg p-2.5 mb-2 last:mb-0">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{s.name}</p>
+                        <p className="text-xs text-studio-500 truncate">{s.command} {(JSON.parse(s.args || '[]')).join(' ')}</p>
+                        {s.last_error && <p className="text-xs text-red-600 mt-1 line-clamp-2">{s.last_error}</p>}
+                      </div>
+                      <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${s.status === 'enabled' ? 'bg-green-100 text-green-700' : s.status === 'error' ? 'bg-red-100 text-red-700' : 'bg-studio-100 text-studio-600'}`}>
+                        {s.status === 'enabled' ? '运行中' : s.status === 'error' ? '错误' : '已停'}
+                      </span>
+                    </div>
+                    <div className="flex gap-1 mt-2">
+                      {s.status === 'enabled' ? (
+                        <button onClick={() => mcpAction(s.id, 'stop')} className="flex-1 text-xs py-1 rounded bg-studio-100 hover:bg-studio-200 flex items-center justify-center gap-1">
+                          <StopCircle size={12} />停止
+                        </button>
+                      ) : (
+                        <button onClick={() => mcpAction(s.id, 'start')} className="flex-1 text-xs py-1 rounded bg-caramel-400 text-white hover:bg-caramel-500 flex items-center justify-center gap-1">
+                          <PlayCircle size={12} />启动
+                        </button>
+                      )}
+                      <button onClick={() => mcpAction(s.id, 'uninstall', s)} className="text-xs py-1 px-2 rounded bg-red-50 text-red-600 hover:bg-red-100 flex items-center gap-1">
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <button onClick={() => setMarketType('mcp')} className="w-full mt-2 py-1.5 rounded-lg bg-caramel-50 text-caramel-700 text-xs font-medium hover:bg-caramel-100 flex items-center justify-center gap-1">
+                  <Store size={12} />打开市场
+                </button>
+              </ExtensionSection>
+
+              {/* Skills */}
+              <ExtensionSection
+                icon={<Brain size={14} />}
+                title="Skills"
+                open={skillOpen}
+                onToggle={() => {
+                  setSkillOpen(o => !o)
+                  if (!skillOpen && skills.length === 0) refreshSkills()
+                }}
+              >
+                {skills.length === 0 ? (
+                  <p className="text-xs text-studio-500 py-2">%APPDATA%/ai-workhub/skills/ 下暂无 SKILL.md。可从市场安装或手动编写。</p>
+                ) : skills.map(s => (
+                  <div key={s.name} className="border border-studio-200 rounded-lg p-2.5 mb-2 last:mb-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium flex-1 min-w-0 truncate">{s.name}</p>
+                      <button onClick={() => toggleSkillView(s)} className="text-xs p-1 hover:bg-studio-100 rounded">
+                        <Eye size={12} />
+                      </button>
+                      <button onClick={() => removeSkill(s.name)} className="text-xs p-1 hover:bg-red-50 text-red-600 rounded">
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                    <p className="text-xs text-studio-500 mt-0.5 line-clamp-2">{s.description}</p>
+                    {expandedSkill === s.name && skillContent[s.name] && (
+                      <pre className="text-xs bg-studio-50 p-2 rounded mt-2 max-h-32 overflow-y-auto whitespace-pre-wrap break-all">{skillContent[s.name]}</pre>
+                    )}
+                  </div>
+                ))}
+                <button onClick={() => setMarketType('skill')} className="w-full mt-2 py-1.5 rounded-lg bg-caramel-50 text-caramel-700 text-xs font-medium hover:bg-caramel-100 flex items-center justify-center gap-1">
+                  <Store size={12} />打开市场
+                </button>
+              </ExtensionSection>
+
+              {/* CLI 工具 */}
+              <ExtensionSection
+                icon={<Terminal size={14} />}
+                title="CLI 工具"
+                open={cliOpen}
+                onToggle={() => {
+                  setCliOpen(o => !o)
+                  if (!cliOpen && cliRows.length === 0) refreshCli()
+                }}
+              >
+                {cliRows.length === 0 ? (
+                  <p className="text-xs text-studio-500 py-2">暂无 CLI 记录。点击下方按钮检测系统已装 CLI，或从市场安装新工具。</p>
+                ) : cliRows.map(c => (
+                  <div key={c.id} className="border border-studio-200 rounded-lg p-2.5 mb-2 last:mb-0">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{c.name}</p>
+                        <p className="text-xs text-studio-500 truncate">bin: {c.bin || '-'}{c.version ? ` · ${c.version}` : ''}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-1 mt-2">
+                      <button onClick={() => cliAction(c.id, 'detect', c)} className="flex-1 text-xs py-1 rounded bg-studio-100 hover:bg-studio-200">重新检测</button>
+                      {c.uninstall_cmd && (
+                        <button onClick={() => cliAction(c.id, 'uninstall', c)} className="text-xs py-1 px-2 rounded bg-red-50 text-red-600 hover:bg-red-100">卸载</button>
+                      )}
+                      <button onClick={() => cliAction(c.id, 'remove', c)} className="text-xs py-1 px-2 rounded bg-studio-100 text-studio-500 hover:bg-studio-200">
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <div className="flex gap-2 mt-2">
+                  <button onClick={() => refreshCli()} className="flex-1 py-1.5 rounded-lg bg-studio-100 text-studio-600 text-xs font-medium hover:bg-studio-200 flex items-center justify-center gap-1">
+                    <Power size={12} />检测已装 CLI
+                  </button>
+                  <button onClick={() => setMarketType('cli')} className="flex-1 py-1.5 rounded-lg bg-caramel-50 text-caramel-700 text-xs font-medium hover:bg-caramel-100 flex items-center justify-center gap-1">
+                    <Store size={12} />打开市场
+                  </button>
+                </div>
+              </ExtensionSection>
+
               {/* 数据管理 */}
               <div className="pt-4 mt-2 border-t border-studio-100">
                 <p className="text-sm font-medium text-studio-500 mb-3">数据管理</p>
@@ -553,6 +767,15 @@ export default function Sidebar({
             </div>
           </div>
         </div>
+      )}
+
+      {/* 扩展市场弹窗 */}
+      {marketType && (
+        <MarketplaceModal type={marketType} onClose={() => {
+          setMarketType(null)
+          // 安装后刷新对应列表
+          refreshMcp(); refreshSkills(); refreshCli()
+        }} />
       )}
     </>
   )

@@ -10,6 +10,8 @@ import { buildAllTools } from './tools'
 import { buildDeepSeekModel, createDeepSeekStreamFn } from './provider'
 import { chatMessagesToAgentMessages } from './persist'
 import type { ToolContext, V2AgentLoopOutcome, V2ExecutionResult, V2ExecutionStep } from './types'
+import { Type, type Static } from '@earendil-works/pi-ai'
+import { defineTool, safeJsonText } from './tools/base'
 
 const MAX_LOOP_ROUNDS = 2
 
@@ -36,6 +38,64 @@ function extractToolResult(msg: ToolResultMessage): { tool: string; input: any; 
     output = detail ?? firstText
   }
   return { tool: msg.toolName, input, output, error }
+}
+
+// 把 MCP 工具列表（来自主进程）转换为 Pi 的 AgentTool
+// 简化策略：MCP 工具的 inputSchema 是 JSON Schema（Pi 用 TypeBox）
+// 我们动态构造一个 Type.Object(properties)，属性 schema 透传
+function jsonSchemaToTypeBox(schema: any): any {
+  if (!schema || typeof schema !== 'object') return Type.Object({})
+  if (schema.type !== 'object' || !schema.properties) return Type.Object({})
+  const props: Record<string, any> = {}
+  const required = new Set<string>(schema.required || [])
+  for (const [key, def] of Object.entries(schema.properties as Record<string, any>)) {
+    let t: any = Type.String()
+    if (def.type === 'number' || def.type === 'integer') t = Type.Number()
+    else if (def.type === 'boolean') t = Type.Boolean()
+    else if (def.type === 'array') t = Type.Array(Type.String())
+    if (def.description) t = t({ description: def.description })
+    if (!required.has(key)) t = Type.Optional(t)
+    props[key] = t
+  }
+  return Type.Object(props)
+}
+
+async function loadMcpToolsForV2(): Promise<any[]> {
+  try {
+    const mcpList = await (window.electronAPI as any)?.mcp?.listTools?.()
+    if (!Array.isArray(mcpList)) return []
+    const out: any[] = []
+    for (const t of mcpList) {
+      // 工具名形如 mcp__<serverId>__<toolName>
+      // 解析 serverId 与原名以便后续路由
+      const m = t.name.match(/^mcp__(.+?)__(.+)$/)
+      if (!m) continue
+      const [, serverId, origName] = m
+      const toolCtx: ToolContext | null = null // 暂未用到
+      const dummyCtx = ({} as any) // MCP 工具不依赖 ToolContext
+      const schema = jsonSchemaToTypeBox(t.inputSchema)
+      const agentTool = defineTool(dummyCtx, {
+        name: t.name,
+        label: origName,
+        description: t.description || origName,
+        parameters: schema,
+        execute: async (_c, params) => {
+          try {
+            const r = await (window.electronAPI as any).mcp.callTool(serverId, origName, params)
+            // r.content 是 [{ type: 'text', text: ... }, ...]
+            const text = Array.isArray((r as any)?.content)
+              ? (r as any).content.filter((c: any) => c.type === 'text').map((c: any) => c.text).join('\n')
+              : safeJsonText(r)
+            return { content: [{ type: 'text', text: text || '(空)' }], details: r }
+          } catch (e: any) {
+            return { content: [{ type: 'text', text: `MCP 错误: ${e.message}` }], details: { error: e.message } }
+          }
+        },
+      })
+      out.push(agentTool)
+    }
+    return out
+  } catch { return [] }
 }
 
 // 从 messages 序列中提取"扁平步骤"
@@ -139,12 +199,25 @@ export async function runAgentLoopV2(
     }
   } catch { /* ignore */ }
 
+  // 加载 Skills（v2 引擎独有）
+  let skillsSection = ''
+  try {
+    const skills = await (window.electronAPI as any)?.skill?.list?.()
+    if (Array.isArray(skills) && skills.length > 0) {
+      skillsSection = `\n\n可用 Skills（识别用户意图后调用对应 skill 名称）:\n${skills.map((s: any) => `- **${s.name}**: ${s.description}`).join('\n')}`
+    }
+  } catch { /* 主进程没装 Skill IPC 时忽略 */ }
+
+  // 加载 MCP 工具（v2 引擎独有）
+  const mcpTools = await loadMcpToolsForV2()
+
   const streamFn = createDeepSeekStreamFn(apiKey)
   const tools = buildAllTools(toolCtx)
+  tools.push(...mcpTools)
   // 稳定排序，喂 prefix cache
   tools.sort((a, b) => a.name.localeCompare(b.name))
 
-  const systemPrompt = `你是AI WorkHub的智能助手，一个专业的桌面办公伙伴。拥有工具执行能力，需要时调用工具；纯聊天/问候/闲聊时直接自然回复。` + memorySection
+  const systemPrompt = `你是AI WorkHub的智能助手，一个专业的桌面办公伙伴。拥有工具执行能力，需要时调用工具；纯聊天/问候/闲聊时直接自然回复。` + memorySection + skillsSection
 
   const agent = new Agent({
     streamFn,

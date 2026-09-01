@@ -168,6 +168,33 @@ export interface ElectronAPI {
       backups: Array<{ name: string; size: number; time: string }>
     }>
   }
+  // v2 引擎扩展：MCP / Skills / CLI / Marketplace
+  market?: {
+    fetch: () => Promise<{ items: any[]; source: 'remote' | 'local'; error?: string }>
+  }
+  mcp?: {
+    listServers: () => Promise<{ data?: any[]; error?: string }>
+    start: (id: string) => Promise<{ ok: boolean; tools?: any[]; error?: string }>
+    stop: (id: string) => Promise<{ ok: boolean }>
+    install: (item: any) => Promise<{ ok: boolean; id?: string; error?: string }>
+    uninstall: (id: string) => Promise<{ ok: boolean }>
+    listTools: () => Promise<Array<{ name: string; description?: string; inputSchema: any }>>
+    callTool: (serverId: string, toolName: string, args: any) => Promise<any>
+  }
+  skill?: {
+    list: () => Promise<Array<{ name: string; description: string; content: string; filePath: string }>>
+    skillsRoot: () => Promise<string>
+    installFromMarket: (item: any) => Promise<{ ok: boolean; error?: string }>
+    remove: (name: string) => Promise<{ ok: boolean }>
+    readContent: (name: string) => Promise<{ content?: string; error?: string }>
+  }
+  cli?: {
+    list: () => Promise<{ data?: any[]; error?: string }>
+    detect: (bin: string) => Promise<{ installed: boolean; version?: string; path?: string }>
+    install: (item: any) => Promise<{ ok: boolean; output: string; error?: string }>
+    uninstall: (row: any) => Promise<{ ok: boolean; output: string; error?: string }>
+    remove: (id: string) => Promise<{ ok: boolean }>
+  }
 }
 
 declare global {

@@ -2,7 +2,12 @@ import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell, dialog } f
 import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
+import { v4 as uuidv4 } from 'uuid'
 import { initDatabase, runQuery, closeDatabase } from './database'
+import { mcpManager, type McpServerRow } from './mcp-manager'
+import { loadAllSkills, installSkillFromMarket, removeSkill, getSkillsRootPath } from './skill-loader'
+import { detectBinary, runInstall } from './cli-tracker'
+import seedMarket from './marketplace-seed.json' assert { type: 'json' }
 
 // ESM __dirname polyfill
 const __filename = fileURLToPath(import.meta.url)
@@ -341,8 +346,10 @@ app.on('window-all-closed', () => {
   }
 })
 
-app.on('before-quit', () => {
+app.on('before-quit', async () => {
   app.isQuitting = true
+  // 关闭所有 MCP 子进程
+  await mcpManager.stopAll().catch(() => {})
   // 退出前备份（确保最新数据有存档）
   backupDatabase()
 })
@@ -607,5 +614,120 @@ ipcMain.handle('fs:getDrives', async () => {
     return ['/']
   } catch (error: any) {
     return { error: error.message }
+  }
+})
+
+// ============================================================
+// v2 引擎扩展：MCP / Skills / CLI / Marketplace IPC
+// ============================================================
+
+// ---- Marketplace ----
+const MARKETPLACE_URL = 'https://raw.githubusercontent.com/BuildInGitHub/ai-workhub-marketplace/main/index.json'
+
+ipcMain.handle('market:fetch', async () => {
+  try {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 5000)
+    const res = await fetch(MARKETPLACE_URL, { signal: controller.signal })
+    clearTimeout(timer)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = await res.json()
+    return { items: data.servers || [], source: 'remote' }
+  } catch (e: any) {
+    // fallback 内嵌种子
+    return { items: (seedMarket as any).servers || [], source: 'local', error: e.message }
+  }
+})
+
+// ---- MCP ----
+ipcMain.handle('mcp:listServers', () => runQuery('SELECT * FROM mcp_servers ORDER BY installed_at DESC'))
+ipcMain.handle('mcp:start', async (_, id: string) => {
+  const rows = runQuery('SELECT * FROM mcp_servers WHERE id = ?', [id])
+  const row = (rows.data || [])[0] as McpServerRow | undefined
+  if (!row) return { ok: false, error: '未找到该 MCP server' }
+  return await mcpManager.startServer(row)
+})
+ipcMain.handle('mcp:stop', async (_, id: string) => {
+  await mcpManager.stopServer(id)
+  return { ok: true }
+})
+ipcMain.handle('mcp:install', async (_, item: { id: string; name: string; package: string; command: string; args?: string[]; env?: Record<string, string> }) => {
+  const id = uuidv4()
+  const now = new Date().toISOString()
+  runQuery(
+    `INSERT INTO mcp_servers (id, name, package, command, args, env, status, installed_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'disabled', ?, ?)`,
+    [id, item.name, item.package, item.command, JSON.stringify(item.args || []), JSON.stringify(item.env || {}), now, now]
+  )
+  return { ok: true, id }
+})
+ipcMain.handle('mcp:uninstall', async (_, id: string) => {
+  await mcpManager.stopServer(id)
+  runQuery('DELETE FROM mcp_servers WHERE id = ?', [id])
+  return { ok: true }
+})
+ipcMain.handle('mcp:listTools', () => {
+  // 返回已启动的 MCP server 工具列表（带 namespace）
+  return mcpManager.listTools()
+})
+
+// ---- Skills ----
+ipcMain.handle('skill:list', async () => {
+  const skills = await loadAllSkills()
+  return skills
+})
+ipcMain.handle('skill:skillsRoot', () => getSkillsRootPath())
+ipcMain.handle('skill:installFromMarket', async (_, item: { name: string; manifest: { name: string; description: string } }) => {
+  return await installSkillFromMarket(item)
+})
+ipcMain.handle('skill:remove', async (_, name: string) => {
+  await removeSkill(name)
+  return { ok: true }
+})
+ipcMain.handle('skill:readContent', async (_, name: string) => {
+  const fsPromises = await import('fs/promises')
+  const path = await import('path')
+  try {
+    const p = path.join(getSkillsRootPath(), name, 'SKILL.md')
+    return { content: await fsPromises.readFile(p, 'utf-8') }
+  } catch (e: any) {
+    return { error: e.message }
+  }
+})
+
+// ---- CLI ----
+ipcMain.handle('cli:list', () => runQuery('SELECT * FROM cli_commands ORDER BY installed_at DESC'))
+ipcMain.handle('cli:detect', async (_, bin: string) => {
+  return await detectBinary(bin)
+})
+ipcMain.handle('cli:install', async (_, item: { id?: string; name: string; install_cmd: string; uninstall_cmd?: string; bin?: string }) => {
+  const r = await runInstall(item.install_cmd)
+  const id = item.id || uuidv4()
+  const now = new Date().toISOString()
+  if (r.ok) {
+    runQuery(
+      `INSERT OR REPLACE INTO cli_commands (id, name, install_cmd, uninstall_cmd, bin, installed, installed_at, source)
+       VALUES (?, ?, ?, ?, ?, 1, ?, 'manual')`,
+      [id, item.name, item.install_cmd, item.uninstall_cmd || '', item.bin || '', now]
+    )
+  }
+  return r
+})
+ipcMain.handle('cli:uninstall', async (_, row: { id: string; uninstall_cmd: string }) => {
+  if (!row.uninstall_cmd) return { ok: false, error: '未配置卸载命令' }
+  const r = await runInstall(row.uninstall_cmd)
+  if (r.ok) runQuery('DELETE FROM cli_commands WHERE id = ?', [row.id])
+  return r
+})
+ipcMain.handle('cli:remove', async (_, id: string) => {
+  runQuery('DELETE FROM cli_commands WHERE id = ?', [id])
+  return { ok: true }
+})
+
+ipcMain.handle('mcp:callTool', async (_, serverId: string, toolName: string, args: any) => {
+  try {
+    return await mcpManager.callTool(serverId, toolName, args)
+  } catch (e: any) {
+    return { error: e.message }
   }
 })

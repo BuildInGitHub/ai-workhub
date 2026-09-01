@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "updated_at": "2026-09-01",
+  "servers": [
+    {
+      "id": "mcp-everything",
+      "type": "mcp",
+      "name": "Everything (测试用)",
+      "package": "@modelcontextprotocol/server-everything",
+      "description": "官方 MCP 示例服务器，演示 tools/resources/prompts 全套能力",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-everything"],
+      "env": {},
+      "tags": ["测试", "官方"]
+    },
+    {
+      "id": "mcp-filesystem",
+      "type": "mcp",
+      "name": "Filesystem (本地文件)",
+      "package": "@modelcontextprotocol/server-filesystem",
+      "description": "提供受限的文件系统读写能力（需要在 args 里指定允许访问的目录）",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem"],
+      "env": {},
+      "tags": ["文件", "官方"]
+    },
+    {
+      "id": "mcp-git",
+      "type": "mcp",
+      "name": "Git (仓库操作)",
+      "package": "@modelcontextprotocol/server-git",
+      "description": "在 git 仓库里执行常见操作（status/log/diff/commit 等）",
+      "command": "uvx",
+      "args": ["mcp-server-git"],
+      "env": {},
+      "tags": ["git", "开发"]
+    },
+    {
+      "id": "skill-rag-quickstart",
+      "type": "skill",
+      "name": "RAG 快速入门 (Skill 包)",
+      "package": "rag-quickstart",
+      "description": "示例 Skill：教 AI 如何基于本地笔记做最小 RAG 检索",
+      "manifest": {
+        "name": "rag-quickstart",
+        "description": "当用户询问本地笔记/项目历史时，按本 skill 的工作流进行召回"
+      },
+      "tags": ["示例", "RAG"]
+    },
+    {
+      "id": "skill-daily-summary",
+      "type": "skill",
+      "name": "日报助手",
+      "package": "daily-summary",
+      "description": "帮助 AI 汇总今日任务、日程、链接收藏生成日报",
+      "manifest": {
+        "name": "daily-summary",
+        "description": "用户要求'生成今日日报/总结今天的工作'时激活"
+      },
+      "tags": ["效率"]
+    },
+    {
+      "id": "cli-ripgrep",
+      "type": "cli",
+      "name": "ripgrep (rg)",
+      "package": "ripgrep",
+      "description": "极快的代码搜索工具",
+      "install_cmd": "winget install BurntSushi.ripgrep.MSVC",
+      "uninstall_cmd": "winget uninstall BurntSushi.ripgrep.MSVC",
+      "bin": "rg",
+      "tags": ["搜索", "开发"]
+    },
+    {
+      "id": "cli-fd",
+      "type": "cli",
+      "name": "fd",
+      "package": "fd",
+      "description": "替代 find 的文件查找工具",
+      "install_cmd": "winget install sharkdp.fd",
+      "uninstall_cmd": "winget uninstall sharkdp.fd",
+      "bin": "fd",
+      "tags": ["文件", "开发"]
+    }
+  ]
+}
