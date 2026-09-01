@@ -40,7 +40,7 @@ export default function MarketplaceModal({ type, installedIds, onClose }: Market
         res = await window.electronAPI?.skill?.installFromMarket?.({ name: item.name, manifest: item.manifest })
       } else if (item.type === 'cli') {
         res = await window.electronAPI?.cli?.install?.({
-          name: item.name, install_cmd: item.install_cmd, uninstall_cmd: item.uninstall_cmd, bin: item.bin,
+          id: item.id, name: item.name, install_cmd: item.install_cmd, uninstall_cmd: item.uninstall_cmd, bin: item.bin,
         })
       }
       if (!res?.ok) setErrors(e => ({ ...e, [item.id]: res?.error || '安装失败' }))

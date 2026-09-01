@@ -652,14 +652,17 @@ ipcMain.handle('mcp:stop', async (_, id: string) => {
   return { ok: true }
 })
 ipcMain.handle('mcp:install', async (_, item: { id: string; name: string; package: string; command: string; args?: string[]; env?: Record<string, string> }) => {
-  const id = uuidv4()
+  // 使用市场 id 作为数据库主键，确保"已安装"判定能匹配（重装则替换）
   const now = new Date().toISOString()
   runQuery(
     `INSERT INTO mcp_servers (id, name, package, command, args, env, status, installed_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'disabled', ?, ?)`,
-    [id, item.name, item.package, item.command, JSON.stringify(item.args || []), JSON.stringify(item.env || {}), now, now]
+     VALUES (?, ?, ?, ?, ?, ?, 'disabled', ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       name=excluded.name, package=excluded.package, command=excluded.command,
+       args=excluded.args, env=excluded.env, updated_at=excluded.updated_at`,
+    [item.id, item.name, item.package, item.command, JSON.stringify(item.args || []), JSON.stringify(item.env || {}), now, now]
   )
-  return { ok: true, id }
+  return { ok: true, id: item.id }
 })
 ipcMain.handle('mcp:uninstall', async (_, id: string) => {
   await mcpManager.stopServer(id)
