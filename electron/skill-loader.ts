@@ -62,9 +62,10 @@ export async function loadAllSkills(): Promise<Skill[]> {
         console.warn(`[Skill] ${filePath} 缺少 name/description，跳过`)
         continue
       }
+      // 目录名 vs frontmatter name：以前强制相等（太严格）；现在以 frontmatter 为准
+      // 但给个警告方便用户排查
       if (data.name !== name) {
-        console.warn(`[Skill] ${filePath} 名称 ${data.name} 与目录 ${name} 不一致，跳过`)
-        continue
+        console.warn(`[Skill] ${filePath} 目录名 ${name} 与 frontmatter name ${data.name} 不一致，按 frontmatter 加载`)
       }
       skills.push({
         name: data.name,

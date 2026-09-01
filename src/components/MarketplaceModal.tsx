@@ -43,7 +43,9 @@ export default function MarketplaceModal({ type, installedIds, onClose }: Market
           command: item.command, args: item.args, env: item.env,
         })
       } else if (item.type === 'skill') {
-        res = await window.electronAPI?.skill?.installFromMarket?.({ name: item.name, manifest: item.manifest })
+        // 用 manifest.name（英文 slug）作为目录名/标识符，与 frontmatter name 保持一致
+        const m = item.manifest ?? { name: item.name, description: item.description }
+        res = await window.electronAPI?.skill?.installFromMarket?.({ name: m.name, manifest: m })
       } else if (item.type === 'cli') {
         res = await window.electronAPI?.cli?.install?.({
           id: item.id, name: item.name, install_cmd: item.install_cmd, uninstall_cmd: item.uninstall_cmd, bin: item.bin,
