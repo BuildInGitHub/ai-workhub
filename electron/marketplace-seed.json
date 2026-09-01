@@ -19,13 +19,13 @@
       "id": "mcp-git",
       "type": "mcp",
       "name": "Git（仓库操作）",
-      "package": "@modelcontextprotocol/server-git",
-      "description": "status/log/diff/commit/blame 等常见 git 操作",
+      "package": "mcp-server-git",
+      "description": "status/log/diff/commit/blame 等常见 git 操作。安装后需手动编辑 args 把 --repository 改成你的 git 仓库绝对路径。",
       "command": "uvx",
-      "args": ["mcp-server-git", "--repository", "."],
+      "args": ["mcp-server-git", "--repository", "C:\\你的git仓库路径"],
       "env": {},
       "tags": ["git", "开发"],
-      "reason": "项目管理里很多是代码项目，AI 直接操作 git 是高频场景。"
+      "reason": "项目管理里很多是代码项目，AI 直接操作 git 是高频场景。需要先装 uv（https://astral.sh/uv）才能用 uvx。"
     },
     {
       "id": "mcp-puppeteer",
