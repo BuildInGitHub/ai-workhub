@@ -7,10 +7,30 @@
 //
 // 隔离层在 Electron 主进程；与 v2 引擎（renderer）通过 IPC 解耦
 
+// 前置探测：检查 command 是否在 PATH，并给出常见命令的安装提示
+async function checkCommandAvailable(cmd: string): Promise<{ available: boolean; hint: string }> {
+  const hints: Record<string, string> = {
+    uvx: '需要装 uv（pip 替代品）：irm https://astral.sh/uv/install.ps1 | iex',
+    uv: '需要装 uv：irm https://astral.sh/uv/install.ps1 | iex',
+    python: '需要装 Python 3.10+',
+    python3: '需要装 Python 3.10+',
+    pipx: '需要装 pipx',
+    docker: '需要装 Docker Desktop',
+  }
+  // npx / node / npm 一定存在（Electron 自身依赖 Node）
+  if (cmd === 'npx' || cmd === 'node' || cmd === 'npm') {
+    return { available: true, hint: '内置' }
+  }
+  const r = await detectBinary(cmd)
+  if (r.installed) return { available: true, hint: r.path || '已安装' }
+  return { available: false, hint: hints[cmd] || '请确认已安装并加入 PATH' }
+}
+
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { execFile } from 'node:child_process'
 import { runQuery } from './database'
+import { detectBinary } from './cli-tracker'
 
 export interface McpServerRow {
   id: string
@@ -50,6 +70,14 @@ export class McpManager {
     let env: Record<string, string> = {}
     try { args = JSON.parse(row.args || '[]') } catch { /* 留空 */ }
     try { env = JSON.parse(row.env || '{}') } catch { /* 留空 */ }
+
+    // 前置：探测 command 是否在 PATH 里（这是用户最常踩的坑）
+    const cmdCheck = await checkCommandAvailable(row.command)
+    if (!cmdCheck.available) {
+      const err = `命令 '${row.command}' 不存在：${cmdCheck.hint}`
+      await this.recordError(row.id, err)
+      return { ok: false, error: err }
+    }
 
     // 临时 spawn 一次采集 stderr（用于诊断"Connection closed"这类无详细错误的场景）
     let stderrPreview = ''

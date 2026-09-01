@@ -1,7 +1,7 @@
 {
-  "version": 2,
+  "version": 4,
   "updated_at": "2026-09-02",
-  "category_note": "所有条目都按 AI WorkHub 的定位（桌面办公伙伴：文件/链接/任务/日程/项目）手工挑选。reason 字段说明适配理由。",
+  "category_note": "v4: 零依赖路径。MCP 全走 npx，Skills 纯文本，CLI 走系统包管理。requires 字段说明前置依赖。",
   "servers": [
     {
       "id": "mcp-filesystem",
@@ -10,22 +10,19 @@
       "package": "@modelcontextprotocol/server-filesystem",
       "description": "在指定目录里安全读写真实文件。补强内置 browse_directory 只能读不能写。",
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem"],
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem"
+      ],
       "env": {},
-      "tags": ["文件", "官方"],
-      "reason": "让 AI 能在沙箱目录保存文档/笔记/导出文件，办公场景刚需。"
-    },
-    {
-      "id": "mcp-git",
-      "type": "mcp",
-      "name": "Git（仓库操作）",
-      "package": "mcp-server-git",
-      "description": "status/log/diff/commit/blame 等常见 git 操作。安装后需手动编辑 args 把 --repository 改成你的 git 仓库绝对路径。",
-      "command": "uvx",
-      "args": ["mcp-server-git", "--repository", "C:\\你的git仓库路径"],
-      "env": {},
-      "tags": ["git", "开发"],
-      "reason": "项目管理里很多是代码项目，AI 直接操作 git 是高频场景。需要先装 uv（https://astral.sh/uv）才能用 uvx。"
+      "tags": [
+        "文件",
+        "官方"
+      ],
+      "reason": "让 AI 能在沙箱目录保存文档/笔记/导出文件，办公场景刚需。",
+      "requires": [
+        "node>=18"
+      ]
     },
     {
       "id": "mcp-puppeteer",
@@ -34,10 +31,19 @@
       "package": "@modelcontextprotocol/server-puppeteer",
       "description": "浏览器自动化：抓取网页内容、截图、填表",
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-puppeteer"],
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-puppeteer"
+      ],
       "env": {},
-      "tags": ["网络", "抓取"],
-      "reason": "把网页内容抓下来存到笔记/链接收藏，替代 open_url 只能开不能存。"
+      "tags": [
+        "网络",
+        "抓取"
+      ],
+      "reason": "把网页内容抓下来存到笔记/链接收藏，替代 open_url 只能开不能存。",
+      "requires": [
+        "node>=18"
+      ]
     },
     {
       "id": "mcp-github",
@@ -46,10 +52,21 @@
       "package": "@modelcontextprotocol/server-github",
       "description": "操作 GitHub Issues、PR、仓库",
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github"],
-      "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "<请填 PAT>" },
-      "tags": ["GitHub", "开发"],
-      "reason": "很多团队用 GitHub 管任务，AI 直接管理 issue/PR 是高频需求。"
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "<请填 PAT>"
+      },
+      "tags": [
+        "GitHub",
+        "开发"
+      ],
+      "reason": "很多团队用 GitHub 管任务，AI 直接管理 issue/PR 是高频需求。",
+      "requires": [
+        "node>=18"
+      ]
     },
     {
       "id": "mcp-notion",
@@ -58,10 +75,21 @@
       "package": "@notionhq/notion-mcp-server",
       "description": "读写 Notion 页面、数据库、块",
       "command": "npx",
-      "args": ["-y", "@notionhq/notion-mcp-server"],
-      "env": { "NOTION_TOKEN": "<请填 Integration Token>" },
-      "tags": ["笔记", "外脑"],
-      "reason": "很多人用 Notion 当外脑，能让 AI 在 Notion 里建笔记/查资料。"
+      "args": [
+        "-y",
+        "@notionhq/notion-mcp-server"
+      ],
+      "env": {
+        "NOTION_TOKEN": "<请填 Integration Token>"
+      },
+      "tags": [
+        "笔记",
+        "外脑"
+      ],
+      "reason": "很多人用 Notion 当外脑，能让 AI 在 Notion 里建笔记/查资料。",
+      "requires": [
+        "node>=18"
+      ]
     },
     {
       "id": "mcp-slack",
@@ -70,10 +98,20 @@
       "package": "@modelcontextprotocol/server-slack",
       "description": "发 Slack 消息、查频道历史",
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-slack"],
-      "env": { "SLACK_BOT_TOKEN": "<请填 Bot Token>" },
-      "tags": ["沟通"],
-      "reason": "办公场景下让 AI 总结/通知到 Slack 频道。"
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-slack"
+      ],
+      "env": {
+        "SLACK_BOT_TOKEN": "<请填 Bot Token>"
+      },
+      "tags": [
+        "沟通"
+      ],
+      "reason": "办公场景下让 AI 总结/通知到 Slack 频道。",
+      "requires": [
+        "node>=18"
+      ]
     },
     {
       "id": "mcp-google-drive",
@@ -82,10 +120,20 @@
       "package": "@modelcontextprotocol/server-gdrive",
       "description": "读写 Google Drive 文件",
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-gdrive"],
-      "env": { "GDRIVE_CREDENTIALS_PATH": "<OAuth 凭据路径>" },
-      "tags": ["云盘"],
-      "reason": "办公文件很多存在 Google Drive，能让 AI 直接读取。"
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-gdrive"
+      ],
+      "env": {
+        "GDRIVE_CREDENTIALS_PATH": "<OAuth 凭据路径>"
+      },
+      "tags": [
+        "云盘"
+      ],
+      "reason": "办公文件很多存在 Google Drive，能让 AI 直接读取。",
+      "requires": [
+        "node>=18"
+      ]
     },
     {
       "id": "mcp-everything",
@@ -94,10 +142,19 @@
       "package": "@modelcontextprotocol/server-everything",
       "description": "官方演示 MCP server，展示 tools/resources/prompts 全套能力",
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-everything"],
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-everything"
+      ],
       "env": {},
-      "tags": ["演示", "官方"],
-      "reason": "本地无 MCP 时可装这个跑通流程、验证 v2 引擎扩展能力。"
+      "tags": [
+        "演示",
+        "官方"
+      ],
+      "reason": "本地无 MCP 时可装这个跑通流程、验证 v2 引擎扩展能力。",
+      "requires": [
+        "node>=18"
+      ]
     },
     {
       "id": "skill-daily-summary",
@@ -109,8 +166,12 @@
         "name": "daily-summary",
         "description": "用户说'总结今天'/'生成日报'/'回顾今日'时激活"
       },
-      "tags": ["效率", "推荐"],
-      "reason": "桌面办公最高频的请求之一——查看今日要做什么、完成了什么。"
+      "tags": [
+        "效率",
+        "推荐"
+      ],
+      "reason": "桌面办公最高频的请求之一——查看今日要做什么、完成了什么。",
+      "requires": []
     },
     {
       "id": "skill-weekly-review",
@@ -122,8 +183,11 @@
         "name": "weekly-review",
         "description": "用户说'周报'/'本周回顾'/'这周做了什么'时激活"
       },
-      "tags": ["效率"],
-      "reason": "日报的周度升级版，复用同一套数据源。"
+      "tags": [
+        "效率"
+      ],
+      "reason": "日报的周度升级版，复用同一套数据源。",
+      "requires": []
     },
     {
       "id": "skill-morning-standup",
@@ -135,8 +199,11 @@
         "name": "morning-standup",
         "description": "用户说'晨会'/'今天要做什么'/'每日站会'时激活"
       },
-      "tags": ["效率"],
-      "reason": "日报的精简版，专注'今日重点'。"
+      "tags": [
+        "效率"
+      ],
+      "reason": "日报的精简版，专注'今日重点'。",
+      "requires": []
     },
     {
       "id": "skill-inbox-zero",
@@ -148,8 +215,11 @@
         "name": "inbox-zero",
         "description": "用户说'整理我的链接'/'清理收藏'/'收件箱清零'时激活"
       },
-      "tags": ["整理"],
-      "reason": "链接收藏长期堆积会变垃圾箱，AI 主动分类很有用。"
+      "tags": [
+        "整理"
+      ],
+      "reason": "链接收藏长期堆积会变垃圾箱，AI 主动分类很有用。",
+      "requires": []
     },
     {
       "id": "skill-meeting-prep",
@@ -161,8 +231,11 @@
         "name": "meeting-prep",
         "description": "用户说'为会议准备'/'帮我准备资料'/'会议简报'时激活"
       },
-      "tags": ["效率"],
-      "reason": "会议前快速聚集相关上下文。"
+      "tags": [
+        "效率"
+      ],
+      "reason": "会议前快速聚集相关上下文。",
+      "requires": []
     },
     {
       "id": "skill-project-kickoff",
@@ -174,8 +247,11 @@
         "name": "project-kickoff",
         "description": "用户说'启动新项目'/'建个项目'/'项目模板'时激活"
       },
-      "tags": ["项目"],
-      "reason": "项目管理是核心模块之一。"
+      "tags": [
+        "项目"
+      ],
+      "reason": "项目管理是核心模块之一。",
+      "requires": []
     },
     {
       "id": "cli-ripgrep",
@@ -186,8 +262,14 @@
       "install_cmd": "winget install BurntSushi.ripgrep.MSVC",
       "uninstall_cmd": "winget uninstall BurntSushi.ripgrep.MSVC",
       "bin": "rg",
-      "tags": ["搜索", "推荐"],
-      "reason": "补强内置 search_files，AI 搜索本地笔记/代码用 rg 更快。"
+      "tags": [
+        "搜索",
+        "推荐"
+      ],
+      "reason": "补强内置 search_files，AI 搜索本地笔记/代码用 rg 更快。",
+      "requires": [
+        "winget (Windows) / brew (macOS) / apt (Linux)"
+      ]
     },
     {
       "id": "cli-fd",
@@ -198,8 +280,14 @@
       "install_cmd": "winget install sharkdp.fd",
       "uninstall_cmd": "winget uninstall sharkdp.fd",
       "bin": "fd",
-      "tags": ["文件", "推荐"],
-      "reason": "补强内置 browse_directory，跨目录快速找文件。"
+      "tags": [
+        "文件",
+        "推荐"
+      ],
+      "reason": "补强内置 browse_directory，跨目录快速找文件。",
+      "requires": [
+        "winget (Windows) / brew (macOS) / apt (Linux)"
+      ]
     },
     {
       "id": "cli-fzf",
@@ -210,8 +298,13 @@
       "install_cmd": "winget install junegunn.fzf",
       "uninstall_cmd": "winget uninstall junegunn.fzf",
       "bin": "fzf",
-      "tags": ["效率"],
-      "reason": "AI 让用户做选择时交互更顺（适合 'pick from list' 类场景）。"
+      "tags": [
+        "效率"
+      ],
+      "reason": "AI 让用户做选择时交互更顺（适合 'pick from list' 类场景）。",
+      "requires": [
+        "winget (Windows) / brew (macOS) / apt (Linux)"
+      ]
     }
   ]
 }
