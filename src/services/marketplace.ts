@@ -22,6 +22,8 @@ export interface MarketItem {
   uninstall_cmd?: string
   bin?: string
   tags?: string[]
+  /** 推荐理由（为什么适合本工具） */
+  reason?: string
 }
 
 interface MarketIndex {

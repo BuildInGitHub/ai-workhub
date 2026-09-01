@@ -1,74 +1,193 @@
 {
-  "version": 1,
-  "updated_at": "2026-09-01",
+  "version": 2,
+  "updated_at": "2026-09-02",
+  "category_note": "所有条目都按 AI WorkHub 的定位（桌面办公伙伴：文件/链接/任务/日程/项目）手工挑选。reason 字段说明适配理由。",
   "servers": [
-    {
-      "id": "mcp-everything",
-      "type": "mcp",
-      "name": "Everything (测试用)",
-      "package": "@modelcontextprotocol/server-everything",
-      "description": "官方 MCP 示例服务器，演示 tools/resources/prompts 全套能力",
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-everything"],
-      "env": {},
-      "tags": ["测试", "官方"]
-    },
     {
       "id": "mcp-filesystem",
       "type": "mcp",
-      "name": "Filesystem (本地文件)",
+      "name": "Filesystem（沙箱文件读写）",
       "package": "@modelcontextprotocol/server-filesystem",
-      "description": "提供受限的文件系统读写能力（需要在 args 里指定允许访问的目录）",
+      "description": "在指定目录里安全读写真实文件。补强内置 browse_directory 只能读不能写。",
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-filesystem"],
       "env": {},
-      "tags": ["文件", "官方"]
+      "tags": ["文件", "官方"],
+      "reason": "让 AI 能在沙箱目录保存文档/笔记/导出文件，办公场景刚需。"
     },
     {
       "id": "mcp-git",
       "type": "mcp",
-      "name": "Git (仓库操作)",
+      "name": "Git（仓库操作）",
       "package": "@modelcontextprotocol/server-git",
-      "description": "在 git 仓库里执行常见操作（status/log/diff/commit 等）",
+      "description": "status/log/diff/commit/blame 等常见 git 操作",
       "command": "uvx",
-      "args": ["mcp-server-git"],
+      "args": ["mcp-server-git", "--repository", "."],
       "env": {},
-      "tags": ["git", "开发"]
+      "tags": ["git", "开发"],
+      "reason": "项目管理里很多是代码项目，AI 直接操作 git 是高频场景。"
     },
     {
-      "id": "skill-rag-quickstart",
-      "type": "skill",
-      "name": "RAG 快速入门 (Skill 包)",
-      "package": "rag-quickstart",
-      "description": "示例 Skill：教 AI 如何基于本地笔记做最小 RAG 检索",
-      "manifest": {
-        "name": "rag-quickstart",
-        "description": "当用户询问本地笔记/项目历史时，按本 skill 的工作流进行召回"
-      },
-      "tags": ["示例", "RAG"]
+      "id": "mcp-puppeteer",
+      "type": "mcp",
+      "name": "Puppeteer（浏览器抓取）",
+      "package": "@modelcontextprotocol/server-puppeteer",
+      "description": "浏览器自动化：抓取网页内容、截图、填表",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-puppeteer"],
+      "env": {},
+      "tags": ["网络", "抓取"],
+      "reason": "把网页内容抓下来存到笔记/链接收藏，替代 open_url 只能开不能存。"
+    },
+    {
+      "id": "mcp-github",
+      "type": "mcp",
+      "name": "GitHub（issue/PR/repo）",
+      "package": "@modelcontextprotocol/server-github",
+      "description": "操作 GitHub Issues、PR、仓库",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "<请填 PAT>" },
+      "tags": ["GitHub", "开发"],
+      "reason": "很多团队用 GitHub 管任务，AI 直接管理 issue/PR 是高频需求。"
+    },
+    {
+      "id": "mcp-notion",
+      "type": "mcp",
+      "name": "Notion（页面/数据库）",
+      "package": "@notionhq/notion-mcp-server",
+      "description": "读写 Notion 页面、数据库、块",
+      "command": "npx",
+      "args": ["-y", "@notionhq/notion-mcp-server"],
+      "env": { "NOTION_TOKEN": "<请填 Integration Token>" },
+      "tags": ["笔记", "外脑"],
+      "reason": "很多人用 Notion 当外脑，能让 AI 在 Notion 里建笔记/查资料。"
+    },
+    {
+      "id": "mcp-slack",
+      "type": "mcp",
+      "name": "Slack（发消息/查频道）",
+      "package": "@modelcontextprotocol/server-slack",
+      "description": "发 Slack 消息、查频道历史",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-slack"],
+      "env": { "SLACK_BOT_TOKEN": "<请填 Bot Token>" },
+      "tags": ["沟通"],
+      "reason": "办公场景下让 AI 总结/通知到 Slack 频道。"
+    },
+    {
+      "id": "mcp-google-drive",
+      "type": "mcp",
+      "name": "Google Drive（云端文件）",
+      "package": "@modelcontextprotocol/server-gdrive",
+      "description": "读写 Google Drive 文件",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-gdrive"],
+      "env": { "GDRIVE_CREDENTIALS_PATH": "<OAuth 凭据路径>" },
+      "tags": ["云盘"],
+      "reason": "办公文件很多存在 Google Drive，能让 AI 直接读取。"
+    },
+    {
+      "id": "mcp-everything",
+      "type": "mcp",
+      "name": "Everything（演示 / 测试）",
+      "package": "@modelcontextprotocol/server-everything",
+      "description": "官方演示 MCP server，展示 tools/resources/prompts 全套能力",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-everything"],
+      "env": {},
+      "tags": ["演示", "官方"],
+      "reason": "本地无 MCP 时可装这个跑通流程、验证 v2 引擎扩展能力。"
     },
     {
       "id": "skill-daily-summary",
       "type": "skill",
       "name": "日报助手",
       "package": "daily-summary",
-      "description": "帮助 AI 汇总今日任务、日程、链接收藏生成日报",
+      "description": "汇总今日任务/日程/链接/笔记，生成结构化日报",
       "manifest": {
         "name": "daily-summary",
-        "description": "用户要求'生成今日日报/总结今天的工作'时激活"
+        "description": "用户说'总结今天'/'生成日报'/'回顾今日'时激活"
       },
-      "tags": ["效率"]
+      "tags": ["效率", "推荐"],
+      "reason": "桌面办公最高频的请求之一——查看今日要做什么、完成了什么。"
+    },
+    {
+      "id": "skill-weekly-review",
+      "type": "skill",
+      "name": "周报助手",
+      "package": "weekly-review",
+      "description": "跨周汇总任务/日程/链接，生成周报",
+      "manifest": {
+        "name": "weekly-review",
+        "description": "用户说'周报'/'本周回顾'/'这周做了什么'时激活"
+      },
+      "tags": ["效率"],
+      "reason": "日报的周度升级版，复用同一套数据源。"
+    },
+    {
+      "id": "skill-morning-standup",
+      "type": "skill",
+      "name": "晨会助手",
+      "package": "morning-standup",
+      "description": "生成 3 段式晨会：昨天做了什么 / 今天计划 / 阻塞点",
+      "manifest": {
+        "name": "morning-standup",
+        "description": "用户说'晨会'/'今天要做什么'/'每日站会'时激活"
+      },
+      "tags": ["效率"],
+      "reason": "日报的精简版，专注'今日重点'。"
+    },
+    {
+      "id": "skill-inbox-zero",
+      "type": "skill",
+      "name": "链接收件箱清零",
+      "package": "inbox-zero",
+      "description": "梳理收藏链接，建议重新分类/归档/删除",
+      "manifest": {
+        "name": "inbox-zero",
+        "description": "用户说'整理我的链接'/'清理收藏'/'收件箱清零'时激活"
+      },
+      "tags": ["整理"],
+      "reason": "链接收藏长期堆积会变垃圾箱，AI 主动分类很有用。"
+    },
+    {
+      "id": "skill-meeting-prep",
+      "type": "skill",
+      "name": "会议准备",
+      "package": "meeting-prep",
+      "description": "为指定会议拉取相关链接/任务/日程，生成简报",
+      "manifest": {
+        "name": "meeting-prep",
+        "description": "用户说'为会议准备'/'帮我准备资料'/'会议简报'时激活"
+      },
+      "tags": ["效率"],
+      "reason": "会议前快速聚集相关上下文。"
+    },
+    {
+      "id": "skill-project-kickoff",
+      "type": "skill",
+      "name": "项目启动模板",
+      "package": "project-kickoff",
+      "description": "新建项目时按模板建任务/链接/日程初始结构",
+      "manifest": {
+        "name": "project-kickoff",
+        "description": "用户说'启动新项目'/'建个项目'/'项目模板'时激活"
+      },
+      "tags": ["项目"],
+      "reason": "项目管理是核心模块之一。"
     },
     {
       "id": "cli-ripgrep",
       "type": "cli",
       "name": "ripgrep (rg)",
       "package": "ripgrep",
-      "description": "极快的代码搜索工具",
+      "description": "极快的代码/文本搜索",
       "install_cmd": "winget install BurntSushi.ripgrep.MSVC",
       "uninstall_cmd": "winget uninstall BurntSushi.ripgrep.MSVC",
       "bin": "rg",
-      "tags": ["搜索", "开发"]
+      "tags": ["搜索", "推荐"],
+      "reason": "补强内置 search_files，AI 搜索本地笔记/代码用 rg 更快。"
     },
     {
       "id": "cli-fd",
@@ -79,7 +198,20 @@
       "install_cmd": "winget install sharkdp.fd",
       "uninstall_cmd": "winget uninstall sharkdp.fd",
       "bin": "fd",
-      "tags": ["文件", "开发"]
+      "tags": ["文件", "推荐"],
+      "reason": "补强内置 browse_directory，跨目录快速找文件。"
+    },
+    {
+      "id": "cli-fzf",
+      "type": "cli",
+      "name": "fzf",
+      "package": "fzf",
+      "description": "命令行模糊选择器",
+      "install_cmd": "winget install junegunn.fzf",
+      "uninstall_cmd": "winget uninstall junegunn.fzf",
+      "bin": "fzf",
+      "tags": ["效率"],
+      "reason": "AI 让用户做选择时交互更顺（适合 'pick from list' 类场景）。"
     }
   ]
 }

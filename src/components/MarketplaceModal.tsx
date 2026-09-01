@@ -83,6 +83,13 @@ export default function MarketplaceModal({ type, onClose }: MarketplaceModalProp
                       <code className="text-xs text-studio-500 bg-studio-100 px-1.5 py-0.5 rounded">{item.package}</code>
                     </div>
                     <p className="text-sm text-studio-500 mt-1 leading-relaxed">{item.description}</p>
+                    {item.reason && (
+                      <div className="mt-2 px-3 py-2 bg-caramel-50 border border-caramel-100 rounded-lg">
+                        <p className="text-xs text-caramel-700 leading-relaxed">
+                          <span className="font-medium">推荐理由：</span>{item.reason}
+                        </p>
+                      </div>
+                    )}
                     {item.tags && item.tags.length > 0 && (
                       <div className="flex gap-1.5 mt-2">
                         {item.tags.map(t => <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-studio-100 text-studio-600">{t}</span>)}

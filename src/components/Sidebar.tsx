@@ -153,6 +153,29 @@ function ExtensionSection({ icon, title, open, onToggle, children }: {
   )
 }
 
+// 设置面板左栏分类导航
+function NavTab({ id, icon, label, active, onClick }: {
+  id: 'ai' | 'extensions' | 'data'
+  icon: ReactNode
+  label: string
+  active: boolean
+  onClick: (id: 'ai' | 'extensions' | 'data') => void
+}) {
+  return (
+    <button
+      onClick={() => onClick(id)}
+      className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors ${
+        active
+          ? 'bg-caramel-50 text-caramel-700 font-medium'
+          : 'text-studio-500 hover:bg-studio-100 hover:text-ink-100'
+      }`}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
+  )
+}
+
 export default function Sidebar({
   isExpanded,
   onToggle,
@@ -173,6 +196,7 @@ export default function Sidebar({
   const [tempApiKey, setTempApiKey] = useState(apiKey)
 
   // v2 扩展抽屉开关
+  const [activeTab, setActiveTab] = useState<'ai' | 'extensions' | 'data'>('ai')
   const [mcpOpen, setMcpOpen] = useState(false)
   const [skillOpen, setSkillOpen] = useState(false)
   const [cliOpen, setCliOpen] = useState(false)
@@ -530,239 +554,186 @@ export default function Sidebar({
         )}
       </div>
 
-      {/* 设置弹窗 */}
+      {/* 设置弹窗（两栏布局：左侧分类 / 右侧内容） */}
       {showSettings && (
-        <div className="fixed inset-0 bg-ink-400/30 flex items-center justify-center z-50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl p-6 w-96 shadow-elevated animate-slideIn">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="font-display text-lg font-semibold">API 设置</h3>
-              <button 
-                onClick={() => setShowSettings(false)}
-                className="p-1.5 hover:bg-studio-100 rounded-xl"
-              >
+        <div className="fixed inset-0 bg-ink-400/30 flex items-center justify-center z-50 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) setShowSettings(false) }}>
+          <div className="bg-white rounded-2xl w-[760px] max-w-[95vw] h-[600px] max-h-[85vh] shadow-elevated animate-slideIn flex flex-col">
+            {/* 顶栏：标题 + 关闭 */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-studio-100">
+              <h3 className="font-display text-lg font-semibold flex items-center gap-2">
+                <Settings size={18} className="text-caramel-500" />设置
+              </h3>
+              <button onClick={() => setShowSettings(false)} className="p-1.5 hover:bg-studio-100 rounded-xl">
                 <X size={20} />
               </button>
             </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-studio-500 mb-2">
-                  DeepSeek API Key
-                </label>
-                <input
-                  type="password"
-                  value={tempApiKey}
-                  onChange={(e) => setTempApiKey(e.target.value)}
-                  placeholder="sk-xxxx..."
-                  className="input"
-                />
-                <p className="text-xs text-studio-500 mt-2">
-                  请从 DeepSeek 官网获取API Key
-                </p>
-              </div>
-              
-              {apiKeySet && (
-                <p className="text-sm text-green-600 flex items-center gap-1">
-                  ✓ API Key 已配置
-                </p>
-              )}
 
-              {/* AI 引擎选择（v1 稳定 / v2 Pi SDK 实验） */}
-              <div className="pt-2">
-                <label className="block text-sm font-medium text-studio-500 mb-2">
-                  AI 引擎
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => handleChangeEngine('v1')}
-                    className={`py-2 rounded-xl text-xs font-medium transition-colors ${
-                      engineVersion === 'v1'
-                        ? 'bg-caramel-400 text-white'
-                        : 'bg-studio-100 text-studio-500 hover:text-ink-100'
-                    }`}
+            {/* 主体：左分类导航 + 右内容 */}
+            <div className="flex-1 flex min-h-0">
+              {/* 左栏 */}
+              <nav className="w-44 border-r border-studio-100 p-3 space-y-1 flex-shrink-0">
+                <NavTab id="ai" icon={<Brain size={16} />} label="AI" active={activeTab === 'ai'} onClick={setActiveTab} />
+                <NavTab id="extensions" icon={<Store size={16} />} label="扩展" active={activeTab === 'extensions'} onClick={setActiveTab} />
+                <NavTab id="data" icon={<Hash size={16} />} label="数据" active={activeTab === 'data'} onClick={setActiveTab} />
+              </nav>
+              {/* 右栏内容 */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+
+                {activeTab === 'ai' && (<>
+                  {/* DeepSeek API Key */}
+                  <div>
+                    <label className="block text-sm font-medium text-studio-500 mb-2">DeepSeek API Key</label>
+                    <input
+                      type="password"
+                      value={tempApiKey}
+                      onChange={(e) => setTempApiKey(e.target.value)}
+                      placeholder="sk-xxxx..."
+                      className="input"
+                    />
+                    <p className="text-xs text-studio-500 mt-2">请从 DeepSeek 官网获取API Key</p>
+                  </div>
+                  {apiKeySet && <p className="text-sm text-green-600 flex items-center gap-1">✓ API Key 已配置</p>}
+
+                  {/* AI 引擎选择 */}
+                  <div>
+                    <label className="block text-sm font-medium text-studio-500 mb-2">AI 引擎</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => handleChangeEngine('v1')}
+                        className={`py-2 rounded-xl text-xs font-medium transition-colors ${engineVersion === 'v1' ? 'bg-caramel-400 text-white' : 'bg-studio-100 text-studio-500 hover:text-ink-100'}`}
+                      >v1 自研（稳定）</button>
+                      <button
+                        onClick={() => handleChangeEngine('v2')}
+                        className={`py-2 rounded-xl text-xs font-medium transition-colors ${engineVersion === 'v2' ? 'bg-caramel-400 text-white' : 'bg-studio-100 text-studio-500 hover:text-ink-100'}`}
+                        title="基于 @earendil-works/pi-agent-core（Pi SDK v0.83.0）"
+                      >v2 Pi SDK（实验）</button>
+                    </div>
+                    <p className="text-xs text-studio-400 mt-2 leading-relaxed">
+                      v1 自研引擎（默认）— 已稳定的规划/执行/校验/重规划循环
+                      <br />v2 基于 Pi SDK 内核 — 新架构，可能存在不稳定
+                    </p>
+                  </div>
+                  <button onClick={handleSaveSettings} className="w-full btn btn-primary">保存设置</button>
+                </>)}
+
+                {activeTab === 'extensions' && (<>
+                  {/* ========== v2 扩展抽屉 ========== */}
+                  <ExtensionSection
+                    icon={<Server size={14} />}
+                    title="MCP Servers"
+                    open={mcpOpen}
+                    onToggle={() => {
+                      setMcpOpen(o => !o)
+                      if (!mcpOpen && mcpServers.length === 0) refreshMcp()
+                    }}
                   >
-                    v1 自研（稳定）
-                  </button>
-                  <button
-                    onClick={() => handleChangeEngine('v2')}
-                    className={`py-2 rounded-xl text-xs font-medium transition-colors ${
-                      engineVersion === 'v2'
-                        ? 'bg-caramel-400 text-white'
-                        : 'bg-studio-100 text-studio-500 hover:text-ink-100'
-                    }`}
-                    title="基于 @earendil-works/pi-agent-core（Pi SDK v0.83.0）"
-                  >
-                    v2 Pi SDK（实验）
-                  </button>
-                </div>
-                <p className="text-xs text-studio-400 mt-2 leading-relaxed">
-                  v1 自研引擎（默认）— 已稳定的规划/执行/校验/重规划循环
-                  <br />
-                  v2 基于 Pi SDK 内核 — 新架构，可能存在不稳定
-                </p>
-              </div>
-
-              <button
-                onClick={handleSaveSettings}
-                className="w-full btn btn-primary"
-              >
-                保存设置
-              </button>
-
-              {/* ========== v2 扩展抽屉 ========== */}
-              {/* MCP Servers */}
-              <ExtensionSection
-                icon={<Server size={14} />}
-                title="MCP Servers"
-                open={mcpOpen}
-                onToggle={() => {
-                  setMcpOpen(o => !o)
-                  if (!mcpOpen && mcpServers.length === 0) refreshMcp()
-                }}
-              >
-                {mcpServers.length === 0 ? (
-                  <p className="text-xs text-studio-500 py-2">本地暂无 MCP server。点击"打开市场"一键安装。</p>
-                ) : mcpServers.map(s => (
-                  <div key={s.id} className="border border-studio-200 rounded-lg p-2.5 mb-2 last:mb-0">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{s.name}</p>
-                        <p className="text-xs text-studio-500 truncate">{s.command} {(JSON.parse(s.args || '[]')).join(' ')}</p>
-                        {s.last_error && <p className="text-xs text-red-600 mt-1 line-clamp-2">{s.last_error}</p>}
+                    {mcpServers.length === 0 ? (
+                      <p className="text-xs text-studio-500 py-2">本地暂无 MCP server。点击"打开市场"一键安装。</p>
+                    ) : mcpServers.map(s => (
+                      <div key={s.id} className="border border-studio-200 rounded-lg p-2.5 mb-2 last:mb-0">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{s.name}</p>
+                            <p className="text-xs text-studio-500 truncate">{s.command} {(JSON.parse(s.args || '[]')).join(' ')}</p>
+                            {s.last_error && <p className="text-xs text-red-600 mt-1 line-clamp-2">{s.last_error}</p>}
+                          </div>
+                          <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${s.status === 'enabled' ? 'bg-green-100 text-green-700' : s.status === 'error' ? 'bg-red-100 text-red-700' : 'bg-studio-100 text-studio-600'}`}>
+                            {s.status === 'enabled' ? '运行中' : s.status === 'error' ? '错误' : '已停'}
+                          </span>
+                        </div>
+                        <div className="flex gap-1 mt-2">
+                          {s.status === 'enabled' ? (
+                            <button onClick={() => mcpAction(s.id, 'stop')} className="flex-1 text-xs py-1 rounded bg-studio-100 hover:bg-studio-200 flex items-center justify-center gap-1"><StopCircle size={12} />停止</button>
+                          ) : (
+                            <button onClick={() => mcpAction(s.id, 'start')} className="flex-1 text-xs py-1 rounded bg-caramel-400 text-white hover:bg-caramel-500 flex items-center justify-center gap-1"><PlayCircle size={12} />启动</button>
+                          )}
+                          <button onClick={() => mcpAction(s.id, 'uninstall', s)} className="text-xs py-1 px-2 rounded bg-red-50 text-red-600 hover:bg-red-100 flex items-center gap-1"><Trash2 size={12} /></button>
+                        </div>
                       </div>
-                      <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${s.status === 'enabled' ? 'bg-green-100 text-green-700' : s.status === 'error' ? 'bg-red-100 text-red-700' : 'bg-studio-100 text-studio-600'}`}>
-                        {s.status === 'enabled' ? '运行中' : s.status === 'error' ? '错误' : '已停'}
-                      </span>
-                    </div>
-                    <div className="flex gap-1 mt-2">
-                      {s.status === 'enabled' ? (
-                        <button onClick={() => mcpAction(s.id, 'stop')} className="flex-1 text-xs py-1 rounded bg-studio-100 hover:bg-studio-200 flex items-center justify-center gap-1">
-                          <StopCircle size={12} />停止
-                        </button>
-                      ) : (
-                        <button onClick={() => mcpAction(s.id, 'start')} className="flex-1 text-xs py-1 rounded bg-caramel-400 text-white hover:bg-caramel-500 flex items-center justify-center gap-1">
-                          <PlayCircle size={12} />启动
-                        </button>
-                      )}
-                      <button onClick={() => mcpAction(s.id, 'uninstall', s)} className="text-xs py-1 px-2 rounded bg-red-50 text-red-600 hover:bg-red-100 flex items-center gap-1">
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                <button onClick={() => setMarketType('mcp')} className="w-full mt-2 py-1.5 rounded-lg bg-caramel-50 text-caramel-700 text-xs font-medium hover:bg-caramel-100 flex items-center justify-center gap-1">
-                  <Store size={12} />打开市场
-                </button>
-              </ExtensionSection>
+                    ))}
+                    <button onClick={() => setMarketType('mcp')} className="w-full mt-2 py-1.5 rounded-lg bg-caramel-50 text-caramel-700 text-xs font-medium hover:bg-caramel-100 flex items-center justify-center gap-1"><Store size={12} />打开市场</button>
+                  </ExtensionSection>
 
-              {/* Skills */}
-              <ExtensionSection
-                icon={<Brain size={14} />}
-                title="Skills"
-                open={skillOpen}
-                onToggle={() => {
-                  setSkillOpen(o => !o)
-                  if (!skillOpen && skills.length === 0) refreshSkills()
-                }}
-              >
-                {skills.length === 0 ? (
-                  <p className="text-xs text-studio-500 py-2">%APPDATA%/ai-workhub/skills/ 下暂无 SKILL.md。可从市场安装或手动编写。</p>
-                ) : skills.map(s => (
-                  <div key={s.name} className="border border-studio-200 rounded-lg p-2.5 mb-2 last:mb-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-medium flex-1 min-w-0 truncate">{s.name}</p>
-                      <button onClick={() => toggleSkillView(s)} className="text-xs p-1 hover:bg-studio-100 rounded">
-                        <Eye size={12} />
-                      </button>
-                      <button onClick={() => removeSkill(s.name)} className="text-xs p-1 hover:bg-red-50 text-red-600 rounded">
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                    <p className="text-xs text-studio-500 mt-0.5 line-clamp-2">{s.description}</p>
-                    {expandedSkill === s.name && skillContent[s.name] && (
-                      <pre className="text-xs bg-studio-50 p-2 rounded mt-2 max-h-32 overflow-y-auto whitespace-pre-wrap break-all">{skillContent[s.name]}</pre>
-                    )}
-                  </div>
-                ))}
-                <button onClick={() => setMarketType('skill')} className="w-full mt-2 py-1.5 rounded-lg bg-caramel-50 text-caramel-700 text-xs font-medium hover:bg-caramel-100 flex items-center justify-center gap-1">
-                  <Store size={12} />打开市场
-                </button>
-              </ExtensionSection>
-
-              {/* CLI 工具 */}
-              <ExtensionSection
-                icon={<Terminal size={14} />}
-                title="CLI 工具"
-                open={cliOpen}
-                onToggle={() => {
-                  setCliOpen(o => !o)
-                  if (!cliOpen && cliRows.length === 0) refreshCli()
-                }}
-              >
-                {cliRows.length === 0 ? (
-                  <p className="text-xs text-studio-500 py-2">暂无 CLI 记录。点击下方按钮检测系统已装 CLI，或从市场安装新工具。</p>
-                ) : cliRows.map(c => (
-                  <div key={c.id} className="border border-studio-200 rounded-lg p-2.5 mb-2 last:mb-0">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{c.name}</p>
-                        <p className="text-xs text-studio-500 truncate">bin: {c.bin || '-'}{c.version ? ` · ${c.version}` : ''}</p>
+                  <ExtensionSection
+                    icon={<Brain size={14} />}
+                    title="Skills"
+                    open={skillOpen}
+                    onToggle={() => {
+                      setSkillOpen(o => !o)
+                      if (!skillOpen && skills.length === 0) refreshSkills()
+                    }}
+                  >
+                    {skills.length === 0 ? (
+                      <p className="text-xs text-studio-500 py-2">%APPDATA%/ai-workhub/skills/ 下暂无 SKILL.md。可从市场安装或手动编写。</p>
+                    ) : skills.map(s => (
+                      <div key={s.name} className="border border-studio-200 rounded-lg p-2.5 mb-2 last:mb-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium flex-1 min-w-0 truncate">{s.name}</p>
+                          <button onClick={() => toggleSkillView(s)} className="text-xs p-1 hover:bg-studio-100 rounded"><Eye size={12} /></button>
+                          <button onClick={() => removeSkill(s.name)} className="text-xs p-1 hover:bg-red-50 text-red-600 rounded"><Trash2 size={12} /></button>
+                        </div>
+                        <p className="text-xs text-studio-500 mt-0.5 line-clamp-2">{s.description}</p>
+                        {expandedSkill === s.name && skillContent[s.name] && (
+                          <pre className="text-xs bg-studio-50 p-2 rounded mt-2 max-h-32 overflow-y-auto whitespace-pre-wrap break-all">{skillContent[s.name]}</pre>
+                        )}
                       </div>
-                    </div>
-                    <div className="flex gap-1 mt-2">
-                      <button onClick={() => cliAction(c.id, 'detect', c)} className="flex-1 text-xs py-1 rounded bg-studio-100 hover:bg-studio-200">重新检测</button>
-                      {c.uninstall_cmd && (
-                        <button onClick={() => cliAction(c.id, 'uninstall', c)} className="text-xs py-1 px-2 rounded bg-red-50 text-red-600 hover:bg-red-100">卸载</button>
-                      )}
-                      <button onClick={() => cliAction(c.id, 'remove', c)} className="text-xs py-1 px-2 rounded bg-studio-100 text-studio-500 hover:bg-studio-200">
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                <div className="flex gap-2 mt-2">
-                  <button onClick={() => refreshCli()} className="flex-1 py-1.5 rounded-lg bg-studio-100 text-studio-600 text-xs font-medium hover:bg-studio-200 flex items-center justify-center gap-1">
-                    <Power size={12} />检测已装 CLI
-                  </button>
-                  <button onClick={() => setMarketType('cli')} className="flex-1 py-1.5 rounded-lg bg-caramel-50 text-caramel-700 text-xs font-medium hover:bg-caramel-100 flex items-center justify-center gap-1">
-                    <Store size={12} />打开市场
-                  </button>
-                </div>
-              </ExtensionSection>
+                    ))}
+                    <button onClick={() => setMarketType('skill')} className="w-full mt-2 py-1.5 rounded-lg bg-caramel-50 text-caramel-700 text-xs font-medium hover:bg-caramel-100 flex items-center justify-center gap-1"><Store size={12} />打开市场</button>
+                  </ExtensionSection>
 
-              {/* 数据管理 */}
-              <div className="pt-4 mt-2 border-t border-studio-100">
-                <p className="text-sm font-medium text-studio-500 mb-3">数据管理</p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleBackup}
-                    className="flex-1 py-2 rounded-xl text-xs font-medium bg-studio-100 text-studio-600 hover:bg-studio-200 transition-colors"
+                  <ExtensionSection
+                    icon={<Terminal size={14} />}
+                    title="CLI 工具"
+                    open={cliOpen}
+                    onToggle={() => {
+                      setCliOpen(o => !o)
+                      if (!cliOpen && cliRows.length === 0) refreshCli()
+                    }}
                   >
-                    立即备份
-                  </button>
-                  <button
-                    onClick={handleExport}
-                    className="flex-1 py-2 rounded-xl text-xs font-medium bg-studio-100 text-studio-600 hover:bg-studio-200 transition-colors"
-                  >
-                    导出数据
-                  </button>
-                  <button
-                    onClick={handleImport}
-                    className="flex-1 py-2 rounded-xl text-xs font-medium bg-studio-100 text-studio-600 hover:bg-studio-200 transition-colors"
-                  >
-                    导入数据
-                  </button>
-                </div>
-                <p className="text-xs text-studio-400 mt-3 leading-relaxed">
-                  数据存储: SQLite (ai-workhub.db)
-                  <br />
-                  启动和退出时自动备份，保留最近10份
-                  <br />
-                  备份目录: %APPDATA%\ai-workhub\backups
-                </p>
-                {backupInfo && (
-                  <p className="text-xs text-caramel-500 mt-2">{backupInfo}</p>
-                )}
+                    {cliRows.length === 0 ? (
+                      <p className="text-xs text-studio-500 py-2">暂无 CLI 记录。点击下方按钮检测系统已装 CLI，或从市场安装新工具。</p>
+                    ) : cliRows.map(c => (
+                      <div key={c.id} className="border border-studio-200 rounded-lg p-2.5 mb-2 last:mb-0">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{c.name}</p>
+                            <p className="text-xs text-studio-500 truncate">bin: {c.bin || '-'}{c.version ? ` · ${c.version}` : ''}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-1 mt-2">
+                          <button onClick={() => cliAction(c.id, 'detect', c)} className="flex-1 text-xs py-1 rounded bg-studio-100 hover:bg-studio-200">重新检测</button>
+                          {c.uninstall_cmd && <button onClick={() => cliAction(c.id, 'uninstall', c)} className="text-xs py-1 px-2 rounded bg-red-50 text-red-600 hover:bg-red-100">卸载</button>}
+                          <button onClick={() => cliAction(c.id, 'remove', c)} className="text-xs py-1 px-2 rounded bg-studio-100 text-studio-500 hover:bg-studio-200"><Trash2 size={12} /></button>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="flex gap-2 mt-2">
+                      <button onClick={() => refreshCli()} className="flex-1 py-1.5 rounded-lg bg-studio-100 text-studio-600 text-xs font-medium hover:bg-studio-200 flex items-center justify-center gap-1"><Power size={12} />检测已装 CLI</button>
+                      <button onClick={() => setMarketType('cli')} className="flex-1 py-1.5 rounded-lg bg-caramel-50 text-caramel-700 text-xs font-medium hover:bg-caramel-100 flex items-center justify-center gap-1"><Store size={12} />打开市场</button>
+                    </div>
+                  </ExtensionSection>
+
+                  <p className="text-xs text-studio-400 pt-2 leading-relaxed">
+                    💡 MCP / Skills / CLI 仅在 v2 引擎下生效。市场内容已按"桌面办公伙伴"定位手工筛选，每个条目都有推荐理由。
+                  </p>
+                </>)}
+
+                {activeTab === 'data' && (<>
+                  <div>
+                    <p className="text-sm font-medium text-studio-500 mb-3">数据管理</p>
+                    <div className="flex gap-2">
+                      <button onClick={handleBackup} className="flex-1 py-2 rounded-xl text-xs font-medium bg-studio-100 text-studio-600 hover:bg-studio-200 transition-colors">立即备份</button>
+                      <button onClick={handleExport} className="flex-1 py-2 rounded-xl text-xs font-medium bg-studio-100 text-studio-600 hover:bg-studio-200 transition-colors">导出数据</button>
+                      <button onClick={handleImport} className="flex-1 py-2 rounded-xl text-xs font-medium bg-studio-100 text-studio-600 hover:bg-studio-200 transition-colors">导入数据</button>
+                    </div>
+                    <p className="text-xs text-studio-400 mt-3 leading-relaxed">
+                      数据存储: SQLite (ai-workhub.db)
+                      <br />启动和退出时自动备份，保留最近10份
+                      <br />备份目录: %APPDATA%\ai-workhub\backups
+                    </p>
+                    {backupInfo && <p className="text-xs text-caramel-500 mt-2">{backupInfo}</p>}
+                  </div>
+                </>)}
               </div>
             </div>
           </div>
