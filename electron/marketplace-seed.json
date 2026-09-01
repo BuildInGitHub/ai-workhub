@@ -1,7 +1,7 @@
 {
-  "version": 5,
+  "version": 6,
   "updated_at": "2026-09-02",
-  "category_note": "v5: 全部 MCP 保留（Git 已恢复）；每条 requires 字段说明前置依赖。npx 路径零安装，uvx 路径需装 uv。",
+  "category_note": "v6: 加入 OpenCLI（统一 CLI 桥，覆盖 100+ 网站 + 本地工具 + Electron 桌面应用；GitHub 28.8k stars，Apache-2.0）。CLI 入口。",
   "servers": [
     {
       "id": "mcp-filesystem",
@@ -275,6 +275,26 @@
       ],
       "reason": "项目管理是核心模块之一。",
       "requires": []
+    },
+    {
+      "id": "cli-opencli",
+      "type": "cli",
+      "name": "OpenCLI（统一 CLI 桥）",
+      "package": "@jackwener/opencli",
+      "description": "把 100+ 网站（小红书/B站/知乎/Twitter/Amazon/NotebookLM...）+ 本地 CLI + Electron 桌面应用统一暴露为可调用命令。适合任何需要抓网页/调用第三方平台数据的场景。",
+      "install_cmd": "npm install -g @jackwener/opencli",
+      "uninstall_cmd": "npm uninstall -g @jackwener/opencli",
+      "bin": "opencli",
+      "tags": [
+        "CLI",
+        "抓取",
+        "推荐"
+      ],
+      "requires": [
+        "node>=20.18.1",
+        "Chrome 浏览器（可选，装扩展才能操控已登录会话）"
+      ],
+      "reason": "AI 伙伴需要拉网页数据/第三方平台时最强大的统一入口；也是社区活跃（28.8k stars）的工具，省得你自己拼爬虫。"
     },
     {
       "id": "cli-ripgrep",
