@@ -22,6 +22,7 @@ import FilePreview from './components/FilePreview'
 import Home from './components/Home'
 import FeedbackDialog from './components/FeedbackDialog'
 import { initBuiltinTools, getTools, runAgentLoop, type PlanResult } from './services/agent'
+import { runAgentLoopV2, type ToolContext } from './services/agent-pi'
 import type { Tab, ChatMessage, FileEntry } from './types'
 
 function App() {
@@ -85,6 +86,22 @@ function App() {
       }
     }
     loadApiKey()
+  }, [])
+
+  // AI 引擎版本：v1 自研（默认）/ v2 Pi SDK（实验）
+  const [engineVersion, setEngineVersion] = useState<'v1' | 'v2'>('v1')
+  useEffect(() => {
+    const loadEngineVersion = async () => {
+      if (!window.electronAPI) return
+      try {
+        const r = await window.electronAPI.db.query(
+          "SELECT value FROM settings WHERE key = 'engine_version'"
+        )
+        const v = (r?.data?.[0] as any)?.value
+        if (v === 'v1' || v === 'v2') setEngineVersion(v)
+      } catch { /* 默认 v1 */ }
+    }
+    loadEngineVersion()
   }, [])
 
   // 加载或创建默认会话
@@ -239,6 +256,24 @@ function App() {
   }
 
   // 纯对话模式：带完整会话历史 + 长期记忆
+  // v2 引擎需要的 ToolContext：复用与 v1 initBuiltinTools 同样的 IPC 注入
+  const buildV2ToolContext = (): ToolContext => {
+    const api = window.electronAPI!
+    const wp = api.wallpaper!
+    return {
+      dbQuery: (sql, params) => api.db.query(sql, params) as any,
+      fsReadDir: (path) => api.fs.readDir(path) as any,
+      fsReadFile: (path) => api.fs.readFile(path) as any,
+      osHomeDir: async () => ({ data: await api.os.homeDir() }),
+      shellOpenExternal: (url) => api.shell.openExternal(url) as any,
+      fsMoveFile: api.fs.moveFile
+        ? (src, dest) => api.fs.moveFile!(src, dest) as any
+        : undefined,
+      getWallpaper: async () => (await wp.get()) || '',
+      restoreWallpaper: () => wp.restore() as any,
+    }
+  }
+
   const handlePlainChat = async (message: string) => {
     // 读取长期记忆注入系统提示
     let memoryPrompt = ''
@@ -319,8 +354,11 @@ function App() {
     }
 
     try {
-      // 图式循环引擎：规划 → 执行 → 校验 → 重规划（最多2轮）
-      const loopOutcome = await runAgentLoop(message, apiKey, chatMessages.map(m => ({ role: m.role, content: m.content })))
+      // 引擎分发：v1 自研 / v2 Pi SDK（实验）
+      const history = chatMessages.map(m => ({ role: m.role, content: m.content }))
+      const loopOutcome = engineVersion === 'v2'
+        ? await runAgentLoopV2(message, apiKey, history, buildV2ToolContext())
+        : await runAgentLoop(message, apiKey, history)
 
       // 纯聊天：无需执行工具，直接走对话（不显示思考过程）
       if (!loopOutcome.needsExecution) {
@@ -534,6 +572,8 @@ function App() {
           onNavigate={handleAddTab}
           onShowSessions={() => setShowSessionPanel(!showSessionPanel)}
           isSessionPanelOpen={showSessionPanel}
+          engineVersion={engineVersion}
+          onChangeEngine={setEngineVersion}
         />
 
         {/* 中间工作区 */}

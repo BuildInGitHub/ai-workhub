@@ -114,6 +114,8 @@ interface SidebarProps {
   onNavigate: (type: Tab['type'], title: string) => void
   onShowSessions?: () => void
   isSessionPanelOpen?: boolean
+  engineVersion?: 'v1' | 'v2'
+  onChangeEngine?: (v: 'v1' | 'v2') => void
 }
 
 export default function Sidebar({
@@ -127,7 +129,9 @@ export default function Sidebar({
   apiKeySet,
   onNavigate,
   onShowSessions,
-  isSessionPanelOpen = false
+  isSessionPanelOpen = false,
+  engineVersion = 'v1',
+  onChangeEngine
 }: SidebarProps) {
   const [input, setInput] = useState('')
   const [showSettings, setShowSettings] = useState(false)
@@ -179,6 +183,19 @@ export default function Sidebar({
   const handleSaveSettings = () => {
     onSaveApiKey(tempApiKey)
     setShowSettings(false)
+  }
+
+  // 切换 AI 引擎：写到 settings 表（持久化）并实时回调 App
+  const handleChangeEngine = async (v: 'v1' | 'v2') => {
+    onChangeEngine?.(v)
+    try {
+      await window.electronAPI?.db.query(
+        "INSERT OR REPLACE INTO settings (id, key, value, created_at) VALUES (?, ?, ?, datetime('now'))",
+        ['engine_version', 'engine_version', v]
+      )
+    } catch (e) {
+      console.error('保存引擎设置失败:', e)
+    }
   }
 
   // 数据管理操作
@@ -456,8 +473,43 @@ export default function Sidebar({
                   ✓ API Key 已配置
                 </p>
               )}
-              
-              <button 
+
+              {/* AI 引擎选择（v1 稳定 / v2 Pi SDK 实验） */}
+              <div className="pt-2">
+                <label className="block text-sm font-medium text-studio-500 mb-2">
+                  AI 引擎
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => handleChangeEngine('v1')}
+                    className={`py-2 rounded-xl text-xs font-medium transition-colors ${
+                      engineVersion === 'v1'
+                        ? 'bg-caramel-400 text-white'
+                        : 'bg-studio-100 text-studio-500 hover:text-ink-100'
+                    }`}
+                  >
+                    v1 自研（稳定）
+                  </button>
+                  <button
+                    onClick={() => handleChangeEngine('v2')}
+                    className={`py-2 rounded-xl text-xs font-medium transition-colors ${
+                      engineVersion === 'v2'
+                        ? 'bg-caramel-400 text-white'
+                        : 'bg-studio-100 text-studio-500 hover:text-ink-100'
+                    }`}
+                    title="基于 @earendil-works/pi-agent-core（Pi SDK v0.83.0）"
+                  >
+                    v2 Pi SDK（实验）
+                  </button>
+                </div>
+                <p className="text-xs text-studio-400 mt-2 leading-relaxed">
+                  v1 自研引擎（默认）— 已稳定的规划/执行/校验/重规划循环
+                  <br />
+                  v2 基于 Pi SDK 内核 — 新架构，可能存在不稳定
+                </p>
+              </div>
+
+              <button
                 onClick={handleSaveSettings}
                 className="w-full btn btn-primary"
               >

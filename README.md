@@ -29,7 +29,7 @@ AI WorkHub 是一个基于 Pi Agent 架构的 AI Agent 桌面办公应用，基�
 |------|------|
 | 前端 | React 18 + TypeScript + TailwindCSS + Lucide Icons |
 | 桌面 | Electron 28 |
-| AI | DeepSeek API + Pi Agent（工具调用 + 参数推断） |
+| AI | DeepSeek API + Pi Agent（工具调用 + 参数推断）<br/>**双引擎**：v1 自研（稳定基线）+ v2 Pi SDK 内核（实验），Settings 面板切换 |
 | 存储 | SQLite（better-sqlite3，可用 DBeaver 管理） |
 
 ### 快速开始
@@ -78,6 +78,17 @@ npm run dev
 | 自动备份 | 启动/退出时自动备份至 `%APPDATA%\ai-workhub\backups\`，保留最近 10 份 |
 | 导出/导入 | 设置 → 数据管理，支持 .db 与旧版 .json 备份 |
 
+### AI 引擎切换
+
+设置 → API 设置 → "AI 引擎" 段可选择：
+
+| 引擎 | 说明 |
+|------|------|
+| **v1 自研引擎（默认 / 稳定）** | `src/services/agent.ts` 自研实现，20+ 工具 + 图式循环（规划→执行→校验→重规划），经过长期打磨 |
+| **v2 Pi SDK（实验）** | `src/services/agent-pi/` 基于 `@earendil-works/pi-agent-core` v0.83.0 内核，Provider 适配层做了 payload 裁剪（剥 DeepSeek 不需要的字段）以提升前缀缓存命中率 |
+
+v1 与 v2 共用同一份 API Key、会话历史、工具 IPC 注入。切换后**立即生效**，不需要重启。v2 仍在灰度，遇到异常可一键切回 v1。
+
 ### 项目结构
 
 ```
@@ -99,7 +110,8 @@ npm run dev
 │   │   ├── ConfirmDialog.tsx  # 通用确认框
 │   │   └── ...
 │   ├── services/          # 服务层
-│   │   └── agent.ts            # Pi Agent 引擎（20+ 工具）
+│   │   ├── agent.ts            # v1 自研引擎（20+ 工具，稳定基线）
+│   │   └── agent-pi/           # v2 Pi SDK 引擎（@earendil-works/pi-agent-core v0.83.0）
 │   ├── types/             # TypeScript 类型定义
 │   └── App.tsx            # 主应用组件
 ├── start.bat              # 启动脚本
