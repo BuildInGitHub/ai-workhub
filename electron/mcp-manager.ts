@@ -26,6 +26,23 @@ async function checkCommandAvailable(cmd: string): Promise<{ available: boolean;
   return { available: false, hint: hints[cmd] || '请确认已安装并加入 PATH' }
 }
 
+// 失败时探测用：spawn 一次采集 stderr（不阻塞正常启动）
+async function collectStderrPreview(cmd: string, args: string[], env: Record<string, string>): Promise<string> {
+  try {
+    const { spawn } = await import('node:child_process')
+    const probe = spawn(cmd, args, { env: { ...process.env, ...env }, shell: process.platform === 'win32' })
+    let buf = ''
+    probe.stderr.on('data', (c: Buffer) => { buf += c.toString(); if (buf.length > 4096) buf = buf.slice(-4096) })
+    probe.stdout.on('data', (c: Buffer) => { buf += c.toString(); if (buf.length > 4096) buf = buf.slice(-4096) })
+    // 等 2 秒看是否还活着 / 收集 stderr
+    await new Promise<void>(r => setTimeout(r, 2000))
+    probe.kill()
+    return buf.trim().slice(-1000)
+  } catch {
+    return ''
+  }
+}
+
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { execFile } from 'node:child_process'
@@ -79,25 +96,6 @@ export class McpManager {
       return { ok: false, error: err }
     }
 
-    // 临时 spawn 一次采集 stderr（用于诊断"Connection closed"这类无详细错误的场景）
-    let stderrPreview = ''
-    try {
-      const { spawn } = await import('node:child_process')
-      const probe = spawn(row.command, args, { env: { ...process.env, ...env }, shell: process.platform === 'win32' })
-      let buf = ''
-      probe.stderr.on('data', (c: Buffer) => { buf += c.toString(); if (buf.length > 4096) buf = buf.slice(-4096) })
-      // 等 1.5 秒看进程是否还活着 / 是否有 stderr
-      await new Promise<void>(r => setTimeout(r, 1500))
-      if (!probe.killed && probe.exitCode === null) {
-        probe.kill()
-        stderrPreview = buf.trim().slice(-1000)
-      } else {
-        stderrPreview = buf.trim().slice(-1000) || `进程退出，code=${probe.exitCode}, signal=${probe.signal}`
-      }
-    } catch (e: any) {
-      stderrPreview = `探测启动失败: ${e.message}`
-    }
-
     let transport: StdioClientTransport
     try {
       transport = new StdioClientTransport({
@@ -129,6 +127,8 @@ export class McpManager {
       return { ok: true, tools: info }
     } catch (e: any) {
       try { await transport.close() } catch {}
+      // 连接失败时再 spawn 一次采集 stderr（仅失败时付出代价）
+      const stderrPreview = await collectStderrPreview(row.command, args, env)
       const detail = stderrPreview ? `${e.message} | stderr: ${stderrPreview.slice(0, 500)}` : e.message
       await this.recordError(row.id, `连接失败: ${detail}`)
       return { ok: false, error: detail }

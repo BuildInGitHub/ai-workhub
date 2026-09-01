@@ -18,6 +18,12 @@ export default function MarketplaceModal({ type, installedIds, onClose }: Market
   const [loading, setLoading] = useState(true)
   const [installing, setInstalling] = useState<string>('')
   const [errors, setErrors] = useState<Record<string, string>>({})
+  // 本地已安装集合：合并父组件传入 + 安装成功时新增，关闭时丢弃
+  const [localInstalled, setLocalInstalled] = useState<Set<string>>(new Set())
+  // 父组件传入的 installedIds 变化时同步到 localInstalled
+  useEffect(() => {
+    setLocalInstalled(new Set(installedIds))
+  }, [installedIds])
 
   useEffect(() => {
     setLoading(true)
@@ -44,6 +50,7 @@ export default function MarketplaceModal({ type, installedIds, onClose }: Market
         })
       }
       if (!res?.ok) setErrors(e => ({ ...e, [item.id]: res?.error || '安装失败' }))
+      else setLocalInstalled(s => new Set(s).add(item.id))
     } catch (e: any) {
       setErrors(er => ({ ...er, [item.id]: e.message }))
     }
@@ -100,14 +107,14 @@ export default function MarketplaceModal({ type, installedIds, onClose }: Market
                   </div>
                   <button
                     onClick={() => handleInstall(item)}
-                    disabled={installing === item.id || installedIds.has(item.id)}
+                    disabled={installing === item.id || localInstalled.has(item.id)}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm flex-shrink-0 transition-colors ${
-                      installedIds.has(item.id)
+                      localInstalled.has(item.id)
                         ? 'bg-green-100 text-green-700 cursor-not-allowed'
                         : 'bg-caramel-400 text-white hover:bg-caramel-500 disabled:opacity-50'
                     }`}
                   >
-                    {installedIds.has(item.id) ? (
+                    {localInstalled.has(item.id) ? (
                       <><CheckCircle size={14} />已安装</>
                     ) : (
                       <>
