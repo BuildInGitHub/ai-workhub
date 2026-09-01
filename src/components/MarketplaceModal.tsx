@@ -8,39 +8,27 @@ import { fetchMarket, type MarketItem, type ItemType } from '../services/marketp
 
 interface MarketplaceModalProps {
   type: ItemType
+  /** 已安装条目的 id 集合，用于"已安装"状态 */
+  installedIds: Set<string>
   onClose: () => void
 }
 
-export default function MarketplaceModal({ type, onClose }: MarketplaceModalProps) {
+export default function MarketplaceModal({ type, installedIds, onClose }: MarketplaceModalProps) {
   const [items, setItems] = useState<MarketItem[]>([])
-  const [source, setSource] = useState<'remote' | 'local'>('remote')
-  const [error, setError] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [installing, setInstalling] = useState<string>('')
-  const [results, setResults] = useState<Record<string, { ok: boolean; msg: string }>>({})
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     setLoading(true)
     fetchMarket()
-      .then(r => { setItems(r.items.filter(i => i.type === type)); setSource(r.source); setError(r.error || '') })
+      .then(r => { setItems(r.items.filter(i => i.type === type)) })
       .finally(() => setLoading(false))
   }, [type])
 
   const handleInstall = async (item: MarketItem) => {
     setInstalling(item.id)
-    setResults(s => ({ ...s, [item.id]: { ok: false, msg: '⏳ 准备安装…' } }))
-    // npx 首次安装会拉包，给阶段文案（5-15 秒内完成）
-    setTimeout(() => {
-      if (installing === item.id) return
-      setResults(s => ({ ...s, [item.id]: { ok: false, msg: '⏳ 首次安装约 5-15 秒…' } }))
-    }, 1500)
-    setTimeout(() => {
-      setResults(s => {
-        const cur = s[item.id]
-        if (cur?.msg?.includes('完成')) return s
-        return { ...s, [item.id]: { ok: false, msg: '⏳ 仍在拉取/注册…' } }
-      })
-    }, 6000)
+    setErrors(s => { const n = { ...s }; delete n[item.id]; return n })
     try {
       let res: any
       if (item.type === 'mcp') {
@@ -55,10 +43,9 @@ export default function MarketplaceModal({ type, onClose }: MarketplaceModalProp
           name: item.name, install_cmd: item.install_cmd, uninstall_cmd: item.uninstall_cmd, bin: item.bin,
         })
       }
-      if (res?.ok) setResults(s => ({ ...s, [item.id]: { ok: true, msg: '✓ 安装完成' } }))
-      else setResults(s => ({ ...s, [item.id]: { ok: false, msg: `✗ ${res?.error || '安装失败'}` } }))
+      if (!res?.ok) setErrors(e => ({ ...e, [item.id]: res?.error || '安装失败' }))
     } catch (e: any) {
-      setResults(s => ({ ...s, [item.id]: { ok: false, msg: `✗ ${e.message}` } }))
+      setErrors(er => ({ ...er, [item.id]: e.message }))
     }
     setInstalling('')
   }
@@ -71,10 +58,6 @@ export default function MarketplaceModal({ type, onClose }: MarketplaceModalProp
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="font-display text-lg font-semibold">扩展市场 — {typeLabel}</h3>
-            <p className="text-xs text-studio-500 mt-1">
-              {source === 'remote' ? '从 GitHub 远程索引加载' : '网络不可达，使用本地种子索引'}
-              {error && `（${error}）`}
-            </p>
           </div>
           <button onClick={onClose} className="p-1.5 hover:bg-studio-100 rounded-xl"><X size={20} /></button>
         </div>
@@ -83,7 +66,6 @@ export default function MarketplaceModal({ type, onClose }: MarketplaceModalProp
           {loading && <p className="text-sm text-studio-500 py-8 text-center">加载中…</p>}
           {!loading && items.length === 0 && <p className="text-sm text-studio-500 py-8 text-center">此分类暂无条目</p>}
           {items.map(item => {
-            const r = results[item.id]
             return (
               <div key={item.id} className="border border-studio-200 rounded-xl p-4 hover:border-caramel-300 transition-colors">
                 <div className="flex items-start gap-3">
@@ -118,20 +100,27 @@ export default function MarketplaceModal({ type, onClose }: MarketplaceModalProp
                   </div>
                   <button
                     onClick={() => handleInstall(item)}
-                    disabled={installing === item.id}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-caramel-400 text-white text-sm hover:bg-caramel-500 disabled:opacity-50 flex-shrink-0"
+                    disabled={installing === item.id || installedIds.has(item.id)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm flex-shrink-0 transition-colors ${
+                      installedIds.has(item.id)
+                        ? 'bg-green-100 text-green-700 cursor-not-allowed'
+                        : 'bg-caramel-400 text-white hover:bg-caramel-500 disabled:opacity-50'
+                    }`}
                   >
-                    <Download size={14} className={installing === item.id ? 'animate-bounce' : ''} />
-                    {installing === item.id ? (
-                      <span className="flex items-center gap-1"><Loader2 size={12} className="animate-spin" />安装中</span>
-                    ) : '安装'}
+                    {installedIds.has(item.id) ? (
+                      <><CheckCircle size={14} />已安装</>
+                    ) : (
+                      <>
+                        <Download size={14} className={installing === item.id ? 'animate-bounce' : ''} />
+                        {installing === item.id ? (
+                          <span className="flex items-center gap-1"><Loader2 size={12} className="animate-spin" />安装中</span>
+                        ) : '安装'}
+                      </>
+                    )}
                   </button>
                 </div>
-                {r && (
-                  <div className={`mt-2 text-xs flex items-center gap-1.5 ${r.ok ? 'text-green-600' : 'text-red-600'}`}>
-                    {r.ok ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
-                    {r.msg}
-                  </div>
+                {errors[item.id] && (
+                  <p className="mt-2 text-xs text-red-600 line-clamp-2">✗ {errors[item.id]}</p>
                 )}
               </div>
             )

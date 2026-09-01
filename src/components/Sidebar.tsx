@@ -536,7 +536,7 @@ export default function Sidebar({
               className="mx-4 mb-2 p-2.5 rounded-xl hover:bg-studio-100 transition-colors flex items-center gap-2 text-studio-500"
             >
               <Settings size={18} />
-              <span className="text-sm">API 设置</span>
+              <span className="text-sm">设置</span>
             </button>
 
             {/* 输入区域 */}
@@ -769,13 +769,20 @@ export default function Sidebar({
       )}
 
       {/* 扩展市场弹窗 */}
-      {marketType && (
-        <MarketplaceModal type={marketType} onClose={() => {
-          setMarketType(null)
-          // 安装后刷新对应列表
-          refreshMcp(); refreshSkills(); refreshCli()
-        }} />
-      )}
+      {marketType && (() => {
+        // 计算已安装 id 集合（传给 MarketplaceModal 渲染"已安装"状态）
+        const installed = new Set<string>()
+        if (marketType === 'mcp') mcpServers.forEach(s => installed.add(s.id))
+        if (marketType === 'skill') skills.forEach(s => installed.add(s.name))
+        if (marketType === 'cli') cliRows.forEach(c => installed.add(c.id))
+        return (
+          <MarketplaceModal type={marketType} installedIds={installed} onClose={() => {
+            setMarketType(null)
+            // 安装后刷新对应列表
+            refreshMcp(); refreshSkills(); refreshCli()
+          }} />
+        )
+      })()}
     </>
   )
 }
