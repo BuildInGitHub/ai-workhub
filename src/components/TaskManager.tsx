@@ -467,7 +467,7 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
       {/* 添加/编辑弹窗 */}
       {showAddModal && (
         <div className="fixed inset-0 bg-ink-400/30 flex items-center justify-center z-50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl p-6 w-[480px] shadow-elevated animate-slideIn">
+          <div className="bg-white rounded-2xl p-6 w-[640px] max-w-[92vw] shadow-elevated animate-slideIn">
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-display text-lg font-semibold">
                 {editingTask ? '编辑任务' : formData.parent_id ? '添加子任务' : '新建任务'}
@@ -477,7 +477,7 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
               </button>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[78vh] overflow-y-auto pr-1">
               <div>
                 <label className="block text-sm font-medium text-studio-500 mb-2">任务标题</label>
                 <input
@@ -529,10 +529,16 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
                 <label className="block text-sm font-medium text-studio-500 mb-2">描述</label>
                 <textarea
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, description: e.target.value })
+                    // 随内容自动长高，最多 320px，超出内部滚动
+                    const el = e.target
+                    el.style.height = 'auto'
+                    el.style.height = Math.min(el.scrollHeight, 320) + 'px'
+                  }}
                   placeholder="输入任务描述（可选）"
-                  rows={5}
-                  className="input resize-y min-h-[110px] max-h-64"
+                  rows={6}
+                  className="input resize-y min-h-[130px] max-h-[320px] overflow-y-auto"
                 />
               </div>
 

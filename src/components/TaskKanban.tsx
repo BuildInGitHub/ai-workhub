@@ -403,7 +403,7 @@ export default function TaskKanban({ parentTask, onClose, onChanged }: TaskKanba
       {editingTask && (
         <div className="fixed inset-0 bg-ink-400/40 flex items-center justify-center z-[95] backdrop-blur-sm"
           onClick={(e) => { if (e.target === e.currentTarget) setEditingTask(null) }}>
-          <div className="bg-white rounded-2xl p-6 w-[440px] shadow-elevated animate-slideIn">
+          <div className="bg-white rounded-2xl p-6 w-[600px] max-w-[92vw] shadow-elevated animate-slideIn">
             <div className="flex items-center justify-between mb-5">
               <h3 className="font-display text-lg font-semibold">编辑子任务</h3>
               <button onClick={() => setEditingTask(null)} className="p-2 hover:bg-studio-100 rounded-xl">
@@ -411,7 +411,7 @@ export default function TaskKanban({ parentTask, onClose, onChanged }: TaskKanba
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[78vh] overflow-y-auto pr-1">
               <div>
                 <label className="block text-sm font-medium text-studio-500 mb-2">标题</label>
                 <input
@@ -429,10 +429,16 @@ export default function TaskKanban({ parentTask, onClose, onChanged }: TaskKanba
                 <label className="block text-sm font-medium text-studio-500 mb-2">描述</label>
                 <textarea
                   value={editForm.description}
-                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                  onChange={(e) => {
+                    setEditForm({ ...editForm, description: e.target.value })
+                    // 随内容自动长高，最多 320px，超出内部滚动
+                    const el = e.target
+                    el.style.height = 'auto'
+                    el.style.height = Math.min(el.scrollHeight, 320) + 'px'
+                  }}
                   placeholder="输入任务描述（可选）"
-                  rows={5}
-                  className="input resize-y min-h-[110px] max-h-64"
+                  rows={6}
+                  className="input resize-y min-h-[130px] max-h-[320px] overflow-y-auto"
                 />
               </div>
 
