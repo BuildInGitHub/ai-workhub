@@ -202,6 +202,7 @@ export default function Sidebar({
   const [cliOpen, setCliOpen] = useState(false)
   const [marketType, setMarketType] = useState<null | 'mcp' | 'skill' | 'cli'>(null)
   const [mcpServers, setMcpServers] = useState<any[]>([])
+  const [startingIds, setStartingIds] = useState<Set<string>>(new Set())
   const [skills, setSkills] = useState<any[]>([])
   const [cliRows, setCliRows] = useState<any[]>([])
   const [expandedSkill, setExpandedSkill] = useState<string | null>(null)
@@ -282,9 +283,29 @@ export default function Sidebar({
     setCliRows(r?.data || [])
   }
   const mcpAction = async (id: string, act: 'start' | 'stop' | 'uninstall', _row?: any) => {
-    if (act === 'start') await window.electronAPI?.mcp?.start?.(id)
-    else if (act === 'stop') await window.electronAPI?.mcp?.stop?.(id)
-    else if (act === 'uninstall') await window.electronAPI?.mcp?.uninstall?.(id)
+    if (act === 'start') {
+      // 标记"启动中"+阶段文案（用 last_error 字段当下进度显示，避免再加新字段）
+      setStartingIds(s => new Set(s).add(id))
+      const step = (msg: string) => setMcpServers(prev => prev.map(x => x.id === id ? { ...x, last_error: msg } : x))
+      step('⏳ 检查前置依赖…')
+      setTimeout(() => step('⏳ 首次启动约 5-15 秒…'), 1500)
+      setTimeout(() => step('⏳ 仍在连接 MCP server…'), 6000)
+      try {
+        const r = await window.electronAPI?.mcp?.start?.(id)
+        if (!r?.ok) {
+          step(r?.error || '启动失败')
+        } else {
+          step('')
+        }
+      } catch (e: any) {
+        step(`✗ ${e.message}`)
+      }
+      setStartingIds(s => { const n = new Set(s); n.delete(id); return n })
+    } else if (act === 'stop') {
+      await window.electronAPI?.mcp?.stop?.(id)
+    } else if (act === 'uninstall') {
+      await window.electronAPI?.mcp?.uninstall?.(id)
+    }
     setTimeout(refreshMcp, 300)
   }
   const toggleSkillView = async (s: any) => {
@@ -635,7 +656,11 @@ export default function Sidebar({
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate">{s.name}</p>
                             <p className="text-xs text-studio-500 truncate">{s.command} {(JSON.parse(s.args || '[]')).join(' ')}</p>
-                            {s.last_error && <p className="text-xs text-red-600 mt-1 line-clamp-2">{s.last_error}</p>}
+                            {s.last_error && (
+                              <p className={`text-xs mt-1 line-clamp-2 ${s.last_error.startsWith('⏳') ? 'text-caramel-600' : s.last_error.startsWith('✗') ? 'text-red-600' : 'text-studio-500'}`}>
+                                {s.last_error}
+                              </p>
+                            )}
                           </div>
                           <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${s.status === 'enabled' ? 'bg-green-100 text-green-700' : s.status === 'error' ? 'bg-red-100 text-red-700' : 'bg-studio-100 text-studio-600'}`}>
                             {s.status === 'enabled' ? '运行中' : s.status === 'error' ? '错误' : '已停'}
@@ -643,11 +668,14 @@ export default function Sidebar({
                         </div>
                         <div className="flex gap-1 mt-2">
                           {s.status === 'enabled' ? (
-                            <button onClick={() => mcpAction(s.id, 'stop')} className="flex-1 text-xs py-1 rounded bg-studio-100 hover:bg-studio-200 flex items-center justify-center gap-1"><StopCircle size={12} />停止</button>
+                            <button onClick={() => mcpAction(s.id, 'stop')} disabled={startingIds.has(s.id)} className="flex-1 text-xs py-1 rounded bg-studio-100 hover:bg-studio-200 disabled:opacity-60 flex items-center justify-center gap-1"><StopCircle size={12} />停止</button>
                           ) : (
-                            <button onClick={() => mcpAction(s.id, 'start')} className="flex-1 text-xs py-1 rounded bg-caramel-400 text-white hover:bg-caramel-500 flex items-center justify-center gap-1"><PlayCircle size={12} />启动</button>
+                            <button onClick={() => mcpAction(s.id, 'start')} disabled={startingIds.has(s.id)} className="flex-1 text-xs py-1 rounded bg-caramel-400 text-white hover:bg-caramel-500 disabled:opacity-60 flex items-center justify-center gap-1">
+                              {startingIds.has(s.id) ? <Loader2 size={12} className="animate-spin" /> : <PlayCircle size={12} />}
+                              {startingIds.has(s.id) ? '启动中…' : '启动'}
+                            </button>
                           )}
-                          <button onClick={() => mcpAction(s.id, 'uninstall', s)} className="text-xs py-1 px-2 rounded bg-red-50 text-red-600 hover:bg-red-100 flex items-center gap-1"><Trash2 size={12} /></button>
+                          <button onClick={() => mcpAction(s.id, 'uninstall', s)} disabled={startingIds.has(s.id)} className="text-xs py-1 px-2 rounded bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-40 flex items-center gap-1"><Trash2 size={12} /></button>
                         </div>
                       </div>
                     ))}
