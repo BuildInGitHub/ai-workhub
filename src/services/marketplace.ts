@@ -24,6 +24,8 @@ export interface MarketItem {
   tags?: string[]
   /** 推荐理由（为什么适合本工具） */
   reason?: string
+  /** 前置依赖（安装前必须具备的环境） */
+  requires?: string[]
 }
 
 interface MarketIndex {

@@ -1,7 +1,7 @@
 {
-  "version": 4,
+  "version": 5,
   "updated_at": "2026-09-02",
-  "category_note": "v4: 零依赖路径。MCP 全走 npx，Skills 纯文本，CLI 走系统包管理。requires 字段说明前置依赖。",
+  "category_note": "v5: 全部 MCP 保留（Git 已恢复）；每条 requires 字段说明前置依赖。npx 路径零安装，uvx 路径需装 uv。",
   "servers": [
     {
       "id": "mcp-filesystem",
@@ -23,6 +23,29 @@
       "requires": [
         "node>=18"
       ]
+    },
+    {
+      "id": "mcp-git",
+      "type": "mcp",
+      "name": "Git（仓库操作）",
+      "package": "mcp-server-git",
+      "description": "status/log/diff/commit/blame 等常见 git 操作。需要先装 uv（https://astral.sh/uv）才能用 uvx。",
+      "command": "uvx",
+      "args": [
+        "mcp-server-git",
+        "--repository",
+        "C:\\你的git仓库路径"
+      ],
+      "env": {},
+      "tags": [
+        "git",
+        "开发"
+      ],
+      "requires": [
+        "python>=3.10",
+        "uv (https://astral.sh/uv)"
+      ],
+      "reason": "项目管理里很多是代码项目，AI 直接操作 git 是高频场景。需要先装 uv 才能用 uvx；uv 自带 uvx。"
     },
     {
       "id": "mcp-puppeteer",

@@ -3,7 +3,7 @@
 // 每张卡片"安装"按钮：mcp 走 mcp:install，skill 走 skill:installFromMarket，cli 走 cli:install
 
 import { useEffect, useState } from 'react'
-import { X, Package, Download, AlertCircle, CheckCircle } from 'lucide-react'
+import { X, Package, Download, AlertCircle, CheckCircle, Loader2, ChevronDown } from 'lucide-react'
 import { fetchMarket, type MarketItem, type ItemType } from '../services/marketplace'
 
 interface MarketplaceModalProps {
@@ -28,6 +28,19 @@ export default function MarketplaceModal({ type, onClose }: MarketplaceModalProp
 
   const handleInstall = async (item: MarketItem) => {
     setInstalling(item.id)
+    setResults(s => ({ ...s, [item.id]: { ok: false, msg: '⏳ 准备安装…' } }))
+    // npx 首次安装会拉包，给阶段文案（5-15 秒内完成）
+    setTimeout(() => {
+      if (installing === item.id) return
+      setResults(s => ({ ...s, [item.id]: { ok: false, msg: '⏳ 首次安装约 5-15 秒…' } }))
+    }, 1500)
+    setTimeout(() => {
+      setResults(s => {
+        const cur = s[item.id]
+        if (cur?.msg?.includes('完成')) return s
+        return { ...s, [item.id]: { ok: false, msg: '⏳ 仍在拉取/注册…' } }
+      })
+    }, 6000)
     try {
       let res: any
       if (item.type === 'mcp') {
@@ -42,10 +55,10 @@ export default function MarketplaceModal({ type, onClose }: MarketplaceModalProp
           name: item.name, install_cmd: item.install_cmd, uninstall_cmd: item.uninstall_cmd, bin: item.bin,
         })
       }
-      if (res?.ok) setResults(s => ({ ...s, [item.id]: { ok: true, msg: '已安装' } }))
-      else setResults(s => ({ ...s, [item.id]: { ok: false, msg: res?.error || '安装失败' } }))
+      if (res?.ok) setResults(s => ({ ...s, [item.id]: { ok: true, msg: '✓ 安装完成' } }))
+      else setResults(s => ({ ...s, [item.id]: { ok: false, msg: `✗ ${res?.error || '安装失败'}` } }))
     } catch (e: any) {
-      setResults(s => ({ ...s, [item.id]: { ok: false, msg: e.message } }))
+      setResults(s => ({ ...s, [item.id]: { ok: false, msg: `✗ ${e.message}` } }))
     }
     setInstalling('')
   }
@@ -83,6 +96,13 @@ export default function MarketplaceModal({ type, onClose }: MarketplaceModalProp
                       <code className="text-xs text-studio-500 bg-studio-100 px-1.5 py-0.5 rounded">{item.package}</code>
                     </div>
                     <p className="text-sm text-studio-500 mt-1 leading-relaxed">{item.description}</p>
+                    {item.requires && item.requires.length > 0 && (
+                      <div className="mt-2 px-3 py-1.5 bg-studio-100 border border-studio-200 rounded-lg">
+                        <p className="text-xs text-studio-600 leading-relaxed">
+                          <span className="font-medium">前置依赖：</span>{item.requires.join(' · ')}
+                        </p>
+                      </div>
+                    )}
                     {item.reason && (
                       <div className="mt-2 px-3 py-2 bg-caramel-50 border border-caramel-100 rounded-lg">
                         <p className="text-xs text-caramel-700 leading-relaxed">
@@ -101,8 +121,10 @@ export default function MarketplaceModal({ type, onClose }: MarketplaceModalProp
                     disabled={installing === item.id}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-caramel-400 text-white text-sm hover:bg-caramel-500 disabled:opacity-50 flex-shrink-0"
                   >
-                    <Download size={14} />
-                    {installing === item.id ? '安装中…' : '安装'}
+                    <Download size={14} className={installing === item.id ? 'animate-bounce' : ''} />
+                    {installing === item.id ? (
+                      <span className="flex items-center gap-1"><Loader2 size={12} className="animate-spin" />安装中</span>
+                    ) : '安装'}
                   </button>
                 </div>
                 {r && (
