@@ -38,7 +38,9 @@ AI WorkHub 不是一个聊天机器人，而是一个**真能动手干活的桌�
 | 📋 **两级任务** | 父任务 → 子任务，进度条汇总；每个任务独立**看板**（待办 / 进行中 / 已完成，拖拽） |
 | 🔗 **链接收藏** | 7 个预设分类、可复制账号、**密码提示**（仅存提示不存明文）、自动补 `https://` |
 | 💬 **多会话** | 多会话隔离、自动命名、持久化 |
-| 🏠 **工作台** | 快速启动 + 迷你日历 + 智能建议 |
+| 🏠 **工作台** | 快速启动（**拖拽重排**）+ 迷你日历 + 智能建议 |
+| 🛑 **AI 可中止** | 长任务一键 Stop 按钮 / Esc 键；已成功工具结果保留并报告 |
+| 👁 **任务只读详情** | 任务卡片点 👁 图标打开 720px 两列只读详情（标题/状态/描述/子任务/元信息）|
 | 🖼️ **桌面整理保护** | 壁纸、主题、`.lnk`、`.desktop.ini` 硬保护；如被破坏可一键恢复 |
 | 🔍 **全局搜索** | `Ctrl/Cmd + K` 一键搜索任务 / 链接 / 日程 / 文件 |
 | 📝 **意见反馈** | 应用内一键创建 GitHub Issue，含环境信息自动填充 |
@@ -178,6 +180,10 @@ v2 引擎独有。设置 → API 设置 → 展开"扩展"分类里的三个抽�
 | AI 报"工具不存在 / 工具列表为空" | 重启应用，等 `[Agent] 工具初始化完成` 日志 |
 | 子任务挂错父任务 | 让父任务标题唯一或换更精确关键词 |
 | 链接 URL 被强制加 https | 手动编辑去掉，或绕过自动补全 |
+| 跑了 10+ 秒想中止 | 点输入框旁 Stop 按钮 / 红色 "stop" 胶囊 / 按 Esc 键；已成功工具结果会保留在对话流 |
+| 顶部状态条显示 `[mcp] 0` 但 server 装过 | server 没真启动（uvx 等依赖缺失）。点抽屉里 "重试所有 server" 按钮，或装一个 npx 零依赖的 server（如 `server-everything`） |
+| 快速启动想换顺序 | 鼠标按住卡片上的 `⋮⋮` 拖动手柄拖到新位置，松手自动落库 |
+| 任务想看完整信息但不想误改 | hover 任务卡片点蓝色 👁 图标——只读详情弹窗，2列布局，720px 宽 |
 
 ### 项目结构
 
@@ -286,7 +292,9 @@ For: developers / content creators / project managers / anyone who wants AI to *
 | 📋 **Two-level Tasks** | Parent → subtasks with progress bar; each task has its own **kanban** (todo/doing/done, drag & drop) |
 | 🔗 **Link Collection** | 7 preset categories, copyable account, **password hint** (hint only, never plaintext), auto `https://` |
 | 💬 **Multi-session** | Isolated contexts, auto-naming, persistent |
-| 🏠 **Workspace** | Quick launch + mini calendar + smart suggestions |
+| 🏠 **Workspace** | Quick launch (**drag to reorder**) + mini calendar + smart suggestions |
+| 🛑 **Cancellable AI** | Stop button or Esc to abort a long-running task; completed tool results are preserved |
+| 👁 **Read-only Task View** | Click the 👁 icon on a task card to open a 720px two-column detail panel (title, status, description, subtasks, metadata) |
 | 🖼️ **Desktop-safety** | Wallpapers / themes / `.lnk` / `.desktop.ini` hard-protected; one-click restore if broken |
 | 🔍 **Global Search** | `Ctrl/Cmd + K` to search tasks / links / calendar / files |
 | 📝 **Feedback** | One-click GitHub Issue from inside the app, environment auto-filled |
@@ -416,6 +424,10 @@ Each drawer has a "Browse Marketplace" button. Marketplace JSON prefers remote (
 | AI says "tool not found / empty tool list" | Restart the app, wait for `[Agent] 工具初始化完成` log |
 | Subtask attached to wrong parent | Make parent title unique or use a more specific keyword |
 | Link URL forced to `https://` | Edit manually to drop the `s`, or bypass auto-prefix |
+| 10+ seconds into a run and you want out | Click the Stop button next to the input, the red `stop` pill, or press Esc. Completed tool results stay in the conversation. |
+| Top status bar shows `[mcp] 0` even though servers are installed | The server never started (uvx or another dependency missing). Click the MCP drawer's "重试所有 server" button, or install an npx-zero-dependency server like `server-everything`. |
+| Quick launch items in the wrong order | Grab the `⋮⋮` handle and drag to a new slot; order is persisted on drop. |
+| Want to inspect a task without accidentally editing it | Hover the task card and click the blue 👁 icon - the read-only detail panel opens at 720px with a two-column layout. |
 
 ### Project Structure
 
