@@ -625,7 +625,7 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
       {/* 只读详情弹窗（点 Eye 图标触发） */}
       {viewTask && (
         <div className="fixed inset-0 bg-ink-400/30 flex items-center justify-center z-50 backdrop-blur-sm" onClick={(e) => { if (e.target === e.currentTarget) setViewTask(null) }}>
-          <div className="bg-white rounded-2xl p-6 w-[560px] max-w-[92vw] max-h-[85vh] shadow-elevated animate-slideIn flex flex-col">
+          <div className="bg-white rounded-2xl p-7 w-[720px] max-w-[94vw] max-h-[90vh] shadow-elevated animate-slideIn flex flex-col">
             <div className="flex items-center justify-between mb-5">
               <h3 className="font-display text-lg font-semibold flex items-center gap-2">
                 <Eye size={18} className="text-blue-500" />
@@ -636,93 +636,97 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto pr-1 space-y-4">
-              {/* 标题 */}
-              <div>
-                <label className="block text-xs font-medium text-studio-500 mb-1">标题</label>
-                <p className="text-base font-medium text-ink-100">{viewTask.title}</p>
+            <div className="flex-1 overflow-y-auto pr-1">
+              {/* 标题（大字号） */}
+              <div className="mb-5">
+                <p className="text-2xl font-semibold text-ink-100 leading-tight">{viewTask.title}</p>
               </div>
 
-              {/* 状态 + 优先级 + 完成 */}
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-studio-500 mb-1">状态</label>
-                  <span className={`inline-flex items-center gap-1 text-sm ${statusColors[getStatus(viewTask)]}`}>
-                    <span className="w-2 h-2 rounded-full bg-current" />
-                    {statusLabels[getStatus(viewTask)]}
-                  </span>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-studio-500 mb-1">优先级</label>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${priorityColors[viewTask.priority]}`}>
-                    {viewTask.priority === 'low' ? '低' : viewTask.priority === 'medium' ? '中' : '高'}
-                  </span>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-studio-500 mb-1">完成</label>
-                  <span className="text-sm">{viewTask.completed ? '✓ 已完成' : '○ 未完成'}</span>
-                </div>
-              </div>
-
-              {/* 截止日期 + 创建/更新时间 */}
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <label className="block text-xs font-medium text-studio-500 mb-1">截止日期</label>
-                  <p className={viewTask.due_date ? 'text-ink-100' : 'text-studio-400 italic'}>
-                    {viewTask.due_date || '未设置'}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-studio-500 mb-1">时间</label>
-                  <p className="text-xs text-studio-500">创建 {viewTask.created_at?.slice(0, 10) || '-'}</p>
-                  <p className="text-xs text-studio-500">更新 {viewTask.updated_at?.slice(0, 10) || '-'}</p>
-                </div>
-              </div>
-
-              {/* 描述 */}
-              <div>
-                <label className="block text-xs font-medium text-studio-500 mb-1">描述</label>
-                <p className={`text-sm whitespace-pre-wrap rounded-lg p-3 ${viewTask.description ? 'bg-studio-50 text-ink-100' : 'bg-studio-50 text-studio-400 italic'}`}>
-                  {viewTask.description || '无描述'}
-                </p>
-              </div>
-
-              {/* 父任务（如果是子任务） */}
-              {viewTask.parent_id && (
-                <div>
-                  <label className="block text-xs font-medium text-studio-500 mb-1">父任务</label>
-                  <p className="text-sm text-ink-100">{tasks.find(t => t.id === viewTask.parent_id)?.title || viewTask.parent_id}</p>
-                </div>
-              )}
-
-              {/* 子任务（如果是父任务） */}
-              {(() => {
-                const subs = tasks.filter(t => t.parent_id === viewTask.id)
-                if (subs.length === 0) return null
-                const done = subs.filter(s => s.completed).length
-                return (
+              {/* 左右两列布局 */}
+              <div className="grid grid-cols-[1fr_220px] gap-5">
+                {/* 左列：描述 + 子任务 */}
+                <div className="space-y-4">
+                  {/* 描述 */}
                   <div>
-                    <label className="block text-xs font-medium text-studio-500 mb-1">
-                      子任务 ({done}/{subs.length})
-                    </label>
-                    <div className="space-y-1">
-                      {subs.map(s => (
-                        <div key={s.id} className="flex items-center gap-2 text-sm">
-                          <span className={s.completed ? 'text-green-500' : 'text-studio-400'}>
-                            {s.completed ? '✓' : '○'}
-                          </span>
-                          <span className={`flex-1 ${s.completed ? 'line-through text-studio-400' : 'text-ink-100'}`}>
-                            {s.title}
-                          </span>
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] ${priorityColors[s.priority]}`}>
-                            {s.priority === 'low' ? '低' : s.priority === 'medium' ? '中' : '高'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                    <label className="block text-xs font-medium text-studio-500 mb-1.5">描述</label>
+                    <p className={`text-sm whitespace-pre-wrap rounded-lg p-3 leading-relaxed ${viewTask.description ? 'bg-studio-50 text-ink-100' : 'bg-studio-50 text-studio-400 italic'}`}>
+                      {viewTask.description || '无描述'}
+                    </p>
                   </div>
-                )
-              })()}
+
+                  {/* 父任务（如果是子任务） */}
+                  {viewTask.parent_id && (
+                    <div>
+                      <label className="block text-xs font-medium text-studio-500 mb-1.5">父任务</label>
+                      <p className="text-sm text-ink-100">{tasks.find(t => t.id === viewTask.parent_id)?.title || viewTask.parent_id}</p>
+                    </div>
+                  )}
+
+                  {/* 子任务（如果是父任务） */}
+                  {(() => {
+                    const subs = tasks.filter(t => t.parent_id === viewTask.id)
+                    if (subs.length === 0) return null
+                    const done = subs.filter(s => s.completed).length
+                    return (
+                      <div>
+                        <label className="block text-xs font-medium text-studio-500 mb-1.5">
+                          子任务（{done}/{subs.length}）
+                        </label>
+                        <div className="space-y-1.5 bg-studio-50 rounded-lg p-2.5">
+                          {subs.map(s => (
+                            <div key={s.id} className="flex items-center gap-2 text-sm">
+                              <span className={s.completed ? 'text-green-500' : 'text-studio-400'}>
+                                {s.completed ? '✓' : '○'}
+                              </span>
+                              <span className={`flex-1 ${s.completed ? 'line-through text-studio-400' : 'text-ink-100'}`}>
+                                {s.title}
+                              </span>
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] ${priorityColors[s.priority]}`}>
+                                {s.priority === 'low' ? '低' : s.priority === 'medium' ? '中' : '高'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })()}
+                </div>
+
+                {/* 右列：元信息（状态/优先级/截止/时间） */}
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-studio-500 mb-1.5">状态</label>
+                    <span className={`inline-flex items-center gap-1.5 text-sm ${statusColors[getStatus(viewTask)]}`}>
+                      <span className="w-2 h-2 rounded-full bg-current" />
+                      {statusLabels[getStatus(viewTask)]}
+                    </span>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-studio-500 mb-1.5">优先级</label>
+                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${priorityColors[viewTask.priority]}`}>
+                      {viewTask.priority === 'low' ? '低' : viewTask.priority === 'medium' ? '中' : '高'}
+                    </span>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-studio-500 mb-1.5">完成</label>
+                    <span className="text-sm">{viewTask.completed ? '✓ 已完成' : '○ 未完成'}</span>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-studio-500 mb-1.5">截止日期</label>
+                    <p className={`text-sm ${viewTask.due_date ? 'text-ink-100' : 'text-studio-400 italic'}`}>
+                      {viewTask.due_date || '未设置'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-studio-500 mb-1.5">创建</label>
+                    <p className="text-xs text-studio-500">{viewTask.created_at?.slice(0, 10) || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-studio-500 mb-1.5">更新</label>
+                    <p className="text-xs text-studio-500">{viewTask.updated_at?.slice(0, 10) || '-'}</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* 底部：去看板 / 关闭 */}
