@@ -43,6 +43,7 @@ import {
   Trash2,
   PlayCircle,
   StopCircle,
+  RefreshCw,
   Eye
 } from 'lucide-react'
 
@@ -840,6 +841,18 @@ export default function Sidebar({
                         </div>
                       </div>
                     ))}
+                    {mcpServers.some(s => s.status === 'error') && (
+                      <button
+                        onClick={async () => {
+                          const r = await window.electronAPI?.mcp?.reconnectAll?.()
+                          setTimeout(refreshMcp, 300)
+                          if (r) setBackupInfo(`已重连 ${r.ok} 成功 / ${r.fail} 失败（总共 ${r.total}）`)
+                        }}
+                        className="w-full mt-2 py-1.5 rounded-lg bg-dark-100 hover:bg-dark-200 text-dark-500 text-xs font-medium flex items-center justify-center gap-1 border border-dark-200"
+                      >
+                        <RefreshCw size={12} />重试所有 server
+                      </button>
+                    )}
                     <button onClick={() => setMarketType('mcp')} className="w-full mt-2 py-1.5 rounded-lg bg-orange-500/10 text-orange-400 text-xs font-medium hover:bg-orange-500/15 flex items-center justify-center gap-1"><Store size={12} />打开市场</button>
                   </ExtensionSection>
 

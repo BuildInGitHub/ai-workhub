@@ -182,6 +182,10 @@ export interface ElectronAPI {
     uninstall: (id: string) => Promise<{ ok: boolean }>
     listTools: () => Promise<Array<{ name: string; description?: string; inputSchema: any }>>
     callTool: (serverId: string, toolName: string, args: any) => Promise<any>
+    /** 把所有 error 状态的 MCP server 重置为 disabled，让"启动"按钮重新可点 */
+    resetErrors: () => Promise<{ ok: boolean; count: number }>
+    /** 重新尝试启动所有 enabled / disabled / error 状态的 server（用于"重试所有"按钮） */
+    reconnectAll: () => Promise<{ ok: number; fail: number; total: number }>
   }
   skill?: {
     list: () => Promise<Array<{ name: string; description: string; content: string; filePath: string }>>

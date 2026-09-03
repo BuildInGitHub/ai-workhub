@@ -80,6 +80,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     uninstall: (row: any) => ipcRenderer.invoke('cli:uninstall', row),
     remove: (id: string) => ipcRenderer.invoke('cli:remove', id),
     exec: (bin: string, args: string[]) => ipcRenderer.invoke('cli:exec', bin, args),
+    resetErrors: () => ipcRenderer.invoke('mcp:resetErrors'),
+    reconnectAll: () => ipcRenderer.invoke('mcp:reconnectAll'),
   },
   // AI 执行中止（强制杀掉所有正在跑的 CLI / MCP 子进程）
   ai: {

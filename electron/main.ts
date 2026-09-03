@@ -289,10 +289,22 @@ process.on('unhandledRejection', (reason) => {
 app.whenReady().then(async () => {
   // 启动前自动备份上一份数据（保留最近10份）
   await backupDatabase()
-  
+
   // 初始化数据库
   initDatabase()
-  
+
+  // 自动重连之前 enabled 的 MCP server（重启后恢复内存中的工具列表）
+  try {
+    const rows = runQuery("SELECT * FROM mcp_servers WHERE status = 'enabled'") as any
+    const list = (rows?.data || []) as McpServerRow[]
+    for (const row of list) {
+      mcpManager.startServer(row).catch((e) => {
+        console.error(`[MCP] 重连 ${row.name} 失败:`, e?.message || e)
+      })
+    }
+    console.log(`[MCP] 启动扫描: 找到 ${list.length} 个 enabled server (尝试自动重连)`)
+  } catch (e) { console.error('[MCP] 自动重连扫描失败:', e) }
+
   createWindow()
   createTray()
 
@@ -745,4 +757,26 @@ ipcMain.handle('ai:abort', async () => {
   abortAllCli()
   // MCP stdio 子进程由 mcpManager 自己 abort（见 mcp-manager.ts）
   return { ok: true }
+})
+
+// 把所有 error 状态的 server 重置为 disabled（让用户能重试"启动"按钮）
+ipcMain.handle('mcp:resetErrors', async () => {
+  const r = runQuery("UPDATE mcp_servers SET status = 'disabled', last_error = NULL WHERE status = 'error'")
+  return { ok: true, count: r?.data?.changes || 0 }
+})
+
+// 重连所有 enabled / disabled 状态的 server（手动触发，相当于一次大重试）
+ipcMain.handle('mcp:reconnectAll', async () => {
+  const rows = runQuery("SELECT * FROM mcp_servers WHERE status IN ('enabled','disabled','error')") as any
+  const list = (rows?.data || []) as McpServerRow[]
+  let ok = 0, fail = 0
+  for (const row of list) {
+    // 先重置状态
+    runQuery("UPDATE mcp_servers SET status = 'disabled', last_error = NULL WHERE id = ?", [row.id])
+    try {
+      const r = await mcpManager.startServer(row)
+      if (r.ok) ok++; else fail++
+    } catch { fail++ }
+  }
+  return { ok, fail, total: list.length }
 })
