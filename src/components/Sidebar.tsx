@@ -242,6 +242,13 @@ export default function Sidebar({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // 挂载时立即拉扩展数据，让顶部状态条从第一帧就有真实数字（不等用户展开）
+  useEffect(() => {
+    refreshMcp()
+    refreshSkills()
+    refreshCli()
+  }, [])
+
   const handleSend = () => {
     if (input.trim() && !isLoading) {
       onSendMessage(input.trim())
@@ -740,7 +747,12 @@ export default function Sidebar({
                     }}
                   >
                     <div className="flex items-center justify-between text-xs text-dark-500 mb-2">
-                      <span>{mcpServers.length} 个 server · {mcpToolCount} 个 AI 可用工具</span>
+                      <span>
+                        {mcpServers.length} 个 server · {mcpToolCount} 个 AI 可用工具
+                        {mcpServers.length > 0 && mcpToolCount === 0 && (
+                          <span className="ml-1 text-dark-500/70">▍ 启动 server 后可见</span>
+                        )}
+                      </span>
                     </div>
                     {mcpServers.length === 0 ? (
                       <p className="text-xs text-dark-500 py-2">本地暂无 MCP server。点击"打开市场"一键安装。</p>
