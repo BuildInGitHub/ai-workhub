@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import { 
   Sparkles, Brain, CheckCircle, AlertCircle, 
@@ -43,6 +43,8 @@ function App() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [agentTools, setAgentTools] = useState<any[]>([])
+  // 当前正在跑的 AI 执行的中止控制器（点击 Stop / Esc 触发 abort）
+  const abortRef = useRef<AbortController | null>(null)
   // Pi Agent 规划状态
   const [currentPlan, setCurrentPlan] = useState<PlanResult | null>(null)
   
@@ -274,7 +276,7 @@ function App() {
     }
   }
 
-  const handlePlainChat = async (message: string) => {
+  const handlePlainChat = async (message: string, signal?: AbortSignal) => {
     // 读取长期记忆注入系统提示
     let memoryPrompt = ''
     try {
@@ -288,6 +290,7 @@ function App() {
     } catch { /* 忽略 */ }
 
     const response = await fetch('https://api.deepseek.com/chat/completions', {
+      signal,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -339,6 +342,10 @@ function App() {
     setChatMessages(prev => [...prev, userMessage])
     saveChatMessage(userMessage)
     setIsLoading(true)
+    // 为本次执行创建 AbortController（用户点 Stop / Esc 触发 abort）
+    const ac = new AbortController()
+    abortRef.current = ac
+    const signal = ac.signal
 
     if (!apiKey) {
       const errorMessage: ChatMessage = {
@@ -357,12 +364,12 @@ function App() {
       // 引擎分发：v1 自研 / v2 Pi SDK（实验）
       const history = chatMessages.map(m => ({ role: m.role, content: m.content }))
       const loopOutcome = engineVersion === 'v2'
-        ? await runAgentLoopV2(message, apiKey, history, buildV2ToolContext())
-        : await runAgentLoop(message, apiKey, history)
+        ? await runAgentLoopV2(message, apiKey, history, buildV2ToolContext(), signal)
+        : await runAgentLoop(message, apiKey, history, signal)
 
       // 纯聊天：无需执行工具，直接走对话（不显示思考过程）
       if (!loopOutcome.needsExecution) {
-        await handlePlainChat(message)
+        await handlePlainChat(message, signal)
         setCurrentPlan(null)
         setDataRefreshKey(k => k + 1)
         setIsLoading(false)
@@ -527,6 +534,8 @@ function App() {
       setDataRefreshKey(k => k + 1)
     } catch (error: any) {
       console.error('AI请求失败:', error)
+      // 用户主动中止：handleAbort 已插过系统提示，不要再当成"失败"
+      if (error?.name === 'AbortError') return
       const errorMessage: ChatMessage = {
         id: uuidv4(),
         role: 'assistant',
@@ -538,6 +547,7 @@ function App() {
       setCurrentPlan(null)
     } finally {
       setIsLoading(false)
+      abortRef.current = null
     }
   }, [apiKey, chatMessages, currentSessionId])
 
@@ -552,6 +562,25 @@ function App() {
       )
     }
     setApiKeySet(true)
+  }, [])
+
+  // 用户中止当前 AI 执行：abort 触发引擎 / fetch 取消；同时通知主进程杀掉 MCP/CLI 子进程
+  const handleAbort = useCallback(() => {
+    if (!abortRef.current) return
+    abortRef.current.abort()
+    abortRef.current = null
+    setIsLoading(false)
+    // 通知主进程杀掉所有正在跑的真子进程（MCP stdio / CLI 启动）
+    try { window.electronAPI?.ai?.abort?.() } catch { /* ignore */ }
+    // 给对话流插一条系统提示
+    const abortedMsg: ChatMessage = {
+      id: uuidv4(),
+      role: 'system',
+      content: '⚠ 已中止当前 AI 执行。已完成的步骤已保留在对话中。',
+      created_at: new Date().toISOString(),
+    }
+    setChatMessages(prev => [...prev, abortedMsg])
+    try { saveChatMessage(abortedMsg) } catch { /* ignore */ }
   }, [])
 
   return (
@@ -576,6 +605,7 @@ function App() {
           messages={chatMessages}
           onSendMessage={handleSendMessage}
           isLoading={isLoading}
+          onAbort={handleAbort}
           apiKey={apiKey}
           onSaveApiKey={handleSaveApiKey}
           apiKeySet={apiKeySet}

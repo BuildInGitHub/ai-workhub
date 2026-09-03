@@ -120,6 +120,8 @@ interface SidebarProps {
   messages: ChatMessage[]
   onSendMessage: (message: string) => void
   isLoading: boolean
+  /** 用户中止当前 AI 执行的回调（App 收到后 abort AbortController + 杀 CLI/MCP 子进程） */
+  onAbort?: () => void
   apiKey: string
   onSaveApiKey: (key: string) => void
   apiKeySet: boolean
@@ -184,6 +186,7 @@ export default function Sidebar({
   messages,
   onSendMessage,
   isLoading,
+  onAbort,
   apiKey,
   onSaveApiKey,
   apiKeySet,
@@ -241,6 +244,19 @@ export default function Sidebar({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // Esc 键中止当前 AI 执行（无障碍 / 键盘流）
+  useEffect(() => {
+    if (!isLoading) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        onAbort?.()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isLoading, onAbort])
 
   // 挂载时立即拉扩展数据，让顶部状态条从第一帧就有真实数字（不等用户展开）
   useEffect(() => {
@@ -613,11 +629,18 @@ export default function Sidebar({
 
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="bg-dark-50 border border-dark-200 px-3 py-2 rounded-md">
+                  <div className="bg-dark-50 border border-dark-200 px-3 py-2 rounded-md flex items-center gap-3">
                     <div className="flex items-center gap-2 font-mono text-xs text-dark-500">
                       <Loader2 size={14} className="animate-spin text-orange-500" />
                       <span><span className="text-orange-500">▍</span> thinking...</span>
                     </div>
+                    <button
+                      onClick={onAbort}
+                      title="中止执行（Esc）"
+                      className="ml-2 px-2 py-1 rounded bg-red-500/15 text-red-500 hover:bg-red-500/25 border border-red-500/30 text-xs font-mono flex items-center gap-1"
+                    >
+                      <StopCircle size={12} /> stop
+                    </button>
                   </div>
                 </div>
               )}
@@ -650,11 +673,16 @@ export default function Sidebar({
                   disabled={isLoading}
                 />
                 <button
-                  onClick={handleSend}
-                  disabled={!input.trim() || isLoading}
-                  className="bg-orange-500 hover:bg-orange-600 disabled:bg-dark-200 disabled text-white rounded-md px-3 transition-colors"
+                  onClick={isLoading ? onAbort : handleSend}
+                  disabled={!isLoading && !input.trim()}
+                  title={isLoading ? '中止执行（Esc）' : '发送'}
+                  className={`rounded-md px-3 py-2 transition-colors ${
+                    isLoading
+                      ? 'bg-red-500 hover:bg-red-600 text-white'
+                      : 'bg-orange-500 hover:bg-orange-600 disabled:bg-dark-200 disabled text-white'
+                  }`}
                 >
-                  <Send size={16} />
+                  {isLoading ? <StopCircle size={16} /> : <Send size={16} />}
                 </button>
               </div>
             </div>

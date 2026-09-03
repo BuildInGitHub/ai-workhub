@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { initDatabase, runQuery, closeDatabase } from './database'
 import { mcpManager, type McpServerRow } from './mcp-manager'
 import { loadAllSkills, installSkillFromMarket, removeSkill, getSkillsRootPath } from './skill-loader'
-import { detectBinary, runInstall, execCli } from './cli-tracker'
+import { detectBinary, runInstall, execCli, abortAllCli } from './cli-tracker'
 import seedMarket from './marketplace-seed.json' assert { type: 'json' }
 
 // ESM __dirname polyfill
@@ -737,5 +737,12 @@ ipcMain.handle('mcp:callTool', async (_, serverId: string, toolName: string, arg
 
 // v2 引擎调用 CLI 工具（opencli / rg / fd / fzf 等）的 IPC
 ipcMain.handle('cli:exec', async (_, bin: string, args: string[]) => {
-  return execCli(bin, args || [])
+  return await execCli(bin, args || [])
+})
+
+// 用户中止 AI 执行时，强制杀掉所有正在跑的 CLI 子进程
+ipcMain.handle('ai:abort', async () => {
+  abortAllCli()
+  // MCP stdio 子进程由 mcpManager 自己 abort（见 mcp-manager.ts）
+  return { ok: true }
 })

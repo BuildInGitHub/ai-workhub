@@ -198,6 +198,10 @@ export interface ElectronAPI {
     remove: (id: string) => Promise<{ ok: boolean }>
     exec: (bin: string, args: string[]) => Promise<{ ok: boolean; stdout: string; stderr: string; exitCode: number | null; error?: string }>
   }
+  /** 强制中止 AI 执行：杀掉所有正在跑的 CLI/MCP 子进程 */
+  ai?: {
+    abort: () => Promise<{ ok: boolean }>
+  }
 }
 
 declare global {

@@ -1004,7 +1004,7 @@ export interface PlanResult {
 }
 
 // 复杂任务规划器 - 拆解任务为步骤（带对话上下文、长期记忆与上轮反馈）
-export async function planTask(userInput: string, apiKey: string, history?: Array<{ role: string, content: string }>, feedback?: string): Promise<PlanResult> {
+export async function planTask(userInput: string, apiKey: string, history?: Array<{ role: string, content: string }>, feedback?: string, signal?: AbortSignal): Promise<PlanResult> {
   const toolsList = getTools()
   console.log('[Agent] planTask 获取工具列表:', toolsList.map(t => t.name))
 
@@ -1107,6 +1107,7 @@ needsExecution 判定规则（重要）:
   try {
     const response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
+      signal: signal || undefined,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`
@@ -1163,7 +1164,7 @@ needsExecution 判定规则（重要）:
 }
 
 // 执行规划好的任务步骤
-export async function executePlan(plan: PlanResult): Promise<ExecutionResult> {
+export async function executePlan(plan: PlanResult, signal?: AbortSignal): Promise<ExecutionResult> {
   const steps: ExecutionResult['steps'] = []
   
   // 从用户请求中提取应用/项目名称（去掉动作词）
@@ -1290,10 +1291,11 @@ export async function executePlan(plan: PlanResult): Promise<ExecutionResult> {
   
   for (const step of plan.steps) {
     if (!step.tool) continue
-    
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+
     step.status = 'executing'
     const finalParams = await inferParams(step.tool, step.params || {})
-    
+
     try {
       const result = await executeTool(step.tool, finalParams)
       step.status = result.success ? 'completed' : 'failed'
@@ -1341,7 +1343,8 @@ export async function verifyExecution(
   userInput: string,
   plan: PlanResult,
   exec: ExecutionResult,
-  apiKey: string
+  apiKey: string,
+  signal?: AbortSignal
 ): Promise<{ passed: boolean; feedback: string }> {
   // 执行本身失败：直接不通过，无需额外 LLM 调用
   if (!exec.success) {
@@ -1373,6 +1376,7 @@ ${stepsText}
   try {
     const response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
+      signal: signal || undefined,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`
@@ -1418,28 +1422,32 @@ const MAX_LOOP_ROUNDS = 2
 export async function runAgentLoop(
   userInput: string,
   apiKey: string,
-  history?: Array<{ role: string, content: string }>
+  history?: Array<{ role: string, content: string }>,
+  signal?: AbortSignal
 ): Promise<AgentLoopOutcome> {
-  let plan = await planTask(userInput, apiKey, history)
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+  let plan = await planTask(userInput, apiKey, history, undefined, signal)
   if (!plan.needsExecution || plan.steps.length === 0) {
     return { needsExecution: false }
   }
 
   const feedbacks: string[] = []
-  let exec = await executePlan(plan)
+  let exec = await executePlan(plan, signal)
   let rounds = 1
 
   while (rounds < MAX_LOOP_ROUNDS) {
-    const verify = await verifyExecution(userInput, plan, exec, apiKey)
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+    const verify = await verifyExecution(userInput, plan, exec, apiKey, signal)
     if (verify.passed) break
 
     feedbacks.push(verify.feedback || '执行结果未满足需求')
-    const nextPlan = await planTask(userInput, apiKey, history, verify.feedback)
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+    const nextPlan = await planTask(userInput, apiKey, history, verify.feedback, signal)
     // 重规划后仍判定无需执行 → 停止循环，返回当前结果
     if (!nextPlan.needsExecution || nextPlan.steps.length === 0) break
 
     plan = nextPlan
-    exec = await executePlan(plan)
+    exec = await executePlan(plan, signal)
     rounds++
   }
 

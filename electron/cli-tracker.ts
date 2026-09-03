@@ -44,21 +44,47 @@ export function runInstall(cmd: string, onProgress?: (chunk: string) => void): P
     }
   })
 }
-// 让 v2 引擎真正"调用"用户安装的 CLI 工具（spawnSync 同步返回 stdout/stderr）
-export function execCli(bin: string, args: string[], timeoutMs: number = 15000): { ok: boolean; stdout: string; stderr: string; exitCode: number | null; error?: string } {
-  return (() => {
-    try {
-      const { spawnSync } = require('node:child_process')
-      const proc = spawnSync(bin, args, { encoding: 'utf-8', timeout: timeoutMs, maxBuffer: 1024 * 1024, shell: process.platform === 'win32' })
-      if (proc.error) return { ok: false, stdout: '', stderr: '', exitCode: null, error: proc.error.message }
-      return {
-        ok: proc.status === 0,
-        stdout: (proc.stdout || '').toString().slice(0, 20000),
-        stderr: (proc.stderr || '').toString().slice(0, 5000),
-        exitCode: proc.status,
-      }
-    } catch (e: any) {
-      return { ok: false, stdout: '', stderr: '', exitCode: null, error: e.message }
-    }
-  })()
+// 让 v2 引擎真正"调用"用户安装的 CLI 工具（async spawn，支持外部 abort）
+const activeProcs = new Map<string, any>()
+let procSeq = 0
+
+function abortAllCli() {
+  for (const p of activeProcs.values()) {
+    try { p.kill('SIGTERM') } catch { /* ignore */ }
+    setTimeout(() => { try { p.kill('SIGKILL') } catch { /* ignore */ } }, 500)
+  }
+  activeProcs.clear()
 }
+
+export function execCli(bin: string, args: string[], timeoutMs: number = 15000): Promise<{ ok: boolean; stdout: string; stderr: string; exitCode: number | null; error?: string; pid?: string }> {
+  return new Promise(resolve => {
+    const { spawn } = require('node:child_process')
+    const id = String(++procSeq)
+    let proc: any
+    try {
+      proc = spawn(bin, args, { shell: process.platform === 'win32' })
+    } catch (e: any) {
+      resolve({ ok: false, stdout: '', stderr: '', exitCode: null, error: e.message })
+      return
+    }
+    activeProcs.set(id, proc)
+    let stdout = '', stderr = ''
+    proc.stdout?.on('data', (c: Buffer) => { stdout += c.toString(); if (stdout.length > 20000) stdout = stdout.slice(-20000) })
+    proc.stderr?.on('data', (c: Buffer) => { stderr += c.toString(); if (stderr.length > 5000) stderr = stderr.slice(-5000) })
+    const timer = setTimeout(() => {
+      try { proc.kill('SIGTERM') } catch { /* ignore */ }
+    }, timeoutMs)
+    proc.on('close', (code: number | null) => {
+      clearTimeout(timer)
+      activeProcs.delete(id)
+      resolve({ ok: code === 0, stdout, stderr, exitCode: code, pid: id })
+    })
+    proc.on('error', (e: Error) => {
+      clearTimeout(timer)
+      activeProcs.delete(id)
+      resolve({ ok: false, stdout, stderr, exitCode: null, error: e.message, pid: id })
+    })
+  })
+}
+
+export { abortAllCli }

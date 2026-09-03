@@ -201,8 +201,10 @@ function messagesSuccess(messages: AgentMessage[]): boolean {
 async function verifyExecutionV2(
   userInput: string,
   steps: V2ExecutionStep[],
-  apiKey: string
+  apiKey: string,
+  signal?: AbortSignal
 ): Promise<{ passed: boolean; feedback: string }> {
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
   if (steps.length === 0) return { passed: true, feedback: '' }
   const failed = steps.find(s => s.error)
   if (failed) return { passed: false, feedback: `步骤 ${failed.tool} 执行失败: ${failed.error}` }
@@ -228,6 +230,7 @@ ${stepsText}
   try {
     const r = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
+      signal,
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: 'deepseek-chat',
@@ -256,7 +259,8 @@ export async function runAgentLoopV2(
   userInput: string,
   apiKey: string,
   chatMessages: Array<{ role: string; content: string }> = [],
-  toolCtx: ToolContext
+  toolCtx: ToolContext,
+  signal?: AbortSignal
 ): Promise<V2AgentLoopOutcome> {
   // 把聊天历史转为 Pi 的消息格式（注入当前用户消息）
   const initialMessages = chatMessagesToAgentMessages(chatMessages, userInput)
@@ -336,6 +340,7 @@ export async function runAgentLoopV2(
   })
 
   // 第一轮
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
   try {
     await agent.prompt(userInput)
   } catch (e: any) {
@@ -359,7 +364,8 @@ export async function runAgentLoopV2(
   let rounds = 1
   if (collectedSteps.length > 0) {
     for (let r = 1; r < MAX_LOOP_ROUNDS; r++) {
-      const verify = await verifyExecutionV2(userInput, collectedSteps, apiKey)
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+      const verify = await verifyExecutionV2(userInput, collectedSteps, apiKey, signal)
       if (verify.passed) break
       feedbacks.push(verify.feedback || '执行结果未满足需求')
       // 重规划：把反馈作为 steering message 注入
@@ -368,6 +374,7 @@ export async function runAgentLoopV2(
         content: `上轮执行反馈：${verify.feedback}\n请据此重新规划或调整策略。`,
         timestamp: Date.now(),
       } as any)
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
       try {
         await agent.continue()
         rounds++
