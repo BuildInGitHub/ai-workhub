@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { 
   Zap, 
   Plus, 
@@ -51,6 +51,27 @@ export default function QuickLaunch({ refreshKey }: QuickLaunchProps) {
     type: 'folder' as 'file' | 'folder' | 'link' | 'app',
     path: ''
   })
+
+  // 拖拽排序状态
+  const dragIdRef = useRef<string | null>(null)         // 当前正在拖的 item.id
+  const [overIndex, setOverIndex] = useState<number | null>(null)  // 鼠标所在的目标位置（0-based）
+
+  // 拖拽落点 → 重排 + 批量 UPDATE position
+  const persistReorder = async (newOrder: QuickLaunchItem[]) => {
+    setItems(newOrder)
+    if (!window.electronAPI) return
+    try {
+      // 一次 commit，按新顺序给每条写 position = idx
+      for (let i = 0; i < newOrder.length; i++) {
+        await window.electronAPI.db.query(
+          "UPDATE quick_launch SET position = ? WHERE id = ?",
+          [i, newOrder[i].id]
+        )
+      }
+    } catch (err) {
+      console.error('[QuickLaunch] persistReorder failed:', err)
+    }
+  }
 
   useEffect(() => {
     loadItems()
@@ -192,24 +213,6 @@ export default function QuickLaunch({ refreshKey }: QuickLaunchProps) {
     setFormData({ name: '', type: 'folder', path: '' })
   }
 
-  const moveItem = async (index: number, direction: 'up' | 'down') => {
-    const newIndex = direction === 'up' ? index - 1 : index + 1
-    if (newIndex < 0 || newIndex >= items.length) return
-    
-    const newItems = [...items]
-    const [moved] = newItems.splice(index, 1)
-    newItems.splice(newIndex, 0, moved)
-    setItems(newItems)
-    
-    if (!window.electronAPI) return
-    for (let i = 0; i < newItems.length; i++) {
-      await window.electronAPI.db.query(
-        "UPDATE quick_launch SET position = ? WHERE id = ?",
-        [i, newItems[i].id]
-      )
-    }
-  }
-
   return (
     <div className="h-full flex flex-col p-6 bg-studio-50">
       {/* 头部 */}
@@ -245,64 +248,95 @@ export default function QuickLaunch({ refreshKey }: QuickLaunchProps) {
           </div>
         ) : (
           <div className="grid grid-cols-4 gap-4">
-            {items.map((item, index) => (
-              <div
-                key={item.id}
-                className="bg-white rounded-2xl p-5 hover:shadow-medium transition-all group cursor-pointer border border-studio-200"
-                onClick={() => openItem(item)}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className={`p-3 rounded-xl ${typeBgColors[item.type]}`}>
-                    {typeIcons[item.type]}
-                  </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        moveItem(index, 'up')
-                      }}
-                      disabled={index === 0}
-                      className="p-1.5 rounded-lg hover:bg-studio-100 text-studio-400 disabled:opacity-30"
-                    >
-                      <GripVertical size={14} className="rotate-90" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        moveItem(index, 'down')
-                      }}
-                      disabled={index === items.length - 1}
-                      className="p-1.5 rounded-lg hover:bg-studio-100 text-studio-400 disabled:opacity-30"
-                    >
-                      <GripVertical size={14} className="-rotate-90" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        openEditModal(item)
-                      }}
-                      className="p-1.5 rounded-lg hover:bg-studio-100 text-studio-400 hover:text-caramel-400"
-                    >
-                      <Edit size={14} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setDeleteTarget(item)
-                      }}
-                      className="p-1.5 rounded-lg hover:bg-studio-100 text-studio-400 hover:text-red-500"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+            {items.map((item, index) => {
+              const isDragging = dragIdRef.current === item.id
+              const dropBefore = overIndex === index && dragIdRef.current !== null && dragIdRef.current !== item.id
+              return (
+                <div key={item.id} className="relative">
+                  {/* 拖放指示线：左侧 1px 高亮条 */}
+                  {dropBefore && (
+                    <div className="absolute -left-0.5 top-0 bottom-0 w-1 bg-orange-500 rounded-full shadow-[0_0_8px_rgba(255,107,53,0.6)]" />
+                  )}
+                  <div
+                    draggable
+                    onDragStart={(e) => {
+                      dragIdRef.current = item.id
+                      e.dataTransfer.effectAllowed = 'move'
+                      e.dataTransfer.setData('text/plain', item.id)
+                    }}
+                    onDragEnter={(e) => {
+                      e.preventDefault()
+                      if (dragIdRef.current && dragIdRef.current !== item.id) {
+                        setOverIndex(index)
+                      }
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault() // 必须 preventDefault 才能触发 drop
+                      e.dataTransfer.dropEffect = 'move'
+                      if (dragIdRef.current && dragIdRef.current !== item.id) {
+                        setOverIndex(index)
+                      }
+                    }}
+                    onDragLeave={(e) => {
+                      // 只有鼠标真的离开卡片才清除（防止子元素触发）
+                      if (e.currentTarget === e.target) setOverIndex(null)
+                    }}
+                    onDrop={async (e) => {
+                      e.preventDefault()
+                      const fromId = dragIdRef.current
+                      setOverIndex(null)
+                      dragIdRef.current = null
+                      if (!fromId || fromId === item.id) return
+                      const fromIdx = items.findIndex(x => x.id === fromId)
+                      if (fromIdx < 0) return
+                      // 重新计算目标 index（如果拖到后面，remove 后 index 偏移）
+                      const toIdx = fromIdx < index ? index - 1 : index
+                      const next = [...items]
+                      const [moved] = next.splice(fromIdx, 1)
+                      next.splice(toIdx, 0, moved)
+                      await persistReorder(next)
+                    }}
+                    onDragEnd={() => {
+                      setOverIndex(null)
+                      dragIdRef.current = null
+                    }}
+                    className={`bg-dark-50 border rounded-md p-4 hover:border-orange-500/50 transition-all group cursor-pointer ${
+                      isDragging ? 'opacity-40 border-orange-500' : 'border-dark-200'
+                    }`}
+                    onClick={() => openItem(item)}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className={`p-2.5 rounded-md ${typeBgColors[item.type]}`}>
+                        {typeIcons[item.type]}
+                      </div>
+                      <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {/* 拖拽手柄（视觉提示） */}
+                        <span className="p-1.5 text-dark-500 cursor-grab active:cursor-grabbing" title="拖动重排">
+                          <GripVertical size={14} />
+                        </span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openEditModal(item) }}
+                          className="p-1.5 rounded hover:bg-dark-100 text-dark-500 hover:text-orange-500"
+                        >
+                          <Edit size={14} />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setDeleteTarget(item) }}
+                          className="p-1.5 rounded hover:bg-dark-100 text-dark-500 hover:text-red-500"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                    <h3 className="font-medium text-dark-900 text-sm truncate mb-1">{item.name}</h3>
+                    <p className="text-[10px] text-dark-500 font-mono truncate mb-2">{item.path}</p>
+                    <span className="inline-block px-2 py-0.5 bg-dark-100 rounded text-[10px] font-mono text-dark-500">
+                      {typeLabels[item.type]}
+                    </span>
                   </div>
                 </div>
-                <h3 className="font-medium text-ink-100 truncate mb-1">{item.name}</h3>
-                <p className="text-xs text-studio-400 truncate mb-2">{item.path}</p>
-                <span className="inline-block px-2 py-1 bg-studio-100 rounded-lg text-xs text-studio-500">
-                  {typeLabels[item.type]}
-                </span>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
