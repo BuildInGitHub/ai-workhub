@@ -255,7 +255,7 @@ export default function QuickLaunch({ refreshKey }: QuickLaunchProps) {
                 <div key={item.id} className="relative">
                   {/* 拖放指示线：左侧 1px 高亮条 */}
                   {dropBefore && (
-                    <div className="absolute -left-0.5 top-0 bottom-0 w-1 bg-orange-500 rounded-full shadow-[0_0_8px_rgba(255,107,53,0.6)]" />
+                    <div className="absolute -left-2 top-2 bottom-2 w-1 bg-caramel-500 rounded-full" />
                   )}
                   <div
                     draggable
@@ -300,8 +300,8 @@ export default function QuickLaunch({ refreshKey }: QuickLaunchProps) {
                       setOverIndex(null)
                       dragIdRef.current = null
                     }}
-                    className={`bg-dark-50 border rounded-md p-4 hover:border-orange-500/50 transition-all group cursor-pointer ${
-                      isDragging ? 'opacity-40 border-orange-500' : 'border-dark-200'
+                    className={`bg-white border rounded-xl p-4 hover:border-orange-400 hover:shadow-md transition-all group cursor-pointer ${
+                      isDragging ? 'opacity-40 border-orange-500 shadow-lg' : 'border-studio-200'
                     }`}
                     onClick={() => openItem(item)}
                   >
@@ -311,26 +311,26 @@ export default function QuickLaunch({ refreshKey }: QuickLaunchProps) {
                       </div>
                       <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         {/* 拖拽手柄（视觉提示） */}
-                        <span className="p-1.5 text-dark-500 cursor-grab active:cursor-grabbing" title="拖动重排">
+                        <span className="p-1.5 text-studio-500 cursor-grab active:cursor-grabbing" title="拖动重排">
                           <GripVertical size={14} />
                         </span>
                         <button
                           onClick={(e) => { e.stopPropagation(); openEditModal(item) }}
-                          className="p-1.5 rounded hover:bg-dark-100 text-dark-500 hover:text-orange-500"
+                          className="p-1.5 rounded hover:bg-studio-100 text-studio-500 hover:text-caramel-600"
                         >
                           <Edit size={14} />
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); setDeleteTarget(item) }}
-                          className="p-1.5 rounded hover:bg-dark-100 text-dark-500 hover:text-red-500"
+                          className="p-1.5 rounded hover:bg-studio-100 text-studio-500 hover:text-red-500"
                         >
                           <Trash2 size={14} />
                         </button>
                       </div>
                     </div>
-                    <h3 className="font-medium text-dark-900 text-sm truncate mb-1">{item.name}</h3>
-                    <p className="text-[10px] text-dark-500 font-mono truncate mb-2">{item.path}</p>
-                    <span className="inline-block px-2 py-0.5 bg-dark-100 rounded text-[10px] font-mono text-dark-500">
+                    <h3 className="font-medium text-ink-100 text-sm truncate mb-1">{item.name}</h3>
+                    <p className="text-xs text-studio-500 truncate mb-2 font-mono">{item.path}</p>
+                    <span className="inline-block px-2 py-0.5 bg-studio-100 rounded text-[10px] text-studio-600">
                       {typeLabels[item.type]}
                     </span>
                   </div>
