@@ -98,6 +98,77 @@ async function loadMcpToolsForV2(): Promise<any[]> {
   } catch { return [] }
 }
 
+// 把 Skill 转成可调用的 AgentTool（execute 时读 SKILL.md 正文回传 LLM）
+function makeSkillTool(skill: { name: string; description: string; content: string; filePath: string }): any {
+  return defineTool({} as any, {
+    name: `skill_${skill.name}`,
+    label: `Skill: ${skill.name}`,
+    description: `[Skill] ${skill.description}\n\n调用后会把 SKILL.md 正文作为上下文回传，按 skill 内的指引完成任务。`,
+    parameters: Type.Object({
+      task: Type.String({ description: '本次要按 skill 指引完成的具体任务描述' }),
+    }),
+    execute: async (_c, params) => {
+      // 直接返回 SKILL.md 正文 + 用户任务，让 LLM 按正文步骤执行
+      const guide = skill.content.slice(0, 4000)
+      return {
+        content: [{
+          type: 'text',
+          text: `📘 Skill 指南 [${skill.name}] 已加载：\n\n${guide}\n\n🎯 用户任务：${params.task}\n\n请按上述指南完成任务。`,
+        }],
+        details: { skillName: skill.name, task: params.task, guide, filePath: skill.filePath },
+      }
+    },
+  })
+}
+
+// 把已安装的 CLI 工具转成 AgentTool（execute 时调 cli:exec IPC）
+async function loadCliToolsForV2(): Promise<any[]> {
+  try {
+    const cli = await (window.electronAPI as any)?.cli?.list?.()
+    const rows = (cli?.data || []) as Array<{ id: string; name: string; bin: string; tool_args?: string[]; tool_desc?: string }>
+    const out: any[] = []
+    for (const r of rows) {
+      if (!r.bin) continue
+      const argsSchema = parseArgsSchema(r.tool_args)
+      const description = r.tool_desc || `调用已安装的 CLI 工具 ${r.bin}。参数 args 是命令行字符串数组。`
+      out.push(defineTool({} as any, {
+        name: `cli_${r.bin.replace(/[^a-zA-Z0-9_]/g, '_')}`,
+        label: `CLI: ${r.name}`,
+        description: `[CLI:${r.bin}] ${description}`,
+        parameters: Type.Object({
+          args: Type.Array(Type.String(), { description: '传给 CLI 的参数数组（不含 bin 本身）' }),
+        }),
+        execute: async (_c, params) => {
+          const r2 = await (window.electronAPI as any)?.cli?.exec?.(r.bin, params.args || [])
+          const stdout = (r2?.stdout || '').slice(0, 5000)
+          const stderr = (r2?.stderr || '').slice(0, 2000)
+          const text = r2?.ok
+            ? `✓ ${r.bin} 执行成功 (exit=${r2.exitCode}):\n${stdout}${stderr ? '\n[stderr]\n' + stderr : ''}`
+            : `✗ ${r.bin} 执行失败: ${r2?.error || stderr || `exit=${r2?.exitCode}`}\n${stdout}`
+          return {
+            content: [{ type: 'text', text: text || '(空输出)' }],
+            details: { bin: r.bin, args: params.args, stdout, stderr, exitCode: r2?.exitCode, ok: r2?.ok },
+          }
+        },
+      }))
+    }
+    return out
+  } catch { return [] }
+}
+
+// 解析 tool_args 字符串数组为 TypeBox schema（默认全字符串数组）
+function parseArgsSchema(argsHint?: string[]): any {
+  if (!Array.isArray(argsHint) || argsHint.length === 0) {
+    return Type.Object({ args: Type.Array(Type.String(), { description: '命令行参数数组' }) })
+  }
+  const props: Record<string, any> = {}
+  for (const hint of argsHint) {
+    const name = String(hint).replace(/[^a-zA-Z0-9_]/g, '_') || 'arg'
+    props[name] = Type.Optional(Type.String({ description: `参数 ${hint}（可省略）` }))
+  }
+  return Type.Object(props)
+}
+
 // 从 messages 序列中提取"扁平步骤"
 function flattenSteps(messages: AgentMessage[]): V2ExecutionStep[] {
   const steps: V2ExecutionStep[] = []
@@ -199,21 +270,30 @@ export async function runAgentLoopV2(
     }
   } catch { /* ignore */ }
 
-  // 加载 Skills（v2 引擎独有）
+  // 加载 Skills（v2 引擎独有）+ 动态注册为 AgentTool
   let skillsSection = ''
+  const skillTools: any[] = []
   try {
     const skills = await (window.electronAPI as any)?.skill?.list?.()
     if (Array.isArray(skills) && skills.length > 0) {
-      skillsSection = `\n\n可用 Skills（识别用户意图后调用对应 skill 名称）:\n${skills.map((s: any) => `- **${s.name}**: ${s.description}`).join('\n')}`
+      // systemPrompt 仍保留触发条件提示（模型拿到名字更准）
+      skillsSection = `\n\n可用 Skills（用户指令命中触发条件时调用同名工具 skill_<name>）:\n${skills.map((s: any) => `- **${s.name}**: ${s.description}`).join('\n')}`
+      // 同时为每个 skill 动态构造 AgentTool，让 LLM 真能调用
+      for (const s of skills) {
+        skillTools.push(makeSkillTool(s))
+      }
     }
   } catch { /* 主进程没装 Skill IPC 时忽略 */ }
 
   // 加载 MCP 工具（v2 引擎独有）
   const mcpTools = await loadMcpToolsForV2()
 
+  // 加载 CLI 工具（v2 引擎独有）
+  const cliTools = await loadCliToolsForV2()
+
   const streamFn = createDeepSeekStreamFn(apiKey)
   const tools = buildAllTools(toolCtx)
-  tools.push(...mcpTools)
+  tools.push(...mcpTools, ...cliTools, ...skillTools)
   // 稳定排序，喂 prefix cache
   tools.sort((a, b) => a.name.localeCompare(b.name))
 

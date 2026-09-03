@@ -34,6 +34,7 @@ import {
   Music,
   Archive,
   AppWindow,
+  Wrench,
   Store,
   Server,
   Terminal,
@@ -111,6 +112,7 @@ function getMessageSummary(content: string): string {
 }
 import type { ChatMessage, Tab } from '../types'
 import MarketplaceModal from './MarketplaceModal'
+import ExtensionStatusBar from './ExtensionStatusBar'
 
 interface SidebarProps {
   isExpanded: boolean
@@ -203,6 +205,9 @@ export default function Sidebar({
   const [marketType, setMarketType] = useState<null | 'mcp' | 'skill' | 'cli'>(null)
   const [mcpServers, setMcpServers] = useState<any[]>([])
   const [startingIds, setStartingIds] = useState<Set<string>>(new Set())
+  const [expandedServer, setExpandedServer] = useState<string | null>(null)
+  const [serverTools, setServerTools] = useState<Record<string, Array<{ name: string; description?: string }>>>({})
+  const [expandedToolCall, setExpandedToolCall] = useState<string | null>(null)
   const [skills, setSkills] = useState<any[]>([])
   const [cliRows, setCliRows] = useState<any[]>([])
   const [expandedSkill, setExpandedSkill] = useState<string | null>(null)
@@ -274,6 +279,18 @@ export default function Sidebar({
     const r = await window.electronAPI?.mcp?.listServers?.()
     setMcpServers(r?.data || [])
   }
+  const refreshMcpTools = async (id: string) => {
+    const all = await window.electronAPI?.mcp?.listTools?.()
+    const list = (all || []) as Array<{ name: string; description?: string }>
+    // listTools 返回所有 server 的工具，按 namespace 过滤
+    const filtered = list.filter(t => t.name.startsWith(`mcp__${id}__`))
+    setServerTools(prev => ({ ...prev, [id]: filtered.map(t => ({
+      name: t.name.replace(`mcp__${id}__`, ''),
+      description: (t.description || '').replace(`[MCP:${id}] `, ''),
+    })) }))
+  }
+  // 已启动的 MCP 工具总数（用于顶部状态条）
+  const mcpToolCount = Object.values(serverTools).reduce((sum, list) => sum + list.length, 0)
   const refreshSkills = async () => {
     const r = await window.electronAPI?.skill?.list?.()
     setSkills(r || [])
@@ -412,6 +429,26 @@ export default function Sidebar({
           </div>
         </div>
 
+        {/* 扩展状态条（v2 引擎专属） */}
+        {isExpanded && engineVersion === 'v2' && (
+          <ExtensionStatusBar
+            engineVersion={engineVersion}
+            mcpToolCount={mcpToolCount}
+            skillCount={skills.length}
+            cliCount={cliRows.length}
+            onClick={() => setShowSettings(true)}
+          />
+        )}
+        {isExpanded && engineVersion === 'v1' && (
+          <ExtensionStatusBar
+            engineVersion={engineVersion}
+            mcpToolCount={0}
+            skillCount={0}
+            cliCount={0}
+            onClick={() => setShowSettings(true)}
+          />
+        )}
+
         {/* 快速导航按钮 */}
         {isExpanded && (
           <div className="p-3 border-b border-studio-200">
@@ -506,6 +543,51 @@ export default function Sidebar({
                       {!collapsedIds.has(msg.id) && (
                         <div className="px-4 pb-3 text-ink-100 overflow-hidden">
                           <p className="text-sm whitespace-pre-wrap break-all">{parseMessageContent(msg.content)}</p>
+                          {/* 工具调用明细（v2 引擎，arguments / stdout 折叠展开） */}
+                          {msg.tool_calls && msg.tool_calls.length > 0 && (
+                            <div className="mt-3 space-y-1">
+                              <p className="text-xs text-studio-500 mb-1">工具调用明细（{msg.tool_calls.length}）</p>
+                              {msg.tool_calls.map((tc, i) => (
+                                <div key={i} className="border border-studio-200 rounded-lg overflow-hidden">
+                                  <button
+                                    onClick={() => setExpandedToolCall(expandedToolCall === `${msg.id}-${i}` ? null : `${msg.id}-${i}`)}
+                                    className="w-full flex items-center justify-between px-2 py-1.5 text-xs bg-studio-50 hover:bg-studio-100 text-left"
+                                  >
+                                    <span className="flex items-center gap-1.5 min-w-0">
+                                      <Wrench size={11} className="text-studio-500 flex-shrink-0" />
+                                      <code className="font-mono text-caramel-700 truncate">{tc.tool}</code>
+                                    </span>
+                                    <span className="flex items-center gap-1 text-studio-500">
+                                      <span className={`text-xs ${tc.ok ? 'text-green-600' : 'text-red-600'}`}>{tc.ok ? '✓' : '✗'}</span>
+                                      {expandedToolCall === `${msg.id}-${i}` ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                                    </span>
+                                  </button>
+                                  {expandedToolCall === `${msg.id}-${i}` && (
+                                    <div className="px-2 py-1.5 text-xs font-mono bg-white space-y-1">
+                                      {tc.args !== undefined && (
+                                        <div>
+                                          <span className="text-studio-500">// arguments</span>
+                                          <pre className="whitespace-pre-wrap break-all text-ink-100 mt-0.5">{JSON.stringify(tc.args, null, 2)}</pre>
+                                        </div>
+                                      )}
+                                      {tc.stdout && (
+                                        <div>
+                                          <span className="text-studio-500">// output</span>
+                                          <pre className="whitespace-pre-wrap break-all text-ink-100 mt-0.5 max-h-48 overflow-auto">{tc.stdout}</pre>
+                                        </div>
+                                      )}
+                                      {tc.stderr && (
+                                        <div>
+                                          <span className="text-red-500">// error</span>
+                                          <pre className="whitespace-pre-wrap break-all text-red-600 mt-0.5">{tc.stderr}</pre>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -648,13 +730,32 @@ export default function Sidebar({
                       if (!mcpOpen && mcpServers.length === 0) refreshMcp()
                     }}
                   >
+                    <div className="flex items-center justify-between text-xs text-studio-500 mb-2">
+                      <span>{mcpServers.length} 个 server · {mcpToolCount} 个 AI 可用工具</span>
+                    </div>
                     {mcpServers.length === 0 ? (
                       <p className="text-xs text-studio-500 py-2">本地暂无 MCP server。点击"打开市场"一键安装。</p>
                     ) : mcpServers.map(s => (
                       <div key={s.id} className="border border-studio-200 rounded-lg p-2.5 mb-2 last:mb-0">
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{s.name}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium truncate">{s.name}</p>
+                              <button
+                                onClick={async () => {
+                                  const next = expandedServer === s.id ? null : s.id
+                                  setExpandedServer(next)
+                                  if (next && serverTools[s.id] === undefined) {
+                                    await refreshMcpTools(s.id)
+                                  }
+                                }}
+                                className="text-xs px-1.5 py-0.5 rounded bg-studio-100 hover:bg-studio-200 text-studio-600 flex items-center gap-0.5"
+                                title={expandedServer === s.id ? '折叠工具列表' : '展开工具列表'}
+                              >
+                                <Wrench size={10} />
+                                <span className="font-mono">{(serverTools[s.id] || []).length}</span>
+                              </button>
+                            </div>
                             <p className="text-xs text-studio-500 truncate">{s.command} {(JSON.parse(s.args || '[]')).join(' ')}</p>
                             {s.last_error && (
                               <p className={`text-xs mt-1 line-clamp-2 ${s.last_error.startsWith('⏳') ? 'text-caramel-600' : s.last_error.startsWith('✗') ? 'text-red-600' : 'text-studio-500'}`}>
@@ -666,6 +767,18 @@ export default function Sidebar({
                             {s.status === 'enabled' ? '运行中' : s.status === 'error' ? '错误' : '已停'}
                           </span>
                         </div>
+                        {expandedServer === s.id && (
+                          <div className="mt-2 pl-2 border-l-2 border-caramel-200 space-y-1">
+                            {(serverTools[s.id] || []).length === 0 ? (
+                              <p className="text-xs text-studio-500 py-1">未启动或无工具</p>
+                            ) : (serverTools[s.id] || []).map(t => (
+                              <div key={t.name} className="text-xs">
+                                <code className="text-caramel-700 font-mono">{t.name}</code>
+                                {t.description && <p className="text-studio-500 ml-3 line-clamp-2">{t.description}</p>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                         <div className="flex gap-1 mt-2">
                           {s.status === 'enabled' ? (
                             <button onClick={() => mcpAction(s.id, 'stop')} disabled={startingIds.has(s.id)} className="flex-1 text-xs py-1 rounded bg-studio-100 hover:bg-studio-200 disabled:opacity-60 flex items-center justify-center gap-1"><StopCircle size={12} />停止</button>
@@ -691,6 +804,9 @@ export default function Sidebar({
                       if (!skillOpen && skills.length === 0) refreshSkills()
                     }}
                   >
+                    <div className="flex items-center justify-between text-xs text-studio-500 mb-2">
+                      <span>{skills.length} 个 skill · AI 通过 <code className="text-caramel-700 font-mono">skill_&lt;name&gt;</code> 调用</span>
+                    </div>
                     {skills.length === 0 ? (
                       <p className="text-xs text-studio-500 py-2">%APPDATA%/ai-workhub/skills/ 下暂无 SKILL.md。可从市场安装或手动编写。</p>
                     ) : skills.map(s => (
@@ -718,13 +834,23 @@ export default function Sidebar({
                       if (!cliOpen && cliRows.length === 0) refreshCli()
                     }}
                   >
+                    <div className="flex items-center justify-between text-xs text-studio-500 mb-2">
+                      <span>{cliRows.length} 个 CLI · AI 可通过 <code className="text-caramel-700 font-mono">cli_&lt;bin&gt;</code> 调用</span>
+                    </div>
                     {cliRows.length === 0 ? (
                       <p className="text-xs text-studio-500 py-2">暂无 CLI 记录。点击下方按钮检测系统已装 CLI，或从市场安装新工具。</p>
                     ) : cliRows.map(c => (
                       <div key={c.id} className="border border-studio-200 rounded-lg p-2.5 mb-2 last:mb-0">
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{c.name}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium truncate">{c.name}</p>
+                              {c.bin && (
+                                <code className="text-xs px-1.5 py-0.5 rounded bg-caramel-50 text-caramel-700 font-mono">
+                                  cli_{c.bin}
+                                </code>
+                              )}
+                            </div>
                             <p className="text-xs text-studio-500 truncate">bin: {c.bin || '-'}{c.version ? ` · ${c.version}` : ''}</p>
                           </div>
                         </div>

@@ -506,7 +506,17 @@ function App() {
           id: uuidv4(),
           role: 'assistant',
           content: responseContent,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
+          // v2 引擎：把每个工具调用的 args/output 透传给 UI 用于展开
+          ...(engineVersion === 'v2' && execResult.steps.length > 0 ? {
+            tool_calls: execResult.steps.map(s => ({
+              tool: s.tool,
+              args: s.input,
+              stdout: typeof s.output === 'string' ? s.output : (s.output ? JSON.stringify(s.output, null, 2).slice(0, 3000) : undefined),
+              stderr: s.error,
+              ok: !s.error,
+            })),
+          } : {}),
         }
         setChatMessages(prev => [...prev, resultMessage])
         saveChatMessage(resultMessage)

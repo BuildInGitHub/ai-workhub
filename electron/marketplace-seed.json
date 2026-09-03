@@ -1,7 +1,7 @@
 {
-  "version": 6,
-  "updated_at": "2026-09-02",
-  "category_note": "v6: 加入 OpenCLI（统一 CLI 桥，覆盖 100+ 网站 + 本地工具 + Electron 桌面应用；GitHub 28.8k stars，Apache-2.0）。CLI 入口。",
+  "version": 7,
+  "updated_at": "2026-09-03",
+  "category_note": "v7: opencli 加 tool_args/tool_desc 让 AI 知道怎么调",
   "servers": [
     {
       "id": "mcp-filesystem",
@@ -294,7 +294,12 @@
         "node>=20.18.1",
         "Chrome 浏览器（可选，装扩展才能操控已登录会话）"
       ],
-      "reason": "AI 伙伴需要拉网页数据/第三方平台时最强大的统一入口；也是社区活跃（28.8k stars）的工具，省得你自己拼爬虫。"
+      "reason": "AI 伙伴需要拉网页数据/第三方平台时最强大的统一入口；也是社区活跃（28.8k stars）的工具，省得你自己拼爬虫。",
+      "tool_args": [
+        "<subcommand>",
+        "<args...>"
+      ],
+      "tool_desc": "调用 OpenCLI 子命令（如 list / hackernews top / xiaohongshu download ...）。子命令列表：先调 \"opencli list\" 获取。"
     },
     {
       "id": "cli-ripgrep",

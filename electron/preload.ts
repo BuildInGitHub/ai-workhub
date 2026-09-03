@@ -79,5 +79,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     install: (item: any) => ipcRenderer.invoke('cli:install', item),
     uninstall: (row: any) => ipcRenderer.invoke('cli:uninstall', row),
     remove: (id: string) => ipcRenderer.invoke('cli:remove', id),
+    exec: (bin: string, args: string[]) => ipcRenderer.invoke('cli:exec', bin, args),
   },
 })

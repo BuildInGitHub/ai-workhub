@@ -74,6 +74,8 @@ export interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
   content: string
   created_at: string
+  /** v2 引擎执行工具的细节（arguments / stdout 等），用于 UI 展开调试 */
+  tool_calls?: Array<{ tool: string; args?: any; stdout?: string; stderr?: string; ok?: boolean }>
 }
 
 // 快速启动项
@@ -194,6 +196,7 @@ export interface ElectronAPI {
     install: (item: any) => Promise<{ ok: boolean; output: string; error?: string }>
     uninstall: (row: any) => Promise<{ ok: boolean; output: string; error?: string }>
     remove: (id: string) => Promise<{ ok: boolean }>
+    exec: (bin: string, args: string[]) => Promise<{ ok: boolean; stdout: string; stderr: string; exitCode: number | null; error?: string }>
   }
 }
 

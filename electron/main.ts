@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { initDatabase, runQuery, closeDatabase } from './database'
 import { mcpManager, type McpServerRow } from './mcp-manager'
 import { loadAllSkills, installSkillFromMarket, removeSkill, getSkillsRootPath } from './skill-loader'
-import { detectBinary, runInstall } from './cli-tracker'
+import { detectBinary, runInstall, execCli } from './cli-tracker'
 import seedMarket from './marketplace-seed.json' assert { type: 'json' }
 
 // ESM __dirname polyfill
@@ -733,4 +733,9 @@ ipcMain.handle('mcp:callTool', async (_, serverId: string, toolName: string, arg
   } catch (e: any) {
     return { error: e.message }
   }
+})
+
+// v2 引擎调用 CLI 工具（opencli / rg / fd / fzf 等）的 IPC
+ipcMain.handle('cli:exec', async (_, bin: string, args: string[]) => {
+  return execCli(bin, args || [])
 })

@@ -44,3 +44,21 @@ export function runInstall(cmd: string, onProgress?: (chunk: string) => void): P
     }
   })
 }
+// 让 v2 引擎真正"调用"用户安装的 CLI 工具（spawnSync 同步返回 stdout/stderr）
+export function execCli(bin: string, args: string[], timeoutMs: number = 15000): { ok: boolean; stdout: string; stderr: string; exitCode: number | null; error?: string } {
+  return (() => {
+    try {
+      const { spawnSync } = require('node:child_process')
+      const proc = spawnSync(bin, args, { encoding: 'utf-8', timeout: timeoutMs, maxBuffer: 1024 * 1024, shell: process.platform === 'win32' })
+      if (proc.error) return { ok: false, stdout: '', stderr: '', exitCode: null, error: proc.error.message }
+      return {
+        ok: proc.status === 0,
+        stdout: (proc.stdout || '').toString().slice(0, 20000),
+        stderr: (proc.stderr || '').toString().slice(0, 5000),
+        exitCode: proc.status,
+      }
+    } catch (e: any) {
+      return { ok: false, stdout: '', stderr: '', exitCode: null, error: e.message }
+    }
+  })()
+}
