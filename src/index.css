@@ -160,3 +160,13 @@ input, textarea, button {
 .bg-sidebar {
   @apply bg-gray-50;
 }
+
+/* 深色主题：选中文本用品牌色 + 黑字，对比强烈 */
+::selection {
+  background-color: #FF6B35;
+  color: #0A0A0A;
+}
+::-moz-selection {
+  background-color: #FF6B35;
+  color: #0A0A0A;
+}
