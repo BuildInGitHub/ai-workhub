@@ -25,6 +25,29 @@ export default function MarketplaceModal({ type, installedIds, onClose }: Market
     setLocalInstalled(new Set(installedIds))
   }, [installedIds])
 
+  // 打开时主动从主进程拉已安装列表（不依赖父组件 prop，避免父级懒加载导致 0）
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        if (type === 'mcp') {
+          const r = await window.electronAPI?.mcp?.listServers?.()
+          const ids = new Set((r?.data || []).map((s: any) => s.id))
+          if (!cancelled) setLocalInstalled(prev => new Set([...prev, ...ids]))
+        } else if (type === 'skill') {
+          const list = await window.electronAPI?.skill?.list?.()
+          const ids = new Set((list || []).map((s: any) => s.name))
+          if (!cancelled) setLocalInstalled(prev => new Set([...prev, ...ids]))
+        } else if (type === 'cli') {
+          const r = await window.electronAPI?.cli?.list?.()
+          const ids = new Set((r?.data || []).map((c: any) => c.id))
+          if (!cancelled) setLocalInstalled(prev => new Set([...prev, ...ids]))
+        }
+      } catch { /* ignore */ }
+    })()
+    return () => { cancelled = true }
+  }, [type])
+
   useEffect(() => {
     setLoading(true)
     fetchMarket()

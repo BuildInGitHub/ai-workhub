@@ -278,16 +278,25 @@ export default function Sidebar({
   const refreshMcp = async () => {
     const r = await window.electronAPI?.mcp?.listServers?.()
     setMcpServers(r?.data || [])
+    // 同步拉工具清单（用于顶部状态条 + 各卡片徽章数）
+    await refreshAllMcpTools()
   }
-  const refreshMcpTools = async (id: string) => {
+  // 拉全部已启动 server 的工具，按 serverId 分组
+  const refreshAllMcpTools = async () => {
     const all = await window.electronAPI?.mcp?.listTools?.()
-    const list = (all || []) as Array<{ name: string; description?: string }>
-    // listTools 返回所有 server 的工具，按 namespace 过滤
-    const filtered = list.filter(t => t.name.startsWith(`mcp__${id}__`))
-    setServerTools(prev => ({ ...prev, [id]: filtered.map(t => ({
-      name: t.name.replace(`mcp__${id}__`, ''),
-      description: (t.description || '').replace(`[MCP:${id}] `, ''),
-    })) }))
+    const items = (all || []) as Array<{ name: string; description?: string }>
+    const grouped: Record<string, Array<{ name: string; description?: string }>> = {}
+    for (const t of items) {
+      const m = t.name.match(/^mcp__(.+?)__(.+)$/)
+      if (!m) continue
+      const [, serverId, origName] = m
+      if (!grouped[serverId]) grouped[serverId] = []
+      grouped[serverId].push({
+        name: origName,
+        description: (t.description || '').replace(`[MCP:${serverId}] `, ''),
+      })
+    }
+    setServerTools(grouped)
   }
   // 已启动的 MCP 工具总数（用于顶部状态条）
   const mcpToolCount = Object.values(serverTools).reduce((sum, list) => sum + list.length, 0)
@@ -745,9 +754,8 @@ export default function Sidebar({
                                 onClick={async () => {
                                   const next = expandedServer === s.id ? null : s.id
                                   setExpandedServer(next)
-                                  if (next && serverTools[s.id] === undefined) {
-                                    await refreshMcpTools(s.id)
-                                  }
+                                  // 每次展开都重拉（轻量调用），保证数字/列表反映最新启动状态
+                                  if (next) await refreshAllMcpTools()
                                 }}
                                 className="text-xs px-1.5 py-0.5 rounded bg-dark-100 hover:bg-dark-200 text-dark-400 flex items-center gap-0.5"
                                 title={expandedServer === s.id ? '折叠工具列表' : '展开工具列表'}
@@ -801,7 +809,8 @@ export default function Sidebar({
                     open={skillOpen}
                     onToggle={() => {
                       setSkillOpen(o => !o)
-                      if (!skillOpen && skills.length === 0) refreshSkills()
+                      // 每次展开都重拉（轻量），确保从市场装完立即可见
+                      refreshSkills()
                     }}
                   >
                     <div className="flex items-center justify-between text-xs text-dark-500 mb-2">
