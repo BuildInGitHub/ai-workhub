@@ -63,28 +63,28 @@ input, textarea, button {
   @apply transition-all duration-200 hover:shadow-medium hover:border-gray-300;
 }
 
-/* 按钮变体 */
+/* 按钮变体（Grok 深色风格） */
 .btn {
-  @apply px-4 py-2.5 rounded-xl font-medium transition-all duration-200;
+  @apply px-4 py-2.5 rounded-md font-medium transition-all duration-200;
 }
 
 .btn-primary {
-  @apply bg-gray-900 text-white hover:bg-gray-800 active:bg-gray-700;
+  @apply bg-orange-500 text-white hover:bg-orange-600 active:bg-orange-700;
 }
 
 .btn-secondary {
-  @apply bg-gray-100 text-gray-700 hover:bg-gray-200;
+  @apply bg-dark-100 text-dark-900 hover:bg-dark-200 border border-dark-200;
 }
 
 .btn-ghost {
-  @apply bg-transparent text-gray-600 hover:bg-gray-100;
+  @apply bg-transparent text-dark-500 hover:bg-dark-100;
 }
 
 /* 输入框 */
 .input {
-  @apply w-full px-4 py-2.5 bg-white border border-gray-200 text-gray-900 rounded-xl 
-         focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-200
-         placeholder:text-gray-400;
+  @apply w-full px-4 py-2.5 bg-dark-50 border border-dark-200 text-dark-900 rounded-md font-mono
+         focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/30
+         placeholder:text-dark-500;
 }
 
 /* 标签页样式 */

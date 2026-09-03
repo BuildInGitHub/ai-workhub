@@ -63,47 +63,47 @@ export default function MarketplaceModal({ type, installedIds, onClose }: Market
 
   return (
     <div className="fixed inset-0 bg-ink-400/30 flex items-center justify-center z-50 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="bg-white rounded-2xl p-6 w-[760px] max-w-[95vw] max-h-[85vh] shadow-elevated animate-slideIn flex flex-col">
+      <div className="bg-dark-50 rounded-md p-6 w-[760px] max-w-[95vw] max-h-[85vh] shadow-2xl shadow-black/50 animate-slideIn flex flex-col">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="font-display text-lg font-semibold">扩展市场 — {typeLabel}</h3>
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-studio-100 rounded-xl"><X size={20} /></button>
+          <button onClick={onClose} className="p-1.5 hover:bg-dark-100 rounded-md"><X size={20} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-          {loading && <p className="text-sm text-studio-500 py-8 text-center">加载中…</p>}
-          {!loading && items.length === 0 && <p className="text-sm text-studio-500 py-8 text-center">此分类暂无条目</p>}
+          {loading && <p className="text-sm text-dark-500 py-8 text-center">加载中…</p>}
+          {!loading && items.length === 0 && <p className="text-sm text-dark-500 py-8 text-center">此分类暂无条目</p>}
           {items.map(item => {
             return (
-              <div key={item.id} className="border border-studio-200 rounded-xl p-4 hover:border-caramel-300 transition-colors">
+              <div key={item.id} className="border border-dark-200 rounded-md p-4 hover:border-caramel-300 transition-colors">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-caramel-50 flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center flex-shrink-0">
                     <Package size={18} className="text-caramel-500" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h4 className="font-medium text-ink-100">{item.name}</h4>
-                      <code className="text-xs text-studio-500 bg-studio-100 px-1.5 py-0.5 rounded">{item.package}</code>
+                      <h4 className="font-medium text-dark-900">{item.name}</h4>
+                      <code className="text-xs text-dark-500 bg-dark-100 px-1.5 py-0.5 rounded">{item.package}</code>
                     </div>
-                    <p className="text-sm text-studio-500 mt-1 leading-relaxed">{item.description}</p>
+                    <p className="text-sm text-dark-500 mt-1 leading-relaxed">{item.description}</p>
                     {item.requires && item.requires.length > 0 && (
-                      <div className="mt-2 px-3 py-1.5 bg-studio-100 border border-studio-200 rounded-lg">
-                        <p className="text-xs text-studio-600 leading-relaxed">
+                      <div className="mt-2 px-3 py-1.5 bg-dark-100 border border-dark-200 rounded-lg">
+                        <p className="text-xs text-dark-400 leading-relaxed">
                           <span className="font-medium">前置依赖：</span>{item.requires.join(' · ')}
                         </p>
                       </div>
                     )}
                     {item.reason && (
-                      <div className="mt-2 px-3 py-2 bg-caramel-50 border border-caramel-100 rounded-lg">
-                        <p className="text-xs text-caramel-700 leading-relaxed">
+                      <div className="mt-2 px-3 py-2 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                        <p className="text-xs text-orange-400 leading-relaxed">
                           <span className="font-medium">推荐理由：</span>{item.reason}
                         </p>
                       </div>
                     )}
                     {item.tags && item.tags.length > 0 && (
                       <div className="flex gap-1.5 mt-2">
-                        {item.tags.map(t => <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-studio-100 text-studio-600">{t}</span>)}
+                        {item.tags.map(t => <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-dark-100 text-dark-400">{t}</span>)}
                       </div>
                     )}
                   </div>
@@ -113,7 +113,7 @@ export default function MarketplaceModal({ type, installedIds, onClose }: Market
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm flex-shrink-0 transition-colors ${
                       localInstalled.has(item.id)
                         ? 'bg-green-100 text-green-700 cursor-not-allowed'
-                        : 'bg-caramel-400 text-white hover:bg-caramel-500 disabled:opacity-50'
+                        : 'bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50'
                     }`}
                   >
                     {localInstalled.has(item.id) ? (

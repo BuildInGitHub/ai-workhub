@@ -388,43 +388,43 @@ export default function Sidebar({
   return (
     <>
       {/* 侧边栏 */}
-      <div 
-        className={`flex flex-col bg-white border-r border-studio-300 transition-all duration-300 shadow-soft ${
-          isExpanded ? 'w-96' : 'w-16'
+      <div
+        className={`flex flex-col bg-dark transition-all duration-300 ${
+          isExpanded ? 'w-96 border-r border-dark-200' : 'w-16 border-r border-dark-200'
         }`}
       >
         {/* 头部 */}
-        <div className="flex items-center justify-between p-4 border-b border-studio-200">
+        <div className="flex items-center justify-between p-4 border-b border-dark-200">
           {isExpanded && (
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-caramel-400 to-caramel-500 flex items-center justify-center">
-                <Sparkles size={18} className="text-white" />
+              <div className="w-8 h-8 rounded-md bg-orange-500/15 border border-orange-500/30 flex items-center justify-center">
+                <Sparkles size={16} className="text-orange-500" />
               </div>
               <div>
-                <h2 className="font-display font-semibold text-ink-100">AI 伙伴</h2>
-                {/* <p className="text-xs text-studio-500">智能办公伙伴</p> */}
+                <h2 className="font-sans font-semibold text-dark-900 text-sm">AI 伙伴</h2>
+                <p className="text-[10px] text-dark-500 font-mono tracking-wider uppercase">agent workspace</p>
               </div>
             </div>
           )}
           <div className="flex items-center gap-1">
             {isExpanded && onShowSessions && (
-              <button 
+              <button
                 onClick={onShowSessions}
-                className={`p-2 rounded-xl transition-colors ${
-                  isSessionPanelOpen 
-                    ? 'bg-caramel-100 text-caramel-600' 
-                    : 'hover:bg-studio-200 text-studio-500'
+                className={`p-2 rounded-md transition-colors ${
+                  isSessionPanelOpen
+                    ? 'bg-orange-500/15 text-orange-500 border border-orange-500/30'
+                    : 'hover:bg-dark-100 text-dark-500'
                 }`}
                 title={isSessionPanelOpen ? '隐藏会话列表' : '显示会话列表'}
               >
-                <MessageSquare size={20} />
+                <MessageSquare size={18} />
               </button>
             )}
-            <button 
+<button
               onClick={onToggle}
-              className="p-2 rounded-xl hover:bg-studio-200 transition-colors text-studio-500"
+              className="p-2 rounded-md hover:bg-dark-100 transition-colors text-dark-500"
             >
-              {isExpanded ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
+              {isExpanded ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
             </button>
           </div>
         </div>
@@ -451,29 +451,29 @@ export default function Sidebar({
 
         {/* 快速导航按钮 */}
         {isExpanded && (
-          <div className="p-3 border-b border-studio-200">
-            <p className="text-xs font-medium text-studio-500 mb-2 px-1">快速访问</p>
+          <div className="p-3 border-b border-dark-200">
+            <p className="text-[10px] font-mono uppercase tracking-wider text-dark-500 mb-2 px-1">QUICK ACCESS</p>
             <div className="grid grid-cols-3 gap-1">
-              <button 
+              <button
                 onClick={() => onNavigate('files', '文件管理')}
-                className="p-2.5 text-xs rounded-xl hover:bg-studio-100 transition-colors flex flex-col items-center gap-1.5"
+                className="p-2 text-xs rounded-md hover:bg-dark-100 transition-colors flex flex-col items-center gap-1"
               >
-                <Folder size={18} className="text-studio-500" />
-                <span className="text-studio-500">文件</span>
+                <Folder size={16} className="text-dark-500" />
+                <span className="text-dark-500 text-[10px]">文件</span>
               </button>
-              <button 
+              <button
                 onClick={() => onNavigate('links', '链接收藏')}
-                className="p-2.5 text-xs rounded-xl hover:bg-studio-100 transition-colors flex flex-col items-center gap-1.5"
+                className="p-2 text-xs rounded-md hover:bg-dark-100 transition-colors flex flex-col items-center gap-1"
               >
-                <Link size={18} className="text-studio-500" />
-                <span className="text-studio-500">链接</span>
+                <Link size={16} className="text-dark-500" />
+                <span className="text-dark-500 text-[10px]">链接</span>
               </button>
-              <button 
+              <button
                 onClick={() => onNavigate('tasks', '任务管理')}
-                className="p-2.5 text-xs rounded-xl hover:bg-studio-100 transition-colors flex flex-col items-center gap-1.5"
+                className="p-2 text-xs rounded-md hover:bg-dark-100 transition-colors flex flex-col items-center gap-1"
               >
-                <CheckSquare size={18} className="text-studio-500" />
-                <span className="text-studio-500">任务</span>
+                <CheckSquare size={16} className="text-dark-500" />
+                <span className="text-dark-500 text-[10px]">任务</span>
               </button>
             </div>
           </div>
@@ -482,14 +482,14 @@ export default function Sidebar({
         {isExpanded ? (
           <>
             {/* 聊天消息区域 */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-dark">
               {messages.length === 0 && (
                 <div className="text-center py-8">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-caramel-50 to-caramel-100 flex items-center justify-center">
-                    <Zap size={32} className="text-caramel-400" />
+                  <div className="w-12 h-12 mx-auto mb-4 rounded-md border border-dark-200 bg-dark-50 flex items-center justify-center">
+                    <Zap size={22} className="text-orange-500" />
                   </div>
-                  <h3 className="font-display text-lg text-ink-100 mb-1">你好，我是 AI 伙伴</h3>
-                  <p className="text-sm text-studio-500 mb-4">可以帮你管理文件、链接和任务</p>
+                  <h3 className="font-sans text-base text-dark-900 mb-1">你好，我是 AI 伙伴</h3>
+                  <p className="text-xs text-dark-500 mb-4 font-mono">// 可以帮你管理文件、链接、任务</p>
                   
                   {/* 快捷提示 */}
                   <div className="space-y-2">
@@ -497,9 +497,9 @@ export default function Sidebar({
                       <button
                         key={i}
                         onClick={() => onSendMessage(prompt)}
-                        className="block w-full text-left px-3 py-2 text-sm text-studio-500 bg-studio-100 rounded-lg hover:bg-caramel-50 hover:text-caramel-600 transition-colors"
+                        className="block w-full text-left px-3 py-2 text-xs text-dark-500 bg-dark-50 hover:bg-dark-100 hover:text-orange-500 rounded-md transition-colors font-mono"
                       >
-                        {prompt}
+                        ▍ {prompt}
                       </button>
                     ))}
                   </div>
@@ -507,17 +507,17 @@ export default function Sidebar({
               )}
               
               {messages.map((msg) => (
-                <div 
+<div
                   key={msg.id}
                   className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-slideIn`}
                 >
                   {msg.role === 'user' ? (
-                    <div className="max-w-[85%] p-4 rounded-2xl bg-gradient-to-br from-caramel-400 to-caramel-500 text-white">
-                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    <div className="max-w-[85%] p-3 rounded-md bg-orange-500/10 border border-orange-500/30 text-orange-100">
+                      <p className="text-xs font-mono whitespace-pre-wrap break-all leading-relaxed">{msg.content}</p>
                     </div>
                   ) : (
-                    // AI 消息：可折叠/展开，默认折叠
-                    <div className="max-w-[85%] min-w-0 bg-white border border-studio-300 rounded-2xl overflow-hidden">
+                    // AI 消息：可折叠/展开，默认折叠（终端风格）
+                    <div className="max-w-[90%] min-w-0 bg-dark-50 border border-dark-200 rounded-md overflow-hidden">
                       <button
                         onClick={() => {
                           setCollapsedIds(prev => {
@@ -527,59 +527,59 @@ export default function Sidebar({
                             return next
                           })
                         }}
-                        className="w-full flex items-center gap-2 px-4 py-3 hover:bg-studio-50 transition-colors text-left"
+                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-dark-100 transition-colors text-left border-b border-dark-200"
                         title={collapsedIds.has(msg.id) ? '展开' : '折叠'}
                       >
-                        <Sparkles size={14} className="text-caramel-400 flex-shrink-0" />
-                        <span className="flex-1 min-w-0 text-xs text-studio-500 truncate">
+                        <span className="font-mono text-[10px] text-orange-500 flex-shrink-0">▍ AI</span>
+                        <span className="flex-1 min-w-0 text-xs text-dark-500 truncate font-mono">
                           {collapsedIds.has(msg.id)
                             ? getMessageSummary(msg.content)
-                            : 'AI 回复'}
+                            : 'response'}
                         </span>
                         {collapsedIds.has(msg.id)
-                          ? <ChevronDown size={14} className="text-studio-400 flex-shrink-0" />
-                          : <ChevronUp size={14} className="text-studio-400 flex-shrink-0" />}
+                          ? <ChevronDown size={12} className="text-dark-500 flex-shrink-0" />
+                          : <ChevronUp size={12} className="text-dark-500 flex-shrink-0" />}
                       </button>
                       {!collapsedIds.has(msg.id) && (
-                        <div className="px-4 pb-3 text-ink-100 overflow-hidden">
-                          <p className="text-sm whitespace-pre-wrap break-all">{parseMessageContent(msg.content)}</p>
-                          {/* 工具调用明细（v2 引擎，arguments / stdout 折叠展开） */}
+                        <div className="px-3 py-2.5 text-dark-900 overflow-hidden bg-dark-50">
+                          <p className="text-sm whitespace-pre-wrap break-all leading-relaxed">{parseMessageContent(msg.content)}</p>
+                          {/* 工具调用明细（v2 引擎，arguments / stdout 折叠展开 — 终端风格） */}
                           {msg.tool_calls && msg.tool_calls.length > 0 && (
                             <div className="mt-3 space-y-1">
-                              <p className="text-xs text-studio-500 mb-1">工具调用明细（{msg.tool_calls.length}）</p>
+                              <p className="text-[10px] font-mono uppercase tracking-wider text-dark-500 mb-1">▍ tool calls · {msg.tool_calls.length}</p>
                               {msg.tool_calls.map((tc, i) => (
-                                <div key={i} className="border border-studio-200 rounded-lg overflow-hidden">
+                                <div key={i} className="border border-dark-200 rounded-md overflow-hidden bg-dark">
                                   <button
                                     onClick={() => setExpandedToolCall(expandedToolCall === `${msg.id}-${i}` ? null : `${msg.id}-${i}`)}
-                                    className="w-full flex items-center justify-between px-2 py-1.5 text-xs bg-studio-50 hover:bg-studio-100 text-left"
+                                    className="w-full flex items-center justify-between px-2 py-1.5 text-xs hover:bg-dark-100 text-left"
                                   >
                                     <span className="flex items-center gap-1.5 min-w-0">
-                                      <Wrench size={11} className="text-studio-500 flex-shrink-0" />
-                                      <code className="font-mono text-caramel-700 truncate">{tc.tool}</code>
+                                      <Wrench size={11} className="text-orange-500 flex-shrink-0" />
+                                      <code className="font-mono text-orange-400 truncate">{tc.tool}</code>
                                     </span>
-                                    <span className="flex items-center gap-1 text-studio-500">
-                                      <span className={`text-xs ${tc.ok ? 'text-green-600' : 'text-red-600'}`}>{tc.ok ? '✓' : '✗'}</span>
+                                    <span className="flex items-center gap-1 text-dark-500">
+                                      <span className={`text-[10px] font-mono ${tc.ok ? 'text-green-500' : 'text-red-500'}`}>{tc.ok ? '✓ ok' : '✗ err'}</span>
                                       {expandedToolCall === `${msg.id}-${i}` ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                                     </span>
                                   </button>
                                   {expandedToolCall === `${msg.id}-${i}` && (
-                                    <div className="px-2 py-1.5 text-xs font-mono bg-white space-y-1">
+                                    <div className="px-2 py-1.5 text-[11px] font-mono bg-dark-50 space-y-1 border-t border-dark-200">
                                       {tc.args !== undefined && (
                                         <div>
-                                          <span className="text-studio-500">// arguments</span>
-                                          <pre className="whitespace-pre-wrap break-all text-ink-100 mt-0.5">{JSON.stringify(tc.args, null, 2)}</pre>
+                                          <span className="text-dark-500">▍ args</span>
+                                          <pre className="whitespace-pre-wrap break-all text-dark-900 mt-0.5 ml-3">{JSON.stringify(tc.args, null, 2)}</pre>
                                         </div>
                                       )}
                                       {tc.stdout && (
                                         <div>
-                                          <span className="text-studio-500">// output</span>
-                                          <pre className="whitespace-pre-wrap break-all text-ink-100 mt-0.5 max-h-48 overflow-auto">{tc.stdout}</pre>
+                                          <span className="text-dark-500">▍ output</span>
+                                          <pre className="whitespace-pre-wrap break-all text-dark-900 mt-0.5 ml-3 max-h-48 overflow-auto">{tc.stdout}</pre>
                                         </div>
                                       )}
                                       {tc.stderr && (
                                         <div>
-                                          <span className="text-red-500">// error</span>
-                                          <pre className="whitespace-pre-wrap break-all text-red-600 mt-0.5">{tc.stderr}</pre>
+                                          <span className="text-red-500">▍ error</span>
+                                          <pre className="whitespace-pre-wrap break-all text-red-400 mt-0.5 ml-3">{tc.stderr}</pre>
                                         </div>
                                       )}
                                     </div>
@@ -594,13 +594,13 @@ export default function Sidebar({
                   )}
                 </div>
               ))}
-              
+
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="bg-white border border-studio-300 p-4 rounded-2xl">
-                    <div className="flex items-center gap-2">
-                      <Loader2 size={18} className="animate-spin text-caramel-400" />
-                      <span className="text-sm text-studio-500">AI正在思考中...</span>
+                  <div className="bg-dark-50 border border-dark-200 px-3 py-2 rounded-md">
+                    <div className="flex items-center gap-2 font-mono text-xs text-dark-500">
+                      <Loader2 size={14} className="animate-spin text-orange-500" />
+                      <span><span className="text-orange-500">▍</span> thinking...</span>
                     </div>
                   </div>
                 </div>
@@ -610,35 +610,35 @@ export default function Sidebar({
             </div>
 
             {/* 设置按钮 */}
-            <button 
+<button
               onClick={() => {
                 setShowSettings(true)
                 setTempApiKey(apiKey)
               }}
-              className="mx-4 mb-2 p-2.5 rounded-xl hover:bg-studio-100 transition-colors flex items-center gap-2 text-studio-500"
+              className="mx-4 mb-2 p-2 rounded-md hover:bg-dark-100 transition-colors flex items-center gap-2 text-dark-500 font-mono text-xs"
             >
-              <Settings size={18} />
-              <span className="text-sm">设置</span>
+              <Settings size={16} />
+              <span>settings</span>
             </button>
 
             {/* 输入区域 */}
-            <div className="p-4 border-t border-studio-200">
+            <div className="p-3 border-t border-dark-200 bg-dark">
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="发送消息..."
-                  className="input"
+                  placeholder="> 输入指令后回车"
+                  className="flex-1 bg-dark-50 border border-dark-200 rounded-md px-3 py-2 text-sm text-dark-900 font-mono placeholder-dark-500 focus:border-orange-500 focus:outline-none"
                   disabled={isLoading}
                 />
-                <button 
+                <button
                   onClick={handleSend}
                   disabled={!input.trim() || isLoading}
-                  className="btn btn-primary p-3"
+                  className="bg-orange-500 hover:bg-orange-600 disabled:bg-dark-200 disabled text-white rounded-md px-3 transition-colors"
                 >
-                  <Send size={18} />
+                  <Send size={16} />
                 </button>
               </div>
             </div>
@@ -646,12 +646,12 @@ export default function Sidebar({
         ) : (
           // 收起状态
           <div className="flex-1 flex flex-col items-center pt-4 gap-3">
-            <button 
+            <button
               onClick={onToggle}
-              className="p-3 rounded-xl hover:bg-studio-100 transition-colors"
+              className="p-3 rounded-md hover:bg-dark-100 transition-colors"
               title="展开AI伙伴"
             >
-              <MessageSquare size={24} className="text-caramel-400" />
+              <MessageSquare size={22} className="text-orange-500" />
             </button>
           </div>
         )}
@@ -659,14 +659,14 @@ export default function Sidebar({
 
       {/* 设置弹窗（两栏布局：左侧分类 / 右侧内容） */}
       {showSettings && (
-        <div className="fixed inset-0 bg-ink-400/30 flex items-center justify-center z-50 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) setShowSettings(false) }}>
-          <div className="bg-white rounded-2xl w-[760px] max-w-[95vw] h-[600px] max-h-[85vh] shadow-elevated animate-slideIn flex flex-col">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) setShowSettings(false) }}>
+          <div className="bg-dark-50 rounded-md w-[760px] max-w-[95vw] h-[600px] max-h-[85vh] shadow-2xl shadow-black/50 animate-slideIn flex flex-col">
             {/* 顶栏：标题 + 关闭 */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-studio-100">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-dark-200">
               <h3 className="font-display text-lg font-semibold flex items-center gap-2">
-                <Settings size={18} className="text-caramel-500" />设置
+                <Settings size={18} className="text-orange-500" />设置
               </h3>
-              <button onClick={() => setShowSettings(false)} className="p-1.5 hover:bg-studio-100 rounded-xl">
+              <button onClick={() => setShowSettings(false)} className="p-1.5 hover:bg-dark-100 rounded-md">
                 <X size={20} />
               </button>
             </div>
@@ -674,7 +674,7 @@ export default function Sidebar({
             {/* 主体：左分类导航 + 右内容 */}
             <div className="flex-1 flex min-h-0">
               {/* 左栏 */}
-              <nav className="w-44 border-r border-studio-100 p-3 space-y-1 flex-shrink-0">
+              <nav className="w-44 border-r border-dark-200 p-3 space-y-1 flex-shrink-0">
                 <NavTab id="ai" icon={<Brain size={16} />} label="AI" active={activeTab === 'ai'} onClick={setActiveTab} />
                 <NavTab id="extensions" icon={<Store size={16} />} label="扩展" active={activeTab === 'extensions'} onClick={setActiveTab} />
                 <NavTab id="data" icon={<Hash size={16} />} label="数据" active={activeTab === 'data'} onClick={setActiveTab} />
@@ -685,7 +685,7 @@ export default function Sidebar({
                 {activeTab === 'ai' && (<>
                   {/* DeepSeek API Key */}
                   <div>
-                    <label className="block text-sm font-medium text-studio-500 mb-2">DeepSeek API Key</label>
+                    <label className="block text-sm font-medium text-dark-500 mb-2">DeepSeek API Key</label>
                     <input
                       type="password"
                       value={tempApiKey}
@@ -693,25 +693,25 @@ export default function Sidebar({
                       placeholder="sk-xxxx..."
                       className="input"
                     />
-                    <p className="text-xs text-studio-500 mt-2">请从 DeepSeek 官网获取API Key</p>
+                    <p className="text-xs text-dark-500 mt-2">请从 DeepSeek 官网获取API Key</p>
                   </div>
-                  {apiKeySet && <p className="text-sm text-green-600 flex items-center gap-1">✓ API Key 已配置</p>}
+                  {apiKeySet && <p className="text-sm text-green-500 flex items-center gap-1">✓ API Key 已配置</p>}
 
                   {/* AI 引擎选择 */}
                   <div>
-                    <label className="block text-sm font-medium text-studio-500 mb-2">AI 引擎</label>
+                    <label className="block text-sm font-medium text-dark-500 mb-2">AI 引擎</label>
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         onClick={() => handleChangeEngine('v1')}
-                        className={`py-2 rounded-xl text-xs font-medium transition-colors ${engineVersion === 'v1' ? 'bg-caramel-400 text-white' : 'bg-studio-100 text-studio-500 hover:text-ink-100'}`}
+                        className={`py-2 rounded-md text-xs font-medium transition-colors ${engineVersion === 'v1' ? 'bg-orange-500 text-white' : 'bg-dark-100 text-dark-500 hover:text-dark-900'}`}
                       >v1 自研（稳定）</button>
                       <button
                         onClick={() => handleChangeEngine('v2')}
-                        className={`py-2 rounded-xl text-xs font-medium transition-colors ${engineVersion === 'v2' ? 'bg-caramel-400 text-white' : 'bg-studio-100 text-studio-500 hover:text-ink-100'}`}
+                        className={`py-2 rounded-md text-xs font-medium transition-colors ${engineVersion === 'v2' ? 'bg-orange-500 text-white' : 'bg-dark-100 text-dark-500 hover:text-dark-900'}`}
                         title="基于 @earendil-works/pi-agent-core（Pi SDK v0.83.0）"
                       >v2 Pi SDK（实验）</button>
                     </div>
-                    <p className="text-xs text-studio-400 mt-2 leading-relaxed">
+                    <p className="text-xs text-dark-500 mt-2 leading-relaxed">
                       v1 自研引擎（默认）— 已稳定的规划/执行/校验/重规划循环
                       <br />v2 基于 Pi SDK 内核 — 新架构，可能存在不稳定
                     </p>
@@ -730,13 +730,13 @@ export default function Sidebar({
                       if (!mcpOpen && mcpServers.length === 0) refreshMcp()
                     }}
                   >
-                    <div className="flex items-center justify-between text-xs text-studio-500 mb-2">
+                    <div className="flex items-center justify-between text-xs text-dark-500 mb-2">
                       <span>{mcpServers.length} 个 server · {mcpToolCount} 个 AI 可用工具</span>
                     </div>
                     {mcpServers.length === 0 ? (
-                      <p className="text-xs text-studio-500 py-2">本地暂无 MCP server。点击"打开市场"一键安装。</p>
+                      <p className="text-xs text-dark-500 py-2">本地暂无 MCP server。点击"打开市场"一键安装。</p>
                     ) : mcpServers.map(s => (
-                      <div key={s.id} className="border border-studio-200 rounded-lg p-2.5 mb-2 last:mb-0">
+                      <div key={s.id} className="border border-dark-200 rounded-lg p-2.5 mb-2 last:mb-0">
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
@@ -749,50 +749,50 @@ export default function Sidebar({
                                     await refreshMcpTools(s.id)
                                   }
                                 }}
-                                className="text-xs px-1.5 py-0.5 rounded bg-studio-100 hover:bg-studio-200 text-studio-600 flex items-center gap-0.5"
+                                className="text-xs px-1.5 py-0.5 rounded bg-dark-100 hover:bg-dark-200 text-dark-400 flex items-center gap-0.5"
                                 title={expandedServer === s.id ? '折叠工具列表' : '展开工具列表'}
                               >
                                 <Wrench size={10} />
                                 <span className="font-mono">{(serverTools[s.id] || []).length}</span>
                               </button>
                             </div>
-                            <p className="text-xs text-studio-500 truncate">{s.command} {(JSON.parse(s.args || '[]')).join(' ')}</p>
+                            <p className="text-xs text-dark-500 truncate">{s.command} {(JSON.parse(s.args || '[]')).join(' ')}</p>
                             {s.last_error && (
-                              <p className={`text-xs mt-1 line-clamp-2 ${s.last_error.startsWith('⏳') ? 'text-caramel-600' : s.last_error.startsWith('✗') ? 'text-red-600' : 'text-studio-500'}`}>
+                              <p className={`text-xs mt-1 line-clamp-2 ${s.last_error.startsWith('⏳') ? 'text-orange-500' : s.last_error.startsWith('✗') ? 'text-red-500' : 'text-dark-500'}`}>
                                 {s.last_error}
                               </p>
                             )}
                           </div>
-                          <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${s.status === 'enabled' ? 'bg-green-100 text-green-700' : s.status === 'error' ? 'bg-red-100 text-red-700' : 'bg-studio-100 text-studio-600'}`}>
+                          <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${s.status === 'enabled' ? 'bg-green-500/15 text-green-500' : s.status === 'error' ? 'bg-red-500/15 text-red-500' : 'bg-dark-100 text-dark-400'}`}>
                             {s.status === 'enabled' ? '运行中' : s.status === 'error' ? '错误' : '已停'}
                           </span>
                         </div>
                         {expandedServer === s.id && (
-                          <div className="mt-2 pl-2 border-l-2 border-caramel-200 space-y-1">
+                          <div className="mt-2 pl-2 border-l-2 border-orange-500/30 space-y-1">
                             {(serverTools[s.id] || []).length === 0 ? (
-                              <p className="text-xs text-studio-500 py-1">未启动或无工具</p>
+                              <p className="text-xs text-dark-500 py-1">未启动或无工具</p>
                             ) : (serverTools[s.id] || []).map(t => (
                               <div key={t.name} className="text-xs">
-                                <code className="text-caramel-700 font-mono">{t.name}</code>
-                                {t.description && <p className="text-studio-500 ml-3 line-clamp-2">{t.description}</p>}
+                                <code className="text-orange-400 font-mono">{t.name}</code>
+                                {t.description && <p className="text-dark-500 ml-3 line-clamp-2">{t.description}</p>}
                               </div>
                             ))}
                           </div>
                         )}
                         <div className="flex gap-1 mt-2">
                           {s.status === 'enabled' ? (
-                            <button onClick={() => mcpAction(s.id, 'stop')} disabled={startingIds.has(s.id)} className="flex-1 text-xs py-1 rounded bg-studio-100 hover:bg-studio-200 disabled:opacity-60 flex items-center justify-center gap-1"><StopCircle size={12} />停止</button>
+                            <button onClick={() => mcpAction(s.id, 'stop')} disabled={startingIds.has(s.id)} className="flex-1 text-xs py-1 rounded bg-dark-100 hover:bg-dark-200 disabled:opacity-60 flex items-center justify-center gap-1"><StopCircle size={12} />停止</button>
                           ) : (
-                            <button onClick={() => mcpAction(s.id, 'start')} disabled={startingIds.has(s.id)} className="flex-1 text-xs py-1 rounded bg-caramel-400 text-white hover:bg-caramel-500 disabled:opacity-60 flex items-center justify-center gap-1">
+                            <button onClick={() => mcpAction(s.id, 'start')} disabled={startingIds.has(s.id)} className="flex-1 text-xs py-1 rounded bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-60 flex items-center justify-center gap-1">
                               {startingIds.has(s.id) ? <Loader2 size={12} className="animate-spin" /> : <PlayCircle size={12} />}
                               {startingIds.has(s.id) ? '启动中…' : '启动'}
                             </button>
                           )}
-                          <button onClick={() => mcpAction(s.id, 'uninstall', s)} disabled={startingIds.has(s.id)} className="text-xs py-1 px-2 rounded bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-40 flex items-center gap-1"><Trash2 size={12} /></button>
+                          <button onClick={() => mcpAction(s.id, 'uninstall', s)} disabled={startingIds.has(s.id)} className="text-xs py-1 px-2 rounded bg-red-500/10 text-red-500 hover:bg-red-500/15 disabled:opacity-40 flex items-center gap-1"><Trash2 size={12} /></button>
                         </div>
                       </div>
                     ))}
-                    <button onClick={() => setMarketType('mcp')} className="w-full mt-2 py-1.5 rounded-lg bg-caramel-50 text-caramel-700 text-xs font-medium hover:bg-caramel-100 flex items-center justify-center gap-1"><Store size={12} />打开市场</button>
+                    <button onClick={() => setMarketType('mcp')} className="w-full mt-2 py-1.5 rounded-lg bg-orange-500/10 text-orange-400 text-xs font-medium hover:bg-orange-500/15 flex items-center justify-center gap-1"><Store size={12} />打开市场</button>
                   </ExtensionSection>
 
                   <ExtensionSection
@@ -804,25 +804,25 @@ export default function Sidebar({
                       if (!skillOpen && skills.length === 0) refreshSkills()
                     }}
                   >
-                    <div className="flex items-center justify-between text-xs text-studio-500 mb-2">
-                      <span>{skills.length} 个 skill · AI 通过 <code className="text-caramel-700 font-mono">skill_&lt;name&gt;</code> 调用</span>
+                    <div className="flex items-center justify-between text-xs text-dark-500 mb-2">
+                      <span>{skills.length} 个 skill · AI 通过 <code className="text-orange-400 font-mono">skill_&lt;name&gt;</code> 调用</span>
                     </div>
                     {skills.length === 0 ? (
-                      <p className="text-xs text-studio-500 py-2">%APPDATA%/ai-workhub/skills/ 下暂无 SKILL.md。可从市场安装或手动编写。</p>
+                      <p className="text-xs text-dark-500 py-2">%APPDATA%/ai-workhub/skills/ 下暂无 SKILL.md。可从市场安装或手动编写。</p>
                     ) : skills.map(s => (
-                      <div key={s.name} className="border border-studio-200 rounded-lg p-2.5 mb-2 last:mb-0">
+                      <div key={s.name} className="border border-dark-200 rounded-lg p-2.5 mb-2 last:mb-0">
                         <div className="flex items-center justify-between gap-2">
                           <p className="text-sm font-medium flex-1 min-w-0 truncate">{s.name}</p>
-                          <button onClick={() => toggleSkillView(s)} className="text-xs p-1 hover:bg-studio-100 rounded"><Eye size={12} /></button>
-                          <button onClick={() => removeSkill(s.name)} className="text-xs p-1 hover:bg-red-50 text-red-600 rounded"><Trash2 size={12} /></button>
+                          <button onClick={() => toggleSkillView(s)} className="text-xs p-1 hover:bg-dark-100 rounded"><Eye size={12} /></button>
+                          <button onClick={() => removeSkill(s.name)} className="text-xs p-1 hover:bg-red-500/10 text-red-500 rounded"><Trash2 size={12} /></button>
                         </div>
-                        <p className="text-xs text-studio-500 mt-0.5 line-clamp-2">{s.description}</p>
+                        <p className="text-xs text-dark-500 mt-0.5 line-clamp-2">{s.description}</p>
                         {expandedSkill === s.name && skillContent[s.name] && (
-                          <pre className="text-xs bg-studio-50 p-2 rounded mt-2 max-h-32 overflow-y-auto whitespace-pre-wrap break-all">{skillContent[s.name]}</pre>
+                          <pre className="text-xs bg-dark p-2 rounded mt-2 max-h-32 overflow-y-auto whitespace-pre-wrap break-all">{skillContent[s.name]}</pre>
                         )}
                       </div>
                     ))}
-                    <button onClick={() => setMarketType('skill')} className="w-full mt-2 py-1.5 rounded-lg bg-caramel-50 text-caramel-700 text-xs font-medium hover:bg-caramel-100 flex items-center justify-center gap-1"><Store size={12} />打开市场</button>
+                    <button onClick={() => setMarketType('skill')} className="w-full mt-2 py-1.5 rounded-lg bg-orange-500/10 text-orange-400 text-xs font-medium hover:bg-orange-500/15 flex items-center justify-center gap-1"><Store size={12} />打开市场</button>
                   </ExtensionSection>
 
                   <ExtensionSection
@@ -834,58 +834,58 @@ export default function Sidebar({
                       if (!cliOpen && cliRows.length === 0) refreshCli()
                     }}
                   >
-                    <div className="flex items-center justify-between text-xs text-studio-500 mb-2">
-                      <span>{cliRows.length} 个 CLI · AI 可通过 <code className="text-caramel-700 font-mono">cli_&lt;bin&gt;</code> 调用</span>
+                    <div className="flex items-center justify-between text-xs text-dark-500 mb-2">
+                      <span>{cliRows.length} 个 CLI · AI 可通过 <code className="text-orange-400 font-mono">cli_&lt;bin&gt;</code> 调用</span>
                     </div>
                     {cliRows.length === 0 ? (
-                      <p className="text-xs text-studio-500 py-2">暂无 CLI 记录。点击下方按钮检测系统已装 CLI，或从市场安装新工具。</p>
+                      <p className="text-xs text-dark-500 py-2">暂无 CLI 记录。点击下方按钮检测系统已装 CLI，或从市场安装新工具。</p>
                     ) : cliRows.map(c => (
-                      <div key={c.id} className="border border-studio-200 rounded-lg p-2.5 mb-2 last:mb-0">
+                      <div key={c.id} className="border border-dark-200 rounded-lg p-2.5 mb-2 last:mb-0">
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <p className="text-sm font-medium truncate">{c.name}</p>
                               {c.bin && (
-                                <code className="text-xs px-1.5 py-0.5 rounded bg-caramel-50 text-caramel-700 font-mono">
+                                <code className="text-xs px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400 font-mono">
                                   cli_{c.bin}
                                 </code>
                               )}
                             </div>
-                            <p className="text-xs text-studio-500 truncate">bin: {c.bin || '-'}{c.version ? ` · ${c.version}` : ''}</p>
+                            <p className="text-xs text-dark-500 truncate">bin: {c.bin || '-'}{c.version ? ` · ${c.version}` : ''}</p>
                           </div>
                         </div>
                         <div className="flex gap-1 mt-2">
-                          <button onClick={() => cliAction(c.id, 'detect', c)} className="flex-1 text-xs py-1 rounded bg-studio-100 hover:bg-studio-200">重新检测</button>
-                          {c.uninstall_cmd && <button onClick={() => cliAction(c.id, 'uninstall', c)} className="text-xs py-1 px-2 rounded bg-red-50 text-red-600 hover:bg-red-100">卸载</button>}
-                          <button onClick={() => cliAction(c.id, 'remove', c)} className="text-xs py-1 px-2 rounded bg-studio-100 text-studio-500 hover:bg-studio-200"><Trash2 size={12} /></button>
+                          <button onClick={() => cliAction(c.id, 'detect', c)} className="flex-1 text-xs py-1 rounded bg-dark-100 hover:bg-dark-200">重新检测</button>
+                          {c.uninstall_cmd && <button onClick={() => cliAction(c.id, 'uninstall', c)} className="text-xs py-1 px-2 rounded bg-red-500/10 text-red-500 hover:bg-red-500/15">卸载</button>}
+                          <button onClick={() => cliAction(c.id, 'remove', c)} className="text-xs py-1 px-2 rounded bg-dark-100 text-dark-500 hover:bg-dark-200"><Trash2 size={12} /></button>
                         </div>
                       </div>
                     ))}
                     <div className="flex gap-2 mt-2">
-                      <button onClick={() => refreshCli()} className="flex-1 py-1.5 rounded-lg bg-studio-100 text-studio-600 text-xs font-medium hover:bg-studio-200 flex items-center justify-center gap-1"><Power size={12} />检测已装 CLI</button>
-                      <button onClick={() => setMarketType('cli')} className="flex-1 py-1.5 rounded-lg bg-caramel-50 text-caramel-700 text-xs font-medium hover:bg-caramel-100 flex items-center justify-center gap-1"><Store size={12} />打开市场</button>
+                      <button onClick={() => refreshCli()} className="flex-1 py-1.5 rounded-lg bg-dark-100 text-dark-400 text-xs font-medium hover:bg-dark-200 flex items-center justify-center gap-1"><Power size={12} />检测已装 CLI</button>
+                      <button onClick={() => setMarketType('cli')} className="flex-1 py-1.5 rounded-lg bg-orange-500/10 text-orange-400 text-xs font-medium hover:bg-orange-500/15 flex items-center justify-center gap-1"><Store size={12} />打开市场</button>
                     </div>
                   </ExtensionSection>
 
-                  <p className="text-xs text-studio-400 pt-2 leading-relaxed">
+                  <p className="text-xs text-dark-500 pt-2 leading-relaxed">
                     💡 MCP / Skills / CLI 仅在 v2 引擎下生效。市场内容已按"桌面办公伙伴"定位手工筛选，每个条目都有推荐理由。
                   </p>
                 </>)}
 
                 {activeTab === 'data' && (<>
                   <div>
-                    <p className="text-sm font-medium text-studio-500 mb-3">数据管理</p>
+                    <p className="text-sm font-medium text-dark-500 mb-3">数据管理</p>
                     <div className="flex gap-2">
-                      <button onClick={handleBackup} className="flex-1 py-2 rounded-xl text-xs font-medium bg-studio-100 text-studio-600 hover:bg-studio-200 transition-colors">立即备份</button>
-                      <button onClick={handleExport} className="flex-1 py-2 rounded-xl text-xs font-medium bg-studio-100 text-studio-600 hover:bg-studio-200 transition-colors">导出数据</button>
-                      <button onClick={handleImport} className="flex-1 py-2 rounded-xl text-xs font-medium bg-studio-100 text-studio-600 hover:bg-studio-200 transition-colors">导入数据</button>
+                      <button onClick={handleBackup} className="flex-1 py-2 rounded-md text-xs font-medium bg-dark-100 text-dark-400 hover:bg-dark-200 transition-colors">立即备份</button>
+                      <button onClick={handleExport} className="flex-1 py-2 rounded-md text-xs font-medium bg-dark-100 text-dark-400 hover:bg-dark-200 transition-colors">导出数据</button>
+                      <button onClick={handleImport} className="flex-1 py-2 rounded-md text-xs font-medium bg-dark-100 text-dark-400 hover:bg-dark-200 transition-colors">导入数据</button>
                     </div>
-                    <p className="text-xs text-studio-400 mt-3 leading-relaxed">
+                    <p className="text-xs text-dark-500 mt-3 leading-relaxed">
                       数据存储: SQLite (ai-workhub.db)
                       <br />启动和退出时自动备份，保留最近10份
                       <br />备份目录: %APPDATA%\ai-workhub\backups
                     </p>
-                    {backupInfo && <p className="text-xs text-caramel-500 mt-2">{backupInfo}</p>}
+                    {backupInfo && <p className="text-xs text-orange-500 mt-2">{backupInfo}</p>}
                   </div>
                 </>)}
               </div>
