@@ -37,6 +37,7 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
     description: '',
     priority: 'medium' as 'low' | 'medium' | 'high',
     due_date: '',
+    start_date: '',
     parent_id: '',
     status: 'todo' as 'todo' | 'doing' | 'done'
   })
@@ -131,14 +132,14 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
       const completed = formData.status === 'done' ? 1 : 0
       if (editingTask) {
         await window.electronAPI.db.query(
-          "UPDATE tasks SET title = ?, description = ?, priority = ?, due_date = ?, status = ?, completed = ?, updated_at = datetime('now') WHERE id = ?",
-          [formData.title, formData.description, formData.priority, formData.due_date || null, formData.status, completed, editingTask.id]
+          "UPDATE tasks SET title = ?, description = ?, priority = ?, start_date = ?, due_date = ?, status = ?, completed = ?, updated_at = datetime('now') WHERE id = ?",
+          [formData.title, formData.description, formData.priority, formData.start_date || null, formData.due_date || null, formData.status, completed, editingTask.id]
         )
       } else {
         const parentId = formData.parent_id || null
         await window.electronAPI.db.query(
-          "INSERT INTO tasks (id, title, description, priority, due_date, completed, status, parent_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
-          [uuidv4(), formData.title, formData.description, formData.priority, formData.due_date || null, completed, formData.status, parentId]
+          "INSERT INTO tasks (id, title, description, priority, start_date, due_date, completed, status, parent_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
+          [uuidv4(), formData.title, formData.description, formData.priority, formData.start_date || null, formData.due_date || null, completed, formData.status, parentId]
         )
       }
       
@@ -168,6 +169,7 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
       description: task.description || '',
       priority: task.priority,
       due_date: task.due_date || '',
+      start_date: task.start_date || '',
       parent_id: task.parent_id || '',
       status: getStatus(task)
     })
@@ -177,14 +179,14 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
   // 为指定父任务添加子任务
   const openAddSubtask = (parentId: string) => {
     setEditingTask(null)
-    setFormData({ title: '', description: '', priority: 'medium', due_date: '', parent_id: parentId, status: 'todo' })
+    setFormData({ title: '', description: '', priority: 'medium', start_date: '', due_date: '', parent_id: parentId, status: 'todo' })
     setShowAddModal(true)
   }
 
   const closeModal = () => {
     setShowAddModal(false)
     setEditingTask(null)
-    setFormData({ title: '', description: '', priority: 'medium', due_date: '', parent_id: '', status: 'todo' })
+    setFormData({ title: '', description: '', priority: 'medium', start_date: '', due_date: '', parent_id: '', status: 'todo' })
   }
 
   const toggleExpand = (id: string) => {
@@ -579,6 +581,15 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
                   </div>
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-studio-500 mb-2">开始时间</label>
+                  <input
+                    type="date"
+                    value={formData.start_date}
+                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                    className="input"
+                  />
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-studio-500 mb-2">截止日期</label>
                   <input
                     type="date"
@@ -710,6 +721,12 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
                   <div>
                     <label className="block text-xs font-medium text-studio-500 mb-1.5">完成</label>
                     <span className="text-sm">{viewTask.completed ? '✓ 已完成' : '○ 未完成'}</span>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-studio-500 mb-1.5">开始时间</label>
+                    <p className={`text-sm ${viewTask.start_date ? 'text-ink-100' : 'text-studio-400 italic'}`}>
+                      {viewTask.start_date || '未设置'}
+                    </p>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-studio-500 mb-1.5">截止日期</label>

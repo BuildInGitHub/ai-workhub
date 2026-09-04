@@ -186,6 +186,7 @@ export function initBuiltinTools(
       { name: 'title', type: 'string', description: '任务标题', required: true },
       { name: 'description', type: 'string', description: '任务描述', required: false },
       { name: 'priority', type: 'string', description: '优先级: low/medium/high', required: false },
+      { name: 'start_date', type: 'string', description: '开始日期 YYYY-MM-DD', required: false },
       { name: 'due_date', type: 'string', description: '截止日期 YYYY-MM-DD', required: false },
       { name: 'status', type: 'string', description: '状态: todo/doing/done，默认todo', required: false },
       { name: 'parent_task_id', type: 'string', description: '父任务ID（创建子任务时使用，先用search_tasks查询父任务）', required: false }
@@ -195,8 +196,8 @@ export function initBuiltinTools(
       const status = ['todo', 'doing', 'done'].includes(params.status) ? params.status : 'todo'
       const completed = status === 'done' ? 1 : 0
       await dbQuery(
-        "INSERT INTO tasks (id, title, description, priority, due_date, completed, status, parent_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
-        [id, params.title, params.description || '', params.priority || 'medium', params.due_date || null, completed, status, params.parent_task_id || null]
+        "INSERT INTO tasks (id, title, description, priority, start_date, due_date, completed, status, parent_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
+        [id, params.title, params.description || '', params.priority || 'medium', params.start_date || null, params.due_date || null, completed, status, params.parent_task_id || null]
       )
       return { id, title: params.title, status }
     }

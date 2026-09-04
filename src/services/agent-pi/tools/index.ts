@@ -43,6 +43,7 @@ export const createTaskTool = (ctx: ToolContext) => defineTool(ctx, {
     title: Type.String({ description: '任务标题' }),
     description: Type.Optional(Type.String({ description: '任务描述' })),
     priority: Type.Optional(Type.Union([Type.Literal('low'), Type.Literal('medium'), Type.Literal('high')])),
+    start_date: Type.Optional(Type.String({ description: '开始日期 YYYY-MM-DD' })),
     due_date: Type.Optional(Type.String({ description: '截止日期 YYYY-MM-DD' })),
     status: Type.Optional(Type.Union([Type.Literal('todo'), Type.Literal('doing'), Type.Literal('done')])),
     parent_task_id: Type.Optional(Type.String({ description: '父任务ID' })),
@@ -52,8 +53,8 @@ export const createTaskTool = (ctx: ToolContext) => defineTool(ctx, {
     const status = ['todo', 'doing', 'done'].includes(params.status as string) ? params.status : 'todo'
     const completed = status === 'done' ? 1 : 0
     await ctx.dbQuery(
-      "INSERT INTO tasks (id, title, description, priority, due_date, completed, status, parent_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
-      [id, params.title, params.description || '', params.priority || 'medium', params.due_date || null, completed, status, params.parent_task_id || null]
+      "INSERT INTO tasks (id, title, description, priority, start_date, due_date, completed, status, parent_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
+      [id, params.title, params.description || '', params.priority || 'medium', params.start_date || null, params.due_date || null, completed, status, params.parent_task_id || null]
     )
     return { content: [{ type: 'text', text: JSON.stringify({ id, title: params.title, status, message: '任务创建成功' }) }], details: { id, title: params.title, status } }
   },

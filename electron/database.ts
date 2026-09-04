@@ -19,7 +19,7 @@ const TABLES: Record<string, string> = {
           created_at TEXT, updated_at TEXT`,
   favorite_files: `id TEXT PRIMARY KEY, name TEXT, path TEXT, type TEXT, size INTEGER, created_at TEXT`,
   tasks: `id TEXT PRIMARY KEY, title TEXT, description TEXT, completed INTEGER DEFAULT 0,
-          priority TEXT, due_date TEXT, parent_id TEXT, status TEXT, position INTEGER,
+          priority TEXT, due_date TEXT, start_date TEXT, parent_id TEXT, status TEXT, position INTEGER,
           created_at TEXT, updated_at TEXT`,
   chat_history: `id TEXT PRIMARY KEY, session_id TEXT, role TEXT, content TEXT, created_at TEXT`,
   sessions: `id TEXT PRIMARY KEY, title TEXT, created_at TEXT, updated_at TEXT`,
@@ -60,6 +60,9 @@ export function initDatabase(): void {
   for (const [name, schema] of Object.entries(TABLES)) {
     db.exec(`CREATE TABLE IF NOT EXISTS ${name} (${schema})`)
   }
+
+  // 迁移：给老数据库添加新列（IF NOT EXISTS 不支持 SQLite ALTER，加 try/catch 兼容）
+  try { db.exec(`ALTER TABLE tasks ADD COLUMN start_date TEXT`) } catch { /* 列已存在 */ }
 
   // 首次创建且存在旧 JSON 数据 → 自动迁移
   if (isNewDb && fs.existsSync(jsonPath)) {
