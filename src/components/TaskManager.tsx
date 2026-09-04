@@ -503,7 +503,7 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   placeholder="输入任务标题"
-                  className="input"
+                  className="w-full px-3 py-2 bg-studio-50 border border-studio-200 rounded-md text-sm text-ink-100 focus:bg-white focus:border-caramel-400 focus:outline-none focus:ring-2 focus:ring-caramel-400/20 transition-colors"
                 />
               </div>
 
@@ -513,7 +513,7 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
                   <select
                     value={formData.parent_id}
                     onChange={(e) => setFormData({ ...formData, parent_id: e.target.value })}
-                    className="input"
+                    className="w-full px-3 py-2 bg-studio-50 border border-studio-200 rounded-md text-sm text-ink-100 focus:bg-white focus:border-caramel-400 focus:outline-none focus:ring-2 focus:ring-caramel-400/20 transition-colors"
                   >
                     <option value="">无（一级任务）</option>
                     {parentTasks.map((t) => (
@@ -531,10 +531,10 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
                       key={s}
                       type="button"
                       onClick={() => setFormData({ ...formData, status: s })}
-                      className={`py-2.5 rounded-xl text-sm transition-colors ${
+                      className={`py-2.5 rounded-xl text-sm font-medium transition-all border ${
                         formData.status === s
-                          ? 'bg-caramel-400 text-white'
-                          : 'bg-studio-100 text-studio-500 hover:text-ink-100'
+                          ? 'bg-caramel-500 text-white border-caramel-500 shadow-sm'
+                          : 'bg-studio-50 text-studio-500 border-studio-200 hover:bg-studio-100'
                       }`}
                     >
                       {statusLabels[s]}
@@ -556,37 +556,18 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
                   }}
                   placeholder="输入任务描述（可选）"
                   rows={6}
-                  className="input resize-y min-h-[130px] max-h-[320px] overflow-y-auto"
+                  className="w-full px-3 py-2 bg-studio-50 border border-studio-200 rounded-md text-sm text-ink-100 focus:bg-white focus:border-caramel-400 focus:outline-none focus:ring-2 focus:ring-caramel-400/20 transition-colors resize-y min-h-[130px] max-h-[320px] overflow-y-auto"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-studio-500 mb-2">优先级</label>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {(['low', 'medium', 'high'] as const).map((p) => (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, priority: p })}
-                        className={`py-2 rounded-lg text-sm transition-colors ${
-                          formData.priority === p
-                            ? `bg-gradient-to-br ${priorityBgColors[p]} text-white`
-                            : 'bg-studio-100 text-studio-500'
-                        }`}
-                      >
-                        {p === 'low' ? '低' : p === 'medium' ? '中' : '高'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-studio-500 mb-2">开始时间</label>
+                  <label className="block text-sm font-medium text-studio-500 mb-2">开始日期</label>
                   <input
                     type="date"
                     value={formData.start_date}
                     onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                    className="input"
+                    className="w-full px-3 py-2 bg-studio-50 border border-studio-200 rounded-md text-sm text-ink-100 focus:bg-white focus:border-caramel-400 focus:outline-none focus:ring-2 focus:ring-caramel-400/20 transition-colors"
                   />
                 </div>
                 <div>
@@ -595,8 +576,27 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
                     type="date"
                     value={formData.due_date}
                     onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                    className="input"
+                    className="w-full px-3 py-2 bg-studio-50 border border-studio-200 rounded-md text-sm text-ink-100 focus:bg-white focus:border-caramel-400 focus:outline-none focus:ring-2 focus:ring-caramel-400/20 transition-colors"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-studio-500 mb-2">优先级</label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {(['low', 'medium', 'high'] as const).map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, priority: p })}
+                        className={`py-2 rounded-lg text-sm font-medium transition-all border ${
+                          formData.priority === p
+                            ? `${priorityColors[p]} border-transparent shadow-sm`
+                            : 'bg-studio-50 text-studio-500 border-studio-200 hover:bg-studio-100'
+                        }`}
+                      >
+                        {p === 'low' ? '低' : p === 'medium' ? '中' : '高'}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
               
@@ -750,11 +750,11 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
             <div className="flex gap-2 mt-5 pt-4 border-t border-studio-100">
               <button
                 onClick={() => { setKanbanTask(viewTask); setViewTask(null) }}
-                className="flex-1 btn btn-secondary flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2 rounded-md text-sm font-medium border border-studio-200 bg-white text-ink-100 hover:bg-studio-50 transition-colors flex items-center justify-center gap-2"
               >
                 <Kanban size={16} />进入定制看板
               </button>
-              <button onClick={() => setViewTask(null)} className="btn btn-primary px-6">关闭</button>
+              <button onClick={() => setViewTask(null)} className="px-6 py-2 rounded-md text-sm font-medium bg-caramel-500 text-white hover:bg-caramel-600 transition-colors">关闭</button>
             </div>
           </div>
         </div>
