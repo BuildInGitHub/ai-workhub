@@ -356,10 +356,21 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
                       {task.description && (
                         <p className="text-sm text-studio-500 mb-2 line-clamp-2">{task.description}</p>
                       )}
-                      {task.due_date && (
-                        <p className="text-xs text-studio-400 flex items-center gap-1">
-                          <Calendar size={12} />
-                          截止: {task.due_date}
+                      {(task.start_date || task.due_date) && (
+                        <p className="text-xs text-studio-400 flex items-center gap-1 flex-wrap">
+                          {task.start_date && (
+                            <span className="flex items-center gap-1">
+                              <Calendar size={12} />
+                              开始: {task.start_date}
+                            </span>
+                          )}
+                          {task.start_date && task.due_date && <span className="text-studio-300">→</span>}
+                          {task.due_date && (
+                            <span className="flex items-center gap-1">
+                              <Calendar size={12} />
+                              截止: {task.due_date}
+                            </span>
+                          )}
                         </p>
                       )}
                       {/* 子任务进度条 */}
@@ -446,8 +457,12 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
                                 {sub.priority === 'low' ? '低' : sub.priority === 'medium' ? '中' : '高'}
                               </span>
                             </div>
-                            {sub.due_date && (
-                              <p className="text-xs text-studio-400 mt-0.5">截止: {sub.due_date}</p>
+                            {(sub.start_date || sub.due_date) && (
+                              <p className="text-xs text-studio-400 mt-0.5 flex items-center gap-1 flex-wrap">
+                                {sub.start_date && <span>开始: {sub.start_date}</span>}
+                                {sub.start_date && sub.due_date && <span className="text-studio-300">→</span>}
+                                {sub.due_date && <span>截止: {sub.due_date}</span>}
+                              </p>
                             )}
                           </div>
                           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
