@@ -210,6 +210,13 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
     high: 'from-red-400 to-red-500'
   }
 
+  // 任务卡片上的优先级小 chip（比 priorityColors 鲜明——带边框、对比更强）
+  const priorityChipColors: Record<string, string> = {
+    low: 'bg-green-100 text-green-700 border-green-200',
+    medium: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    high: 'bg-red-100 text-red-700 border-red-200'
+  }
+
   const statusLabels: Record<string, string> = {
     todo: '待办',
     doing: '进行中',
@@ -438,7 +445,7 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
                       {subtasks.map((sub) => (
                         <div
                           key={sub.id}
-                          className={`group flex items-start gap-3 p-3 rounded-xl bg-studio-50 border border-studio-100 ${
+                          className={`group flex items-start gap-3 p-3 rounded-xl bg-studio-50 hover:bg-studio-100/60 border border-studio-100 transition-colors ${
                             sub.completed ? 'opacity-60' : ''
                           }`}
                         >
@@ -453,7 +460,7 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
                               <p className={`text-sm ${sub.completed ? 'line-through text-studio-400' : 'text-ink-100'}`}>
                                 {sub.title}
                               </p>
-                              <span className={`px-1.5 py-0.5 rounded-md text-xs ${priorityColors[sub.priority]}`}>
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${priorityChipColors[sub.priority]}`}>
                                 {sub.priority === 'low' ? '低' : sub.priority === 'medium' ? '中' : '高'}
                               </span>
                             </div>
@@ -468,20 +475,20 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
                           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={() => setViewTask(sub)}
-                              className="p-1.5 rounded-lg hover:bg-white text-studio-400 hover:text-blue-500"
+                              className="p-1.5 rounded-lg hover:bg-studio-100 text-studio-500 hover:text-blue-500"
                               title="查看详情"
                             >
                               <Eye size={14} />
                             </button>
                             <button
                               onClick={() => openEditModal(sub)}
-                              className="p-1.5 rounded-lg hover:bg-white text-studio-400 hover:text-caramel-400"
+                              className="p-1.5 rounded-lg hover:bg-studio-100 text-studio-500 hover:text-caramel-500"
                             >
                               <Edit size={14} />
                             </button>
                             <button
                               onClick={() => setDeleteTarget(sub)}
-                              className="p-1.5 rounded-lg hover:bg-red-50 text-studio-400 hover:text-red-500"
+                              className="p-1.5 rounded-lg hover:bg-studio-100 text-studio-500 hover:text-red-500"
                             >
                               <Trash2 size={14} />
                             </button>
