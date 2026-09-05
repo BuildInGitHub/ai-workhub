@@ -39,7 +39,7 @@ export default function TaskKanban({ parentTask, onClose, onChanged }: TaskKanba
   const [dragOverPos, setDragOverPos] = useState<'above' | 'below' | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
-  const [editForm, setEditForm] = useState({ title: '', description: '', priority: 'medium' as 'low' | 'medium' | 'high', due_date: '' })
+  const [editForm, setEditForm] = useState({ title: '', description: '', priority: 'medium' as 'low' | 'medium' | 'high', start_date: '', due_date: '' })
   const [newTitle, setNewTitle] = useState('')
 
   useEffect(() => {
@@ -195,13 +195,14 @@ export default function TaskKanban({ parentTask, onClose, onChanged }: TaskKanba
     }
   }
 
-  // 打开编辑弹窗（完整修改：标题/描述/优先级/截止日期）
+  // 打开编辑弹窗（完整修改：标题/描述/开始日期/截止日期/优先级）
   const openEditModal = (task: Task) => {
     setEditingTask(task)
     setEditForm({
       title: task.title,
       description: task.description || '',
       priority: task.priority,
+      start_date: task.start_date || '',
       due_date: task.due_date || ''
     })
   }
@@ -211,8 +212,8 @@ export default function TaskKanban({ parentTask, onClose, onChanged }: TaskKanba
     if (!window.electronAPI || !editingTask || !editForm.title.trim()) return
     try {
       await window.electronAPI.db.query(
-        "UPDATE tasks SET title = ?, description = ?, priority = ?, due_date = ?, updated_at = datetime('now') WHERE id = ?",
-        [editForm.title.trim(), editForm.description, editForm.priority, editForm.due_date || null, editingTask.id]
+        "UPDATE tasks SET title = ?, description = ?, priority = ?, start_date = ?, due_date = ?, updated_at = datetime('now') WHERE id = ?",
+        [editForm.title.trim(), editForm.description, editForm.priority, editForm.start_date || null, editForm.due_date || null, editingTask.id]
       )
       setEditingTask(null)
       loadSubtasks()
@@ -224,6 +225,11 @@ export default function TaskKanban({ parentTask, onClose, onChanged }: TaskKanba
 
   const priorityColors: Record<string, string> = {
     low: 'text-green-500', medium: 'text-yellow-500', high: 'text-red-500'
+  }
+  const priorityChipColors: Record<string, string> = {
+    low: 'bg-green-100 text-green-700 border-green-200',
+    medium: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    high: 'bg-red-100 text-red-700 border-red-200'
   }
 
   return (
@@ -403,15 +409,18 @@ export default function TaskKanban({ parentTask, onClose, onChanged }: TaskKanba
       {editingTask && (
         <div className="fixed inset-0 bg-ink-400/40 flex items-center justify-center z-[95] backdrop-blur-sm"
           onClick={(e) => { if (e.target === e.currentTarget) setEditingTask(null) }}>
-          <div className="bg-white rounded-2xl p-6 w-[600px] max-w-[92vw] shadow-elevated animate-slideIn">
+          <div className="bg-white rounded-2xl p-7 w-[720px] max-w-[94vw] max-h-[90vh] shadow-elevated animate-slideIn flex flex-col">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="font-display text-lg font-semibold">编辑子任务</h3>
-              <button onClick={() => setEditingTask(null)} className="p-2 hover:bg-studio-100 rounded-xl">
+              <h3 className="font-display text-lg font-semibold flex items-center gap-2">
+                <Edit size={18} className="text-caramel-500" />
+                编辑子任务
+              </h3>
+              <button onClick={() => setEditingTask(null)} className="p-1.5 hover:bg-studio-100 rounded-xl">
                 <X size={20} />
               </button>
             </div>
 
-            <div className="space-y-4 max-h-[78vh] overflow-y-auto pr-1">
+            <div className="flex-1 overflow-y-auto pr-1 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-studio-500 mb-2">标题</label>
                 <input
@@ -419,7 +428,7 @@ export default function TaskKanban({ parentTask, onClose, onChanged }: TaskKanba
                   value={editForm.title}
                   onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
                   placeholder="输入任务标题"
-                  className="input"
+                  className="w-full px-3 py-2 bg-studio-50 border border-studio-200 rounded-md text-sm text-ink-100 focus:bg-white focus:border-caramel-400 focus:outline-none focus:ring-2 focus:ring-caramel-400/20 transition-colors"
                   autoFocus
                   onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
                 />
@@ -438,11 +447,29 @@ export default function TaskKanban({ parentTask, onClose, onChanged }: TaskKanba
                   }}
                   placeholder="输入任务描述（可选）"
                   rows={6}
-                  className="input resize-y min-h-[130px] max-h-[320px] overflow-y-auto"
+                  className="w-full px-3 py-2 bg-studio-50 border border-studio-200 rounded-md text-sm text-ink-100 focus:bg-white focus:border-caramel-400 focus:outline-none focus:ring-2 focus:ring-caramel-400/20 transition-colors resize-y min-h-[130px] max-h-[320px] overflow-y-auto"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-studio-500 mb-2">开始日期</label>
+                  <input
+                    type="date"
+                    value={editForm.start_date}
+                    onChange={(e) => setEditForm({ ...editForm, start_date: e.target.value })}
+                    className="w-full px-3 py-2 bg-studio-50 border border-studio-200 rounded-md text-sm text-ink-100 focus:bg-white focus:border-caramel-400 focus:outline-none focus:ring-2 focus:ring-caramel-400/20 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-studio-500 mb-2">截止日期</label>
+                  <input
+                    type="date"
+                    value={editForm.due_date}
+                    onChange={(e) => setEditForm({ ...editForm, due_date: e.target.value })}
+                    className="w-full px-3 py-2 bg-studio-50 border border-studio-200 rounded-md text-sm text-ink-100 focus:bg-white focus:border-caramel-400 focus:outline-none focus:ring-2 focus:ring-caramel-400/20 transition-colors"
+                  />
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-studio-500 mb-2">优先级</label>
                   <div className="grid grid-cols-3 gap-1.5">
@@ -451,10 +478,10 @@ export default function TaskKanban({ parentTask, onClose, onChanged }: TaskKanba
                         key={p}
                         type="button"
                         onClick={() => setEditForm({ ...editForm, priority: p })}
-                        className={`py-2 rounded-lg text-sm transition-colors ${
+                        className={`py-2 rounded-lg text-sm font-medium transition-all border ${
                           editForm.priority === p
-                            ? `bg-gradient-to-br ${priorityBgColors[p]} text-white`
-                            : 'bg-studio-100 text-studio-500'
+                            ? `${priorityChipColors[p]} border-transparent shadow-sm`
+                            : 'bg-studio-50 text-studio-500 border-studio-200 hover:bg-studio-100'
                         }`}
                       >
                         {p === 'low' ? '低' : p === 'medium' ? '中' : '高'}
@@ -462,28 +489,19 @@ export default function TaskKanban({ parentTask, onClose, onChanged }: TaskKanba
                     ))}
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-studio-500 mb-2">截止日期</label>
-                  <input
-                    type="date"
-                    value={editForm.due_date}
-                    onChange={(e) => setEditForm({ ...editForm, due_date: e.target.value })}
-                    className="input"
-                  />
-                </div>
               </div>
 
               <div className="flex gap-3 pt-1">
                 <button
                   onClick={() => setEditingTask(null)}
-                  className="flex-1 py-2.5 rounded-xl text-sm bg-studio-100 text-studio-600 hover:bg-studio-200 transition-colors"
+                  className="flex-1 py-2.5 rounded-md text-sm font-medium border border-studio-200 bg-white text-ink-100 hover:bg-studio-50 transition-colors"
                 >
                   取消
                 </button>
                 <button
                   onClick={saveEdit}
                   disabled={!editForm.title.trim()}
-                  className="flex-1 py-2.5 rounded-xl text-sm bg-gradient-to-r from-caramel-400 to-caramel-500 text-white hover:opacity-90 disabled:opacity-50 transition-all"
+                  className="flex-1 py-2.5 rounded-md text-sm font-medium bg-caramel-500 text-white hover:bg-caramel-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   保存修改
                 </button>
