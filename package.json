@@ -63,7 +63,8 @@
             "x64"
           ]
         }
-      ]
+      ],
+      "icon": "public/icon.png"
     },
     "mac": {
       "target": [
@@ -75,6 +76,7 @@
           ]
         }
       ],
+      "icon": "public/icon.png",
       "category": "public.app-category.productivity"
     },
     "linux": {
@@ -86,6 +88,7 @@
           ]
         }
       ],
+      "icon": "public/icon.png",
       "category": "Office"
     },
     "nsis": {
