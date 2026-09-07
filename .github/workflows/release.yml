@@ -42,6 +42,7 @@ jobs:
       # 但目前我们只在每台 runner 上构建对应平台，避免跨平台编译
       # package.json 已配置 "publish": null 阻止 electron-builder 自动调 GitHub API；
       # 发布由下方的 softprops/action-gh-release@v2 统一负责。
+      # shell: 在 Windows runner 上用 pwsh（默认 shell 不支持 bash-only 语法）
       - name: Build (Windows / macOS / Linux)
         env:
           # 跳过 macOS 公证（个人项目无 Apple Developer 证书；正式签名时移除）
@@ -49,17 +50,15 @@ jobs:
           # Windows 跳过代码签名（个人项目无证书；正式签名时设置 WIN_CSC_LINK）
           # 不显式传空值——electron-builder 默认就不会签名
         run: |
-          set +e
-          npm run electron:build 2>&1 | tee build.log
-          rc=${PIPESTATUS[0]}
-          set -e
-          if [ $rc -ne 0 ]; then
-            echo "===== electron-builder failed (exit $rc) ====="
-            echo "===== last 80 lines of build.log ====="
-            tail -80 build.log
-            echo "===== full log uploaded as artifact 'build.log' ====="
-            exit $rc
-          fi
+          npm run electron:build 2>&1 | Tee-Object -FilePath build.log
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "===== electron-builder failed (exit $LASTEXITCODE) ====="
+            Write-Host "===== last 80 lines of build.log ====="
+            Get-Content build.log -Tail 80
+            Write-Host "===== full log uploaded as artifact 'build.log' ====="
+            exit $LASTEXITCODE
+          }
+        shell: pwsh
 
       - name: Upload build.log on failure
         if: failure()
