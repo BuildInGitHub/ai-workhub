@@ -11,16 +11,29 @@
 
 ## 📥 下载 · Download
 
-**当前版本：v1.0.0** · 桌面端 · Apache-2.0 · 多平台
+**当前版本：v26.9.1**（CalVer：年.月.补丁） · 桌面端 · Apache-2.0 · 多平台
 
 | 平台 | 安装包 | 大小 | 最低要求 |
 |------|--------|------|----------|
-| 🪟 **Windows** | [AI WorkHub-Setup-1.0.0.exe](https://github.com/BuildInGitHub/ai-workhub/releases/latest) | ~80 MB | Windows 10+ |
-| 🍎 **macOS** | [AI WorkHub-1.0.0.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest) | ~90 MB | macOS 12+ |
-| 🐧 **Linux** | [AI WorkHub-1.0.0.AppImage](https://github.com/BuildInGitHub/ai-workhub/releases/latest) | ~85 MB | Ubuntu 22.04+ |
+| 🪟 **Windows** | [AI WorkHub-Setup-26.9.1.exe](https://github.com/BuildInGitHub/ai-workhub/releases/latest) | ~80 MB | Windows 10+ |
+| 🍎 **macOS** | [AI WorkHub-26.9.1.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest) | ~90 MB | macOS 12+ |
+| 🐧 **Linux** | [AI WorkHub-26.9.1.AppImage](https://github.com/BuildInGitHub/ai-workhub/releases/latest) | ~85 MB | Ubuntu 22.04+ |
 
 > 📦 GitHub Releases 自动构建三个平台安装包，下载即用、免 Node 环境。
 > 🛠 想自己构建？见下方"快速开始"。
+
+### 发布流程（开发者）
+
+```bash
+# 在 main 分支累积若干 commit 后：
+git tag -a v26.9.2 -m "feat: ...; fix: ..."
+git push origin v26.9.2
+
+# GitHub Actions 自动跑三平台构建，attach 到 GitHub Release（draft）
+# 手动 review → 点 "Publish release"
+```
+
+`.github/workflows/release.yml` 监听 `v*` tag 触发，**draft release + 自动 generate notes**。
 
 ### 🚀 5 分钟跑通
 
@@ -298,16 +311,29 @@ ai-workhub/
 
 ### 📥 Download
 
-**Current release: v1.0.0** · Desktop · Apache-2.0 · cross-platform
+**Current release: v26.9.1** (CalVer: year.month.patch) · Desktop · Apache-2.0 · cross-platform
 
 | Platform | Installer | Size | Requirements |
 |----------|-----------|------|--------------|
-| 🪟 **Windows** | [AI WorkHub-Setup-1.0.0.exe](https://github.com/BuildInGitHub/ai-workhub/releases/latest) | ~80 MB | Windows 10+ |
-| 🍎 **macOS** | [AI WorkHub-1.0.0.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest) | ~90 MB | macOS 12+ |
-| 🐧 **Linux** | [AI WorkHub-1.0.0.AppImage](https://github.com/BuildInGitHub/ai-workhub/releases/latest) | ~85 MB | Ubuntu 22.04+ |
+| 🪟 **Windows** | [AI WorkHub-Setup-26.9.1.exe](https://github.com/BuildInGitHub/ai-workhub/releases/latest) | ~80 MB | Windows 10+ |
+| 🍎 **macOS** | [AI WorkHub-26.9.1.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest) | ~90 MB | macOS 12+ |
+| 🐧 **Linux** | [AI WorkHub-26.9.1.AppImage](https://github.com/BuildInGitHub/ai-workhub/releases/latest) | ~85 MB | Ubuntu 22.04+ |
 
 > 📦 GitHub Releases auto-builds all three installers. No Node toolchain needed.
 > 🛠 Prefer to build from source? See "Quick Start" below.
+
+### Release flow (developers)
+
+```bash
+# After accumulating commits on main:
+git tag -a v26.9.2 -m "feat: ...; fix: ..."
+git push origin v26.9.2
+
+# GitHub Actions builds all three platforms and attaches them to a
+# draft Release with auto-generated notes; review and publish manually.
+```
+
+`.github/workflows/release.yml` listens for `v*` tags, builds the three platforms, creates a **draft** release with `generate_release_notes: true`.
 
 ### 🚀 5-minute setup
 

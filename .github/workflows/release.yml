@@ -1,0 +1,74 @@
+name: Release
+
+# 触发条件：推送 v* 格式的 tag（如 v26.9.1、v1.0.0）
+on:
+  push:
+    tags:
+      - 'v*'
+
+# 防止多个 release 并行触发
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # 三平台独立 build，失败一个不影响其他
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # better-sqlite3 是 native module，必须针对各平台重建
+      - name: Rebuild native modules
+        run: npm rebuild better-sqlite3
+
+      - name: Build (Windows / macOS / Linux)
+        run: npm run electron:build
+        env:
+          # electron-builder 通用环境变量
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 跳过 macOS 公证（个人项目无 Apple Developer 证书；注释下可正式签名时启用）
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          # Windows 跳过代码签名（个人项目无证书）
+          WIN_CSC_LINK: ''
+          WIN_CSC_KEY_PASSWORD: ''
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-workhub-${{ matrix.os }}
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.AppImage
+            release/*.zip
+          if-no-files-found: ignore
+
+      - name: Publish to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true              # 先 draft（手动检查再发布）
+          generate_release_notes: true   # 自动从 PR 标题分类
+          files: |
+            release/*.exe
+            release/*.dmg
+            release/*.AppImage
+            release/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
