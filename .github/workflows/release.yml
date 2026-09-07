@@ -41,7 +41,15 @@ jobs:
       # 三平台前置：Linux 需要 wine/dpkg 才能 build Windows + mac targets
       # 但目前我们只在每台 runner 上构建对应平台，避免跨平台编译
       - name: Build (Windows / macOS / Linux)
-        run: npm run electron:build
+        run: |
+          npm run electron:build 2>&1 | tee build.log
+          # 失败时打印 build log 末尾到 GitHub UI
+          rc=${PIPESTATUS[0]}
+          if [ $rc -ne 0 ]; then
+            echo "===== electron-builder failed (exit $rc), last 100 lines ====="
+            tail -100 build.log
+            exit $rc
+          fi
         env:
           # electron-builder 通用环境变量
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
