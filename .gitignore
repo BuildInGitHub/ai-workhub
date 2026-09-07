@@ -89,6 +89,7 @@ $RECYCLE.BIN/
 !package-lock.json
 !package.json
 !tsconfig.json
+!tsconfig.node.json
 !electron/marketplace-seed.json
 
 # -----------------------
