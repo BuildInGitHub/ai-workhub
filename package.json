@@ -103,6 +103,7 @@
     ],
     "asarUnpack": [
       "node_modules/better-sqlite3/**"
-    ]
+    ],
+    "publish": null
   }
 }
