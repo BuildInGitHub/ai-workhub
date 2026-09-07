@@ -9,6 +9,37 @@
 
 ---
 
+## 📥 下载 · Download
+
+**当前版本：v1.0.0** · 桌面端 · Apache-2.0 · 多平台
+
+| 平台 | 安装包 | 大小 | 最低要求 |
+|------|--------|------|----------|
+| 🪟 **Windows** | [AI WorkHub-Setup-1.0.0.exe](https://github.com/BuildInGitHub/ai-workhub/releases/latest) | ~80 MB | Windows 10+ |
+| 🍎 **macOS** | [AI WorkHub-1.0.0.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest) | ~90 MB | macOS 12+ |
+| 🐧 **Linux** | [AI WorkHub-1.0.0.AppImage](https://github.com/BuildInGitHub/ai-workhub/releases/latest) | ~85 MB | Ubuntu 22.04+ |
+
+> 📦 GitHub Releases 自动构建三个平台安装包，下载即用、免 Node 环境。
+> 🛠 想自己构建？见下方"快速开始"。
+
+### 🚀 5 分钟跑通
+
+```bash
+# 1. 下载安装包（或开发者用源码）
+git clone https://github.com/BuildInGitHub/ai-workhub.git
+cd ai-workhub && npm install
+
+# 2. 启动
+npm run dev          # 开发模式（HMR）
+npm run build        # 生产构建
+./start.bat          # 已构建版本（Windows）
+
+# 3. 打开应用 → 设置填 DeepSeek API Key → 切到 v2 引擎 → 装 server-everything
+# 4. AI 伙伴面板顶部状态条会显示 [mcp] 13 · [skills] N · [cli] N · [engine] v2 ▍ READY
+```
+
+---
+
 ## 中文
 
 ### 简介
@@ -264,6 +295,37 @@ ai-workhub/
 ---
 
 ## English
+
+### 📥 Download
+
+**Current release: v1.0.0** · Desktop · Apache-2.0 · cross-platform
+
+| Platform | Installer | Size | Requirements |
+|----------|-----------|------|--------------|
+| 🪟 **Windows** | [AI WorkHub-Setup-1.0.0.exe](https://github.com/BuildInGitHub/ai-workhub/releases/latest) | ~80 MB | Windows 10+ |
+| 🍎 **macOS** | [AI WorkHub-1.0.0.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest) | ~90 MB | macOS 12+ |
+| 🐧 **Linux** | [AI WorkHub-1.0.0.AppImage](https://github.com/BuildInGitHub/ai-workhub/releases/latest) | ~85 MB | Ubuntu 22.04+ |
+
+> 📦 GitHub Releases auto-builds all three installers. No Node toolchain needed.
+> 🛠 Prefer to build from source? See "Quick Start" below.
+
+### 🚀 5-minute setup
+
+```bash
+# 1. Grab a release (or clone the source)
+git clone https://github.com/BuildInGitHub/ai-workhub.git
+cd ai-workhub && npm install
+
+# 2. Run
+npm run dev          # dev mode with HMR
+npm run build        # production build
+./start.bat          # built version (Windows)
+
+# 3. Launch → Settings → paste DeepSeek API Key → switch to v2 → install server-everything
+# 4. Watch the top status bar light up: [mcp] 13 · [skills] N · [cli] N · [engine] v2 ▍ READY
+```
+
+---
 
 ### Introduction
 
