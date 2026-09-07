@@ -84,7 +84,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           draft: true              # 先 draft（手动检查再发布）
-          generate_release_notes: true   # 自动从 PR 标题分类
+          # generate_release_notes 调用的 /releases/generate-notes API 需要
+          # workflows:write 权限。默认 GITHUB_TOKEN 只有 contents:write，
+          # 会撞 403 "Resource not accessible by integration"。手动写 notes 即可。
+          generate_release_notes: false
+          # 留空 body——发布前在 GitHub UI 上手动填 release notes
           files: |
             release/*.exe
             release/*.dmg
