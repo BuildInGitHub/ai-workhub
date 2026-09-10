@@ -11,16 +11,10 @@
 
 ## 📥 下载 · Download
 
-**当前版本：v26.9.1**（CalVer：年.月.补丁） · 桌面端 · Apache-2.0 · 多平台
+桌面端 · Apache-2.0 · 多平台 · CalVer 版本号（年.月.补丁）
 
-| 平台 | 安装包 | 大小 | 最低要求 |
-|------|--------|------|----------|
-| 🪟 **Windows** | [AI WorkHub-Setup-26.9.1.exe](https://github.com/BuildInGitHub/ai-workhub/releases/latest) | ~80 MB | Windows 10+ |
-| 🍎 **macOS** | [AI WorkHub-26.9.1.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest) | ~90 MB | macOS 12+ |
-| 🐧 **Linux** | [AI WorkHub-26.9.1.AppImage](https://github.com/BuildInGitHub/ai-workhub/releases/latest) | ~85 MB | Ubuntu 22.04+ |
-
-> 📦 GitHub Releases 自动构建三个平台安装包，下载即用、免 Node 环境。
-> 🛠 想自己构建？见下方"快速开始"。
+> 📦 想自己构建？见下方"快速开始"。
+> 🛠 想发布新版本？见"发布流程（开发者）"。
 
 ### 发布流程（开发者）
 
@@ -38,7 +32,7 @@ git push origin v26.9.2
 ### 🚀 5 分钟跑通
 
 ```bash
-# 1. 下载安装包（或开发者用源码）
+# 1. 克隆源码
 git clone https://github.com/BuildInGitHub/ai-workhub.git
 cd ai-workhub && npm install
 
@@ -311,16 +305,10 @@ ai-workhub/
 
 ### 📥 Download
 
-**Current release: v26.9.1** (CalVer: year.month.patch) · Desktop · Apache-2.0 · cross-platform
+Desktop · Apache-2.0 · cross-platform · CalVer (year.month.patch)
 
-| Platform | Installer | Size | Requirements |
-|----------|-----------|------|--------------|
-| 🪟 **Windows** | [AI WorkHub-Setup-26.9.1.exe](https://github.com/BuildInGitHub/ai-workhub/releases/latest) | ~80 MB | Windows 10+ |
-| 🍎 **macOS** | [AI WorkHub-26.9.1.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest) | ~90 MB | macOS 12+ |
-| 🐧 **Linux** | [AI WorkHub-26.9.1.AppImage](https://github.com/BuildInGitHub/ai-workhub/releases/latest) | ~85 MB | Ubuntu 22.04+ |
-
-> 📦 GitHub Releases auto-builds all three installers. No Node toolchain needed.
-> 🛠 Prefer to build from source? See "Quick Start" below.
+> 🛠 Want to build from source? See "Quick Start" below.
+> 📦 Want to publish a release? See "Release flow (developers)" below.
 
 ### Release flow (developers)
 
@@ -338,7 +326,7 @@ git push origin v26.9.2
 ### 🚀 5-minute setup
 
 ```bash
-# 1. Grab a release (or clone the source)
+# 1. Clone the source
 git clone https://github.com/BuildInGitHub/ai-workhub.git
 cd ai-workhub && npm install
 
