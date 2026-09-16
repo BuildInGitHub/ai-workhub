@@ -177,6 +177,7 @@ jobs:
             -H "X-GitHub-Api-Version: 2022-11-28" \
             -H "Content-Type: application/json" \
             -d "${create_payload}" \
+            -D /tmp/create-headers.txt \
             "https://api.github.com/repos/${REPO}/releases")
 
           create_body=$(echo "${create_response}" | head -n -1)
@@ -186,8 +187,13 @@ jobs:
           if [ "${create_code}" != "201" ]; then
             echo "::error::Failed to create release (HTTP ${create_code})"
             echo "${create_body}"
+            echo "=== Response headers ==="
+            cat /tmp/create-headers.txt
             exit 1
           fi
+
+          echo "=== Create response headers ==="
+          cat /tmp/create-headers.txt
 
           upload_url=$(echo "${create_body}" | python -c "import json,sys; print(json.load(sys.stdin)['upload_url'])")
           release_id=$(echo "${create_body}" | python -c "import json,sys; print(json.load(sys.stdin)['id'])")
@@ -226,6 +232,9 @@ jobs:
             name=$(basename "${file}")
             echo ""
             echo "Uploading ${name} ..."
+            echo "  file path: ${file}"
+            echo "  file size: $(wc -c < "${file}") bytes"
+            echo "  upload URL: ${upload_url}?name=${name}"
 
             # curl --data-binary @file 上传文件本体
             upload_response=$(curl -sS -w "\n%{http_code}" \
@@ -235,12 +244,15 @@ jobs:
               -H "X-GitHub-Api-Version: 2022-11-28" \
               -H "Content-Type: application/octet-stream" \
               --data-binary "@${file}" \
+              -D /tmp/upload-headers.txt \
               "${upload_url}?name=${name}")
 
             upload_body=$(echo "${upload_response}" | head -n -1)
             upload_code=$(echo "${upload_response}" | tail -n 1)
 
             echo "  HTTP ${upload_code}"
+            echo "  Response headers:"
+            sed 's/^/    /' /tmp/upload-headers.txt
             if [ "${upload_code}" != "201" ]; then
               echo "::error::Failed to upload ${name} (HTTP ${upload_code})"
               echo "${upload_body}"
