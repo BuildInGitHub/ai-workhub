@@ -103,29 +103,43 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-
       - name: Download all installer artifacts
         uses: actions/download-artifact@v4
         with:
           path: dist
           # merge-multiple 让多个 build job 的 artifacts 解压到同一目录
+          # （每个 artifact 解压到 dist/installer-{os}/ 子目录）
           merge-multiple: true
 
-      - name: List downloaded artifacts
-        run: ls -laR dist/
+      # 显式列出所有文件——glob 错的时候日志一眼能看出问题
+      - name: List downloaded installers
+        run: |
+          echo "=== dist/ tree ==="
+          ls -laR dist/
+          echo "=== installers found ==="
+          find dist/ -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.zip' -o -name '*.deb' -o -name '*.rpm' \) -print
+          echo "=== count ==="
+          find dist/ -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.zip' -o -name '*.deb' -o -name '*.rpm' \) | wc -l
+
+      # 防御：如果一个 installer 都没下到，直接 fail 而不是静默空 release
+      - name: Verify installers exist
+        run: |
+          count=$(find dist/ -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.zip' -o -name '*.deb' -o -name '*.rpm' \) | wc -l)
+          if [ "$count" -eq 0 ]; then
+            echo "::error::No installer files found in downloaded artifacts"
+            exit 1
+          fi
+          echo "Found $count installer files"
 
       - name: Create release and attach installers
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_name }}
           draft: true
           # generate_release_notes 需要 workflows:write 权限，默认 GITHUB_TOKEN
           # 只有 contents:write，会撞 403。手动在 GitHub UI 写 notes。
           generate_release_notes: false
+          # softprops glob 用 POSIX 风格——** 匹配多级目录
           files: |
             dist/**/*.exe
             dist/**/*.dmg
