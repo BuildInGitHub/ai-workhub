@@ -230,11 +230,14 @@ jobs:
 
           for file in "${files[@]}"; do
             name=$(basename "${file}")
+            # GitHub uploads API 要求 ?name=<urlencoded filename>
+            # Windows 文件名常含空格，必须 urlencode
+            name_enc=$(python -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "${name}")
             echo ""
             echo "Uploading ${name} ..."
             echo "  file path: ${file}"
             echo "  file size: $(wc -c < "${file}") bytes"
-            echo "  upload URL: ${upload_url}?name=${name}"
+            echo "  upload URL: ${upload_url}?name=${name_enc}"
 
             # curl --data-binary @file 上传文件本体
             upload_response=$(curl -sS -w "\n%{http_code}" \
@@ -245,7 +248,9 @@ jobs:
               -H "Content-Type: application/octet-stream" \
               --data-binary "@${file}" \
               -D /tmp/upload-headers.txt \
-              "${upload_url}?name=${name}")
+              -G \
+              --data-urlencode "name=${name}" \
+              "${upload_url}")
 
             upload_body=$(echo "${upload_response}" | head -n -1)
             upload_code=$(echo "${upload_response}" | tail -n 1)
