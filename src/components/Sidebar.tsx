@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react'
-import { 
-  MessageSquare, 
-  ChevronLeft, 
-  ChevronRight, 
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import {
+  MessageSquare,
+  ChevronLeft,
+  ChevronRight,
   ChevronDown,
   ChevronUp,
-  Send, 
+  Send,
   Settings,
   Loader2,
   X,
@@ -44,73 +46,195 @@ import {
   PlayCircle,
   StopCircle,
   RefreshCw,
-  Eye
+  Eye,
+  Copy,
+  Check
 } from 'lucide-react'
 
-// 图标映射表
-const iconMap: Record<string, ReactNode> = {
-  '[Brain]': <Brain size={16} className="inline text-purple-500" />,
-  '[ListChecks]': <ListChecks size={16} className="inline text-blue-500" />,
-  '[Sparkles]': <Sparkles size={16} className="inline text-caramel-400" />,
-  '[CheckCircle]': <CheckCircle size={16} className="inline text-green-500" />,
-  '[AlertCircle]': <AlertCircle size={16} className="inline text-red-500" />,
-  '[FolderOpen]': <FolderOpen size={16} className="inline text-blue-400" />,
-  '[Folder]': <Folder size={16} className="inline text-yellow-500" />,
-  '[FileText]': <FileText size={16} className="inline text-gray-500" />,
-  '[Hash]': <Hash size={16} className="inline text-gray-400" />,
-  '[Lightbulb]': <Lightbulb size={16} className="inline text-yellow-400" />,
-  '[BarChart3]': <BarChart3 size={16} className="inline text-indigo-500" />,
-  '[Link2]': <Link2 size={16} className="inline text-blue-400" />,
-  '[Download]': <Download size={16} className="inline text-green-500" />,
-  '[Upload]': <Upload size={16} className="inline text-orange-500" />,
-  '[Image]': <Image size={16} className="inline text-pink-400" />,
-  '[Video]': <Video size={16} className="inline text-red-400" />,
-  '[Music]': <Music size={16} className="inline text-purple-400" />,
-  '[Archive]': <Archive size={16} className="inline text-gray-500" />,
-  '[AppWindow]': <AppWindow size={16} className="inline text-blue-500" />,
-  '[Zap]': <Zap size={16} className="inline text-yellow-500" />,
-  '[Star]': <Sparkles size={16} className="inline text-yellow-400" />,
+// 图标映射：key 是去掉方括号后的图标名，渲染时按需取
+type IconKey =
+  | 'Brain' | 'ListChecks' | 'Sparkles' | 'CheckCircle' | 'AlertCircle'
+  | 'FolderOpen' | 'Folder' | 'FileText' | 'Hash' | 'Lightbulb'
+  | 'BarChart3' | 'Link2' | 'Download' | 'Upload' | 'Image'
+  | 'Video' | 'Music' | 'Archive' | 'AppWindow' | 'Zap' | 'Star'
+
+// 用 NUL 字符包起来的 sentinel——markdown 解析时永远不触碰
+const ICON_SENTINEL_PREFIX = '\u0000ICON:'
+const ICON_SENTINEL_SUFFIX = '\u0000'
+
+function renderIconByKey(key: string): ReactNode {
+  const cls = 'inline align-text-bottom mx-0.5'
+  switch (key as IconKey) {
+    case 'Brain':       return <Brain size={14} className={`${cls} text-purple-500`} />
+    case 'ListChecks':  return <ListChecks size={14} className={`${cls} text-blue-500`} />
+    case 'Sparkles':    return <Sparkles size={14} className={`${cls} text-caramel-400`} />
+    case 'CheckCircle': return <CheckCircle size={14} className={`${cls} text-green-500`} />
+    case 'AlertCircle': return <AlertCircle size={14} className={`${cls} text-red-500`} />
+    case 'FolderOpen':  return <FolderOpen size={14} className={`${cls} text-blue-400`} />
+    case 'Folder':      return <Folder size={14} className={`${cls} text-yellow-500`} />
+    case 'FileText':    return <FileText size={14} className={`${cls} text-gray-500`} />
+    case 'Hash':        return <Hash size={14} className={`${cls} text-gray-400`} />
+    case 'Lightbulb':   return <Lightbulb size={14} className={`${cls} text-yellow-400`} />
+    case 'BarChart3':   return <BarChart3 size={14} className={`${cls} text-indigo-500`} />
+    case 'Link2':       return <Link2 size={14} className={`${cls} text-blue-400`} />
+    case 'Download':    return <Download size={14} className={`${cls} text-green-500`} />
+    case 'Upload':      return <Upload size={14} className={`${cls} text-orange-500`} />
+    case 'Image':       return <Image size={14} className={`${cls} text-pink-400`} />
+    case 'Video':       return <Video size={14} className={`${cls} text-red-400`} />
+    case 'Music':       return <Music size={14} className={`${cls} text-purple-400`} />
+    case 'Archive':     return <Archive size={14} className={`${cls} text-gray-500`} />
+    case 'AppWindow':   return <AppWindow size={14} className={`${cls} text-blue-500`} />
+    case 'Zap':         return <Zap size={14} className={`${cls} text-yellow-500`} />
+    case 'Star':        return <Sparkles size={14} className={`${cls} text-yellow-400`} />
+    default:            return null
+  }
 }
 
-// 解析消息内容，将 [IconName] 转换为图标组件
-function parseMessageContent(content: string): ReactNode[] {
+// 把 [IconName] 替换成 sentinel。多次出现的同一个 token 都能保留。
+function preprocessIcons(content: string): string {
+  return content.replace(/\[(Brain|ListChecks|Sparkles|CheckCircle|AlertCircle|FolderOpen|Folder|FileText|Hash|Lightbulb|BarChart3|Link2|Download|Upload|Image|Video|Music|Archive|AppWindow|Zap|Star)\]/g,
+    (_, key) => `${ICON_SENTINEL_PREFIX}${key}${ICON_SENTINEL_SUFFIX}`)
+}
+
+// 扫描一段纯文本里的图标标记，返回 React 节点数组（图标 + 文本交替）
+function splitIconsInText(text: string): ReactNode[] {
+  if (!text.includes(ICON_SENTINEL_PREFIX)) return [text]
   const parts: ReactNode[] = []
-  const regex = /\[(Brain|ListChecks|Sparkles|CheckCircle|AlertCircle|FolderOpen|Folder|FileText|Hash|Lightbulb|BarChart3|Link2|Download|Upload|Image|Video|Music|Archive|AppWindow|Zap|Star)\]/g
-  
-  let lastIndex = 0
-  let match
-  
-  while ((match = regex.exec(content)) !== null) {
-    // 添加匹配前的文本
-    if (match.index > lastIndex) {
-      parts.push(content.slice(lastIndex, match.index))
-    }
-    
-    const iconKey = match[0]
-    const icon = iconMap[iconKey]
-    if (icon) {
-      parts.push(icon)
-    } else {
-      parts.push(match[0])
-    }
-    
-    lastIndex = match.index + match[0].length
+  const re = /\u0000ICON:([A-Za-z]+)\u0000/g
+  let last = 0
+  let m: RegExpExecArray | null
+  let key = 0
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) parts.push(text.slice(last, m.index))
+    const icon = renderIconByKey(m[1])
+    parts.push(icon ?? m[0])
+    last = m.index + m[0].length
+    key++
   }
-  
-  // 添加剩余文本
-  if (lastIndex < content.length) {
-    parts.push(content.slice(lastIndex))
-  }
-  
-  return parts.length > 0 ? parts : [content]
+  if (last < text.length) parts.push(text.slice(last))
+  return parts
 }
 
-// 生成折叠时的摘要：去掉图标标记，取第一行前 40 字
+// 生成折叠时的摘要：去掉图标标记 + markdown 噪音，取第一行前 40 字
 function getMessageSummary(content: string): string {
-  const clean = content.replace(/\[[A-Za-z0-9]+\]/g, '').replace(/\s+/g, ' ').trim()
+  const clean = content
+    .replace(/\[[A-Za-z0-9]+\]/g, '')         // [Brain] → ''
+    .replace(/`{1,3}[^`]*`{1,3}/g, '')         // inline / block code
+    .replace(/^#+\s+/gm, '')                   // heading markers
+    .replace(/[*_]{1,3}([^*_]+)[*_]{1,3}/g, '$1')  // bold/italic
+    .replace(/\[(.+?)\]\(.+?\)/g, '$1')        // [text](url) → text
+    .replace(/\s+/g, ' ')
+    .trim()
   const firstLine = clean.split('\n').find(l => l.trim()) || ''
   return firstLine.length > 40 ? firstLine.slice(0, 40) + '…' : firstLine
 }
+
+// 复制按钮（小工具，复用在代码块上）
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation()
+        navigator.clipboard.writeText(text).then(() => {
+          setCopied(true)
+          setTimeout(() => setCopied(false), 1500)
+        })
+      }}
+      className="absolute top-1.5 right-1.5 p-1 rounded bg-dark-200/80 hover:bg-dark-300 text-dark-500 hover:text-dark-900 transition-colors"
+      title="复制"
+    >
+      {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
+    </button>
+  )
+}
+
+// Markdown 消息渲染：先做 [IconName]→sentinel 预处理，再用 react-markdown
+// 自定义 components 让代码块、标题、链接等贴合深色面板
+function MarkdownMessage({ content, className = '' }: { content: string; className?: string }) {
+  const preprocessed = preprocessIcons(content)
+  return (
+    <div className={`markdown-body text-sm leading-relaxed break-words ${className}`}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          // 把图标 sentinel 在 text 节点里 split 成 React 节点
+          text({ children }) {
+            if (typeof children !== 'string') return <>{children}</>
+            return <>{splitIconsInText(children)}</>
+          },
+          h1: ({ children }) => <h1 className="text-base font-semibold text-dark-900 mt-3 mb-1.5 pb-1 border-b border-dark-200">{children}</h1>,
+          h2: ({ children }) => <h2 className="text-sm font-semibold text-dark-900 mt-3 mb-1">{children}</h2>,
+          h3: ({ children }) => <h3 className="text-sm font-semibold text-dark-800 mt-2 mb-1">{children}</h3>,
+          h4: ({ children }) => <h4 className="text-sm font-medium text-dark-800 mt-2 mb-0.5">{children}</h4>,
+          p: ({ children }) => <p className="my-1.5">{children}</p>,
+          ul: ({ children }) => <ul className="my-1.5 ml-5 list-disc space-y-0.5 marker:text-dark-400">{children}</ul>,
+          ol: ({ children }) => <ol className="my-1.5 ml-5 list-decimal space-y-0.5 marker:text-dark-400">{children}</ol>,
+          li: ({ children }) => <li className="pl-1">{children}</li>,
+          blockquote: ({ children }) => (
+            <blockquote className="my-2 pl-3 border-l-2 border-orange-400/60 text-dark-700 italic bg-dark-100/50 py-1 pr-2 rounded-r">
+              {children}
+            </blockquote>
+          ),
+          hr: () => <hr className="my-3 border-dark-200" />,
+          a: ({ href, children }) => (
+            <a href={href} target="_blank" rel="noopener noreferrer"
+               className="text-orange-500 hover:text-orange-600 underline underline-offset-2">
+              {children}
+            </a>
+          ),
+          code({ className: cls, children, ...props }) {
+            const isBlock = (props as any).node?.tagName === 'code' && /language-/.test(cls || '')
+            // react-markdown 10: inline code → 无 language；block code → 有 language（包在 <pre> 里）
+            const text = String(children ?? '').replace(/\n$/, '')
+            if (cls && /language-/.test(cls)) {
+              return <CodeBlock language={cls.replace('language-', '')} code={text} />
+            }
+            return (
+              <code className="px-1.5 py-0.5 mx-0.5 rounded bg-dark-200 text-orange-400 font-mono text-[12px] before:content-none after:content-none">
+                {children}
+              </code>
+            )
+          },
+          pre: ({ children }) => <>{children}</>,  // 已在 code 里处理，避免双层
+          table: ({ children }) => (
+            <div className="my-2 overflow-x-auto">
+              <table className="border-collapse text-xs">{children}</table>
+            </div>
+          ),
+          thead: ({ children }) => <thead className="bg-dark-100">{children}</thead>,
+          th: ({ children }) => <th className="border border-dark-200 px-2 py-1 text-left font-medium">{children}</th>,
+          td: ({ children }) => <td className="border border-dark-200 px-2 py-1">{children}</td>,
+          input: (props) => {
+            // GFM task list 复选框
+            if ((props as any).type === 'checkbox') {
+              return <input {...props} disabled className="mr-1 accent-orange-500" />
+            }
+            return <input {...props} />
+          },
+        }}
+      >
+        {preprocessed}
+      </ReactMarkdown>
+    </div>
+  )
+}
+
+// 代码块组件：黑底 + monospace + Copy 按钮
+function CodeBlock({ language, code }: { language: string; code: string }) {
+  return (
+    <div className="relative my-2 rounded-md bg-dark border border-dark-200 overflow-hidden">
+      <div className="flex items-center justify-between px-2 py-1 bg-dark-100 border-b border-dark-200">
+        <span className="text-[10px] font-mono uppercase tracking-wider text-dark-500">{language || 'code'}</span>
+        <CopyButton text={code} />
+      </div>
+      <pre className="px-3 py-2 overflow-x-auto text-[12px] leading-relaxed">
+        <code className="font-mono text-dark-900">{code}</code>
+      </pre>
+    </div>
+  )
+}
+
 import type { ChatMessage, Tab } from '../types'
 import MarketplaceModal from './MarketplaceModal'
 import ExtensionStatusBar from './ExtensionStatusBar'
@@ -546,7 +670,7 @@ export default function Sidebar({
                 >
                   {msg.role === 'user' ? (
                     <div className="max-w-[85%] p-3 rounded-md bg-orange-500/10 border border-orange-500/30 text-orange-100">
-                      <p className="text-xs font-mono whitespace-pre-wrap break-all leading-relaxed">{msg.content}</p>
+                      <MarkdownMessage content={msg.content} className="[&_a]:text-orange-300 [&_code]:bg-orange-500/20 [&_code]:text-orange-200 [&_strong]:text-orange-200 [&_h1]:text-orange-200 [&_h2]:text-orange-200 [&_h3]:text-orange-200 [&_blockquote]:border-orange-400 [&_blockquote]:bg-orange-500/10" />
                     </div>
                   ) : (
                     // AI 消息：可折叠/展开，默认折叠（终端风格）
@@ -575,7 +699,7 @@ export default function Sidebar({
                       </button>
                       {!collapsedIds.has(msg.id) && (
                         <div className="px-3 py-2.5 text-dark-900 overflow-hidden bg-dark-50">
-                          <p className="text-sm whitespace-pre-wrap break-all leading-relaxed">{parseMessageContent(msg.content)}</p>
+                          <MarkdownMessage content={msg.content} />
                           {/* 工具调用明细（v2 引擎，arguments / stdout 折叠展开 — 终端风格） */}
                           {msg.tool_calls && msg.tool_calls.length > 0 && (
                             <div className="mt-3 space-y-1">
