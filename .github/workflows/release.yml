@@ -114,12 +114,23 @@ jobs:
       # 显式列出所有文件——glob 错的时候日志一眼能看出问题
       - name: List downloaded installers
         run: |
-          echo "=== dist/ tree ==="
-          ls -laR dist/
-          echo "=== installers found ==="
-          find dist/ -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.zip' -o -name '*.deb' -o -name '*.rpm' \) -print
+          echo "=== current working dir ==="
+          pwd
+          echo ""
+          echo "=== top-level dist/ contents ==="
+          ls -la dist/ 2>&1 || echo "(no dist/ directory at all)"
+          echo ""
+          echo "=== full recursive tree of dist/ ==="
+          find dist/ -mindepth 1 2>&1 | head -50 || echo "(find returned nothing)"
+          echo ""
+          echo "=== everything in current dir ==="
+          ls -la
+          echo ""
+          echo "=== installers found via find ==="
+          find dist/ -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.zip' -o -name '*.deb' -o -name '*.rpm' \) -print 2>&1 || true
+          echo ""
           echo "=== count ==="
-          find dist/ -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.zip' -o -name '*.deb' -o -name '*.rpm' \) | wc -l
+          find dist/ -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.zip' -o -name '*.deb' -o -name '*.rpm' \) 2>/dev/null | wc -l
 
       # 防御：如果一个 installer 都没下到，直接 fail 而不是静默空 release
       - name: Verify installers exist
@@ -186,19 +197,21 @@ jobs:
 
           echo ""
           echo "=== Step 2: Upload installers ==="
-          shopt -s nullglob
-          files=(
-            dist/**/*.exe
-            dist/**/*.dmg
-            dist/**/*.AppImage
-            dist/**/*.zip
-            dist/**/*.deb
-            dist/**/*.rpm
-          )
-          shopt -u nullglob
+          # 用 find 而不是 glob——merge-multiple 后路径可能嵌套在任意子目录里，
+          # glob `dist/**/*.exe` 在某些 bash 版本下行为不一致
+          mapfile -t files < <(find dist/ -type f \( \
+            -name '*.exe' -o \
+            -name '*.dmg' -o \
+            -name '*.AppImage' -o \
+            -name '*.zip' -o \
+            -name '*.deb' -o \
+            -name '*.rpm' \
+            \) 2>/dev/null | sort)
 
           if [ ${#files[@]} -eq 0 ]; then
             echo "::error::No installer files found under dist/"
+            echo "Full dist/ tree:"
+            find dist/ -mindepth 1 2>&1 | head -30
             exit 1
           fi
 
