@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import rehypeRaw from 'rehype-raw'
 import {
   MessageSquare,
   ChevronLeft,
@@ -58,10 +59,9 @@ type IconKey =
   | 'BarChart3' | 'Link2' | 'Download' | 'Upload' | 'Image'
   | 'Video' | 'Music' | 'Archive' | 'AppWindow' | 'Zap' | 'Star'
 
-// 用 NUL 字符包起来的 sentinel——markdown 解析时永远不触碰
-const ICON_SENTINEL_PREFIX = '\u0000ICON:'
-const ICON_SENTINEL_SUFFIX = '\u0000'
-
+// 把 [IconName] 替换成 HTML <i data-icon="X"> 占位符
+// rehype-raw 让 HTML 透传到 DOM；components.i 拦截并渲染 lucide 图标。
+// 这绕开了 react-markdown 的 'text' hook（v10 里不可靠）
 function renderIconByKey(key: string): ReactNode {
   const cls = 'inline align-text-bottom mx-0.5'
   switch (key as IconKey) {
@@ -90,29 +90,13 @@ function renderIconByKey(key: string): ReactNode {
   }
 }
 
-// 把 [IconName] 替换成 sentinel。多次出现的同一个 token 都能保留。
+// 把 [Brain] 转成 HTML <i data-icon="Brain" class="ai-icon"></i>
+// rehype-raw 看到这是 raw HTML，会原样交给 components.i 渲染
 function preprocessIcons(content: string): string {
-  return content.replace(/\[(Brain|ListChecks|Sparkles|CheckCircle|AlertCircle|FolderOpen|Folder|FileText|Hash|Lightbulb|BarChart3|Link2|Download|Upload|Image|Video|Music|Archive|AppWindow|Zap|Star)\]/g,
-    (_, key) => `${ICON_SENTINEL_PREFIX}${key}${ICON_SENTINEL_SUFFIX}`)
-}
-
-// 扫描一段纯文本里的图标标记，返回 React 节点数组（图标 + 文本交替）
-function splitIconsInText(text: string): ReactNode[] {
-  if (!text.includes(ICON_SENTINEL_PREFIX)) return [text]
-  const parts: ReactNode[] = []
-  const re = /\u0000ICON:([A-Za-z]+)\u0000/g
-  let last = 0
-  let m: RegExpExecArray | null
-  let key = 0
-  while ((m = re.exec(text)) !== null) {
-    if (m.index > last) parts.push(text.slice(last, m.index))
-    const icon = renderIconByKey(m[1])
-    parts.push(icon ?? m[0])
-    last = m.index + m[0].length
-    key++
-  }
-  if (last < text.length) parts.push(text.slice(last))
-  return parts
+  return content.replace(
+    /\[(Brain|ListChecks|Sparkles|CheckCircle|AlertCircle|FolderOpen|Folder|FileText|Hash|Lightbulb|BarChart3|Link2|Download|Upload|Image|Video|Music|Archive|AppWindow|Zap|Star)\]/g,
+    (_, key) => `<i data-icon="${key}" class="ai-icon"></i>`,
+  )
 }
 
 // 生成折叠时的摘要：去掉图标标记 + markdown 噪音，取第一行前 40 字
@@ -157,11 +141,17 @@ function MarkdownMessage({ content, className = '' }: { content: string; classNa
     <div className={`markdown-body text-sm leading-relaxed break-words ${className}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw]}
         components={{
-          // 把图标 sentinel 在 text 节点里 split 成 React 节点
-          text({ children }) {
-            if (typeof children !== 'string') return <>{children}</>
-            return <>{splitIconsInText(children)}</>
+          // 拦截 <i data-icon="Brain"> → 渲染 lucide 图标
+          i(props: any) {
+            const { className, children, node: _node, ...rest } = props
+            const dataIcon = (props as Record<string, unknown>)['data-icon']
+            if (className && String(className).includes('ai-icon') && dataIcon) {
+              return <>{renderIconByKey(String(dataIcon)) ?? <i className={String(className)} {...rest}>{children}</i>}</>
+            }
+            // 普通 <i>：保留 italic 语义
+            return <i className={String(className ?? '')} {...rest}>{children}</i>
           },
           h1: ({ children }) => <h1 className="text-base font-semibold text-dark-900 mt-3 mb-1.5 pb-1 border-b border-dark-200">{children}</h1>,
           h2: ({ children }) => <h2 className="text-sm font-semibold text-dark-900 mt-3 mb-1">{children}</h2>,
