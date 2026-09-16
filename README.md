@@ -13,6 +13,14 @@
 
 桌面端 · Apache-2.0 · 多平台 · CalVer 版本号（年.月.补丁）
 
+**👉 全部安装包在 [GitHub Releases](https://github.com/BuildInGitHub/ai-workhub/releases) 页（点 Assets 区展开，每个 release 都有 .exe / .dmg / .AppImage）**
+
+| 平台 | 安装包格式 | 系统要求 |
+|------|-----------|----------|
+| 🪟 **Windows** | NSIS `.exe` 安装器（自动加桌面快捷方式、可选安装路径） | Windows 10+ |
+| 🍎 **macOS** | DMG 磁盘映像（含 x64 + arm64） | macOS 12+ |
+| 🐧 **Linux** | AppImage（免安装，双击即可运行） | Ubuntu 22.04+ 或同内核版本 |
+
 > 📦 想自己构建？见下方"快速开始"。
 > 🛠 想发布新版本？见"发布流程（开发者）"。
 
@@ -20,14 +28,15 @@
 
 ```bash
 # 在 main 分支累积若干 commit 后：
-git tag -a v26.9.2 -m "feat: ...; fix: ..."
-git push origin v26.9.2
+git tag -a v26.9.9 -m "feat: ...; fix: ..."
+git push origin v26.9.9
 
-# GitHub Actions 自动跑三平台构建，attach 到 GitHub Release（draft）
+# GitHub Actions 自动跑三平台构建（windows-latest / macos-latest / ubuntu-latest）
+# 合并产物 → attach 到 GitHub Release（draft）
 # 手动 review → 点 "Publish release"
 ```
 
-`.github/workflows/release.yml` 监听 `v*` tag 触发，**draft release + 自动 generate notes**。
+`.github/workflows/release.yml` 监听 `v*` tag 触发，**draft release + 三平台产物合并上传**。
 
 ### 🚀 5 分钟跑通
 

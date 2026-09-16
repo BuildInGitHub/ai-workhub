@@ -1,6 +1,6 @@
 name: Release
 
-# 触发条件：推送 v* 格式的 tag（如 v26.9.1、v1.0.0）
+# 触发条件：推送 v* 格式的 tag（如 v26.9.9、v1.0.0）
 on:
   push:
     tags:
@@ -16,11 +16,14 @@ permissions:
   contents: write
 
 jobs:
+  # ---- 阶段 1：每个平台独立 build，仅上传到 actions artifacts ----
+  # 注意：不在这里调 softprops/action-gh-release —— 多个 job 并发调它
+  # 会撞竞态（release 创建竞争、文件 attach 不上）。
+  # 所有 attach 由下面唯一的 publish job 一次性完成。
   build:
     name: Build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
-      # 三平台独立 build，失败一个不影响其他
       fail-fast: false
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
@@ -39,8 +42,8 @@ jobs:
         run: npm ci
 
       # 生成多尺寸 PNG 到 build/icons/ —— electron-builder 会自动从中
-      # 生成 macOS .icns 和 Windows .ico。如果 public/icon.png 缺 512x512
-      # 大小，macOS 会报 'image must be at least 512x512'。
+      # 生成 macOS .icns 和 Windows .ico。public/icon.png 必须是 512x512+，
+      # 否则 macOS 会报 'image must be at least 512x512'。
       - name: Generate icons
         run: npm run icons
 
@@ -48,17 +51,14 @@ jobs:
       - name: Rebuild native modules
         run: npm rebuild better-sqlite3
 
-      # 三平台前置：Linux 需要 wine/dpkg 才能 build Windows + mac targets
-      # 但目前我们只在每台 runner 上构建对应平台，避免跨平台编译
-      # package.json 已配置 "publish": null 阻止 electron-builder 自动调 GitHub API；
-      # 发布由下方的 softprops/action-gh-release@v2 统一负责。
-      # shell: 在 Windows runner 上用 pwsh（默认 shell 不支持 bash-only 语法）
+      # 三平台前置：每台 runner 只构建对应平台，避免跨平台编译依赖
+      # package.json 已配置 "publish": null 阻止 electron-builder 自动调
+      # GitHub API 发布；上传由 publish job 统一负责。
+      # shell: pwsh 让 Windows / macOS / Linux 都用同一脚本（bash-only 语法在
+      # Windows pwsh 下会 ParserError）。
       - name: Build (Windows / macOS / Linux)
         env:
-          # 跳过 macOS 公证（个人项目无 Apple Developer 证书；正式签名时移除）
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-          # Windows 跳过代码签名（个人项目无证书；正式签名时设置 WIN_CSC_LINK）
-          # 不显式传空值——electron-builder 默认就不会签名
         run: |
           npm run electron:build 2>&1 | Tee-Object -FilePath build.log
           if ($LASTEXITCODE -ne 0) {
@@ -79,30 +79,59 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-      - name: Upload artifacts
+      - name: Upload installer artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ai-workhub-${{ matrix.os }}
+          name: installer-${{ matrix.os }}
           path: |
             release/*.exe
             release/*.dmg
             release/*.AppImage
             release/*.zip
+            release/*.deb
+            release/*.rpm
           if-no-files-found: ignore
+          retention-days: 30
 
-      - name: Publish to GitHub Release
+  # ---- 阶段 2：所有平台 build 完成后，单 job 合并产物并发布 release ----
+  publish:
+    name: Publish to GitHub Release
+    runs-on: ubuntu-latest
+    needs: build   # 等所有 3 个 build job 全部 success
+    if: success()  # 任何 build 失败就跳过 publish
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Download all installer artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          # merge-multiple 让多个 build job 的 artifacts 解压到同一目录
+          merge-multiple: true
+
+      - name: List downloaded artifacts
+        run: ls -laR dist/
+
+      - name: Create release and attach installers
         uses: softprops/action-gh-release@v2
         with:
-          draft: true              # 先 draft（手动检查再发布）
-          # generate_release_notes 调用的 /releases/generate-notes API 需要
-          # workflows:write 权限。默认 GITHUB_TOKEN 只有 contents:write，
-          # 会撞 403 "Resource not accessible by integration"。手动写 notes 即可。
+          draft: true
+          # generate_release_notes 需要 workflows:write 权限，默认 GITHUB_TOKEN
+          # 只有 contents:write，会撞 403。手动在 GitHub UI 写 notes。
           generate_release_notes: false
-          # 留空 body——发布前在 GitHub UI 上手动填 release notes
           files: |
-            release/*.exe
-            release/*.dmg
-            release/*.AppImage
-            release/*.zip
+            dist/**/*.exe
+            dist/**/*.dmg
+            dist/**/*.AppImage
+            dist/**/*.zip
+            dist/**/*.deb
+            dist/**/*.rpm
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
