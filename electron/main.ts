@@ -172,6 +172,20 @@ function createWindow() {
     mainWindow?.show()
   })
 
+  // 兜底：5 秒后 ready-to-show 还没触发就强制 show()。
+  // macOS 上某些 GPU 配置下 ready-to-show 不触发，会导致"只看到 dock 图标"
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isVisible()) {
+      mainWindow.show()
+    }
+  }, 5000)
+
+  // 加载页面完成后再 show 一次（即便 ready-to-show 错过也不会一直隐藏）
+  mainWindow.webContents.once('did-finish-load', () => {
+    mainWindow?.show()
+    mainWindow?.focus()
+  })
+
   // 加载页面
   if (VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(VITE_DEV_SERVER_URL)
@@ -341,6 +355,10 @@ app.whenReady().then(async () => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
+    } else if (mainWindow) {
+      // macOS：点击 dock 图标时如果窗口被 hide，恢复显示
+      if (!mainWindow.isVisible()) mainWindow.show()
+      mainWindow.focus()
     }
   })
 }).catch((error) => {
