@@ -230,8 +230,8 @@ jobs:
 
           for file in "${files[@]}"; do
             name=$(basename "${file}")
-            # GitHub uploads API 要求 ?name=<urlencoded filename>
-            # Windows 文件名常含空格，必须 urlencode
+            # GitHub uploads API 要求 ?name=<urlencoded filename>，但
+            # curl 的 -G 会把 POST 改成 GET。改用 python pre-encode 再拼接。
             name_enc=$(python -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "${name}")
             echo ""
             echo "Uploading ${name} ..."
@@ -248,9 +248,7 @@ jobs:
               -H "Content-Type: application/octet-stream" \
               --data-binary "@${file}" \
               -D /tmp/upload-headers.txt \
-              -G \
-              --data-urlencode "name=${name}" \
-              "${upload_url}")
+              "${upload_url}?name=${name_enc}")
 
             upload_body=$(echo "${upload_response}" | head -n -1)
             upload_code=$(echo "${upload_response}" | tail -n 1)
