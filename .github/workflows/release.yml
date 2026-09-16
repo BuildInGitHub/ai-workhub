@@ -11,6 +11,10 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
+# GITHUB_TOKEN 默认是 read-only，必须显式声明才能 push release artifacts
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build (${{ matrix.os }})
