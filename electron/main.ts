@@ -163,24 +163,28 @@ function createWindow() {
       sandbox: false,
     },
     frame: true,
-    show: false,
+    // 不再 show:false —— macOS 上 ready-to-show 偶尔不触发会导致
+    // 窗口永远不可见（v26.9.20/21 实际就是这样）。直接默认 show:true，
+    // 让 Electron 自己处理首次显示。
+    show: true,
     backgroundColor: '#1e1e2e',
   })
 
-  // 窗口准备好后显示
+  // ready-to-show 仍然订阅（用于聚焦 + devtools）
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show()
+    mainWindow?.focus()
   })
 
-  // 兜底：5 秒后 ready-to-show 还没触发就强制 show()。
-  // macOS 上某些 GPU 配置下 ready-to-show 不触发，会导致"只看到 dock 图标"
+  // 兜底：3 秒后不论 ready-to-show 触没触发都强制聚焦一次
   setTimeout(() => {
-    if (mainWindow && !mainWindow.isVisible()) {
+    if (mainWindow) {
       mainWindow.show()
+      mainWindow.focus()
     }
-  }, 5000)
+  }, 3000)
 
-  // 加载页面完成后再 show 一次（即便 ready-to-show 错过也不会一直隐藏）
+  // 渲染层加载完后再次 show（防止 ready-to-show 错过后窗口被其他代码 hide）
   mainWindow.webContents.once('did-finish-load', () => {
     mainWindow?.show()
     mainWindow?.focus()
