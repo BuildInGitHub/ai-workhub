@@ -22,9 +22,27 @@
 | 🍎 **macOS** (12+, arm64) | [⬇ AI-WorkHub-1.0.0-arm64.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0-arm64.dmg) |
 | 🐧 **Linux** (Ubuntu 22.04+, x64) | [⬇ AI-WorkHub-1.0.0.AppImage](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0.AppImage) |
 
+> ⚠️ **代码签名状态**：Windows 与 macOS 安装包**当前未签名**。macOS 用户首次双击 .app 可能"没反应"——这是 Gatekeeper 拦截，详见下方"⚠️ macOS 首次启动"。
 > 📦 [查看所有历史版本与 SHA256 →](https://github.com/BuildInGitHub/ai-workhub/releases)
 > 📦 想自己构建？见下方"快速开始"。
 > 🛠 想发布新版本？见"发布流程（开发者）"。
+
+### ⚠️ macOS 首次启动（Gatekeeper 拦截）
+
+因为 .app 未通过 Apple Developer ID 签名 + 未 notarize，macOS Gatekeeper 会**静默阻止运行**（双击 .app 没反应）。三种解决方法，**任选其一**：
+
+**1. 右键打开**（最简单，一次操作）：
+   Finder 找到 `AI WorkHub.app` → 右键 → "打开" → 弹出确认框 → 点 "打开"。
+
+**2. 清除隔离属性**（Terminal 一次性命令）：
+   ```bash
+   xattr -cr "/Applications/AI WorkHub.app"
+   ```
+
+**3. 系统设置永久放行**：
+   系统设置 → 隐私与安全 → 找到 "AI WorkHub" 被阻止的提示 → 点 "仍要打开"。
+
+> 💡 长期方案：购买 Apple Developer Program（$99/年）后给 .app 签名 + Apple 公证——启动时**无任何拦截**。详细步骤见 [`RELEASE_NOTES.md`](./RELEASE_NOTES.md)。
 
 ### 发布流程（开发者）
 
@@ -327,8 +345,26 @@ Every link points to `releases/latest/download/{filename}` — GitHub automatica
 | 🍎 **macOS** (12+, arm64) | [⬇ AI-WorkHub-1.0.0-arm64.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0-arm64.dmg) |
 | 🐧 **Linux** (Ubuntu 22.04+, x64) | [⬇ AI-WorkHub-1.0.0.AppImage](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0.AppImage) |
 
+> ⚠️ **Code signing**: Windows and macOS installers are **currently unsigned**. macOS users may see the .app "do nothing" on first launch — Gatekeeper silently blocks. See "⚠️ macOS first launch" below.
 > 📦 [View all releases + SHA256 →](https://github.com/BuildInGitHub/ai-workhub/releases)
 > 🛠 Want to build from source? See "Quick Start" below.
+
+### ⚠️ macOS first launch (Gatekeeper)
+
+The .app is not signed with an Apple Developer ID and not notarized, so macOS Gatekeeper **silently blocks** the first launch (double-clicking the .app does nothing). Three ways around it — pick one:
+
+**1. Right-click open** (one-time, simplest):
+   In Finder, find `AI WorkHub.app` → right-click → "Open" → click "Open" in the confirmation dialog.
+
+**2. Strip quarantine attribute** (one Terminal command):
+   ```bash
+   xattr -cr "/Applications/AI WorkHub.app"
+   ```
+
+**3. Permanently allow via System Settings**:
+   System Settings → Privacy & Security → scroll to find the "AI WorkHub was blocked" notice → click "Open Anyway".
+
+> 💡 Long-term fix: enroll in the Apple Developer Program ($99/year) to sign + notarize the .app — zero friction for users. See [`RELEASE_NOTES.md`](./RELEASE_NOTES.md) for details.
 > 📦 Want to publish a release? See "Release flow (developers)" below.
 
 ### Release flow (developers)
