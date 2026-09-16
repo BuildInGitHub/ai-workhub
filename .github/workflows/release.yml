@@ -38,6 +38,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # 生成多尺寸 PNG 到 build/icons/ —— electron-builder 会自动从中
+      # 生成 macOS .icns 和 Windows .ico。如果 public/icon.png 缺 512x512
+      # 大小，macOS 会报 'image must be at least 512x512'。
+      - name: Generate icons
+        run: npm run icons
+
       # better-sqlite3 是 native module，必须针对各平台重建
       - name: Rebuild native modules
         run: npm rebuild better-sqlite3

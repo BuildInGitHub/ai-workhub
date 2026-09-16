@@ -16,6 +16,8 @@ node_modules/
 dist/
 dist-electron/
 release/
+build/*
+!build/icons/
 *.exe
 *.dmg
 *.msi

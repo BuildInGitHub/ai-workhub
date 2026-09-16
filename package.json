@@ -9,7 +9,8 @@
     "build": "tsc && vite build && electron-builder",
     "preview": "vite preview",
     "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
-    "electron:build": "vite build && electron-builder"
+    "electron:build": "vite build && electron-builder",
+    "icons": "node scripts/generate-icons.js"
   },
   "keywords": [
     "electron",
@@ -45,6 +46,7 @@
     "electron": "^28.2.5",
     "electron-builder": "^24.13.3",
     "postcss": "^8.4.35",
+    "sharp": "^0.35.4",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3",
     "vite": "^5.1.5",
@@ -58,6 +60,16 @@
     "directories": {
       "output": "release"
     },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "node_modules/better-sqlite3/**",
+      "build/icons/**"
+    ],
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**"
+    ],
+    "publish": null,
     "win": {
       "target": [
         {
@@ -66,8 +78,7 @@
             "x64"
           ]
         }
-      ],
-      "icon": "public/icon.png"
+      ]
     },
     "mac": {
       "target": [
@@ -79,7 +90,6 @@
           ]
         }
       ],
-      "icon": "public/icon.png",
       "category": "public.app-category.productivity"
     },
     "linux": {
@@ -91,7 +101,6 @@
           ]
         }
       ],
-      "icon": "public/icon.png",
       "category": "Office"
     },
     "nsis": {
