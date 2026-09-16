@@ -17,8 +17,8 @@
 
 | 平台 | 直接下载 |
 |------|---------|
-| 🪟 **Windows** (10+, x64) | [⬇ AI-WorkHub-1.0.0.exe](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0.exe) |
-| 🍎 **macOS** (12+, x64) | [⬇ AI-WorkHub-1.0.0.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0.dmg) |
+| 🪟 **Windows** (10+, x64) | [⬇ AI-WorkHub-Setup-1.0.0.exe](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-Setup-1.0.0.exe) |
+| 🍎 **macOS** (12+, x64) | [⬇ AI-WorkHub-1.0.0-x64.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0-x64.dmg) |
 | 🍎 **macOS** (12+, arm64) | [⬇ AI-WorkHub-1.0.0-arm64.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0-arm64.dmg) |
 | 🐧 **Linux** (Ubuntu 22.04+, x64) | [⬇ AI-WorkHub-1.0.0.AppImage](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0.AppImage) |
 
@@ -322,8 +322,8 @@ Every link points to `releases/latest/download/{filename}` — GitHub automatica
 
 | Platform | Direct download |
 |----------|----------------|
-| 🪟 **Windows** (10+, x64) | [⬇ AI-WorkHub-1.0.0.exe](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0.exe) |
-| 🍎 **macOS** (12+, x64) | [⬇ AI-WorkHub-1.0.0.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0.dmg) |
+| 🪟 **Windows** (10+, x64) | [⬇ AI-WorkHub-Setup-1.0.0.exe](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-Setup-1.0.0.exe) |
+| 🍎 **macOS** (12+, x64) | [⬇ AI-WorkHub-1.0.0-x64.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0-x64.dmg) |
 | 🍎 **macOS** (12+, arm64) | [⬇ AI-WorkHub-1.0.0-arm64.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0-arm64.dmg) |
 | 🐧 **Linux** (Ubuntu 22.04+, x64) | [⬇ AI-WorkHub-1.0.0.AppImage](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0.AppImage) |
 
