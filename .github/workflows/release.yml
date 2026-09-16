@@ -155,16 +155,17 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "=== Step 1: Create draft release for ${TAG} ==="
-          # target_commitish 必须是 commit SHA，不是 tag 名——GitHub API 拒绝
-          # 把 tag 名放这里会 422 ("field": "target_commitish")。省略它即可，
-          # GitHub 默认用当前 workflow 触发的 commit。
+echo "=== Step 1: Create release for ${TAG} ==="
+          # 不创建 draft——draft 的 URL 是 /releases/download/untagged-XXX/...
+          # 而不是 /releases/download/{TAG}/...。直接 publish 让 README 的
+          # releases/latest/download/<file> 链接能解析到正确的 tag 路径。
           create_payload=$(cat <<JSON
           {
             "tag_name": "${TAG}",
             "name": "AI WorkHub ${TAG}",
-            "body": "## AI WorkHub ${TAG}\n\nCross-platform desktop AI office companion (Electron + Pi SDK).\n\n**Installers in this release:**\n- 🪟 Windows: \`AI-WorkHub-1.0.0.exe\`\n- 🍎 macOS (x64 + arm64): \`AI-WorkHub-1.0.0.dmg\`\n- 🐧 Linux (Ubuntu 22.04+): \`AI-WorkHub-1.0.0.AppImage\`\n\nSee README for installation instructions and SHA256 checksums.",
-            "draft": true,
+            "body": "## AI WorkHub ${TAG}\n\nCross-platform desktop AI office companion (Electron + Pi SDK).\n\n**Installers in this release:**\n- 🪟 Windows: \`AI-WorkHub-Setup-1.0.0.exe\`\n- 🍎 macOS (x64 + arm64): \`AI-WorkHub-1.0.0-x64.dmg\` / \`AI-WorkHub-1.0.0-arm64.dmg\`\n- 🐧 Linux (Ubuntu 22.04+): \`AI-WorkHub-1.0.0.AppImage\`\n\nSee README for installation instructions and SHA256 checksums.",
+            "draft": false,
+            "prerelease": false,
             "generate_release_notes": false
           }
           JSON
