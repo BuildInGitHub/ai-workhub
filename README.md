@@ -13,14 +13,16 @@
 
 桌面端 · Apache-2.0 · 多平台 · CalVer 版本号（年.月.补丁）
 
-**👉 全部安装包在 [GitHub Releases](https://github.com/BuildInGitHub/ai-workhub/releases) 页（点 Assets 区展开，每个 release 都有 .exe / .dmg / .AppImage）**
+每个链接都指向 `releases/latest/download/{文件名}` —— GitHub 会自动找到最新 published 版本对应的文件，直接开始下载。
 
-| 平台 | 安装包格式 | 系统要求 |
-|------|-----------|----------|
-| 🪟 **Windows** | NSIS `.exe` 安装器（自动加桌面快捷方式、可选安装路径） | Windows 10+ |
-| 🍎 **macOS** | DMG 磁盘映像（含 x64 + arm64） | macOS 12+ |
-| 🐧 **Linux** | AppImage（免安装，双击即可运行） | Ubuntu 22.04+ 或同内核版本 |
+| 平台 | 直接下载 |
+|------|---------|
+| 🪟 **Windows** (10+, x64) | [⬇ AI-WorkHub-1.0.0.exe](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0.exe) |
+| 🍎 **macOS** (12+, x64) | [⬇ AI-WorkHub-1.0.0.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0.dmg) |
+| 🍎 **macOS** (12+, arm64) | [⬇ AI-WorkHub-1.0.0-arm64.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0-arm64.dmg) |
+| 🐧 **Linux** (Ubuntu 22.04+, x64) | [⬇ AI-WorkHub-1.0.0.AppImage](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0.AppImage) |
 
+> 📦 [查看所有历史版本与 SHA256 →](https://github.com/BuildInGitHub/ai-workhub/releases)
 > 📦 想自己构建？见下方"快速开始"。
 > 🛠 想发布新版本？见"发布流程（开发者）"。
 
@@ -28,8 +30,8 @@
 
 ```bash
 # 在 main 分支累积若干 commit 后：
-git tag -a v26.9.9 -m "feat: ...; fix: ..."
-git push origin v26.9.9
+git tag -a v26.9.10 -m "feat: ...; fix: ..."
+git push origin v26.9.10
 
 # GitHub Actions 自动跑三平台构建（windows-latest / macos-latest / ubuntu-latest）
 # 合并产物 → attach 到 GitHub Release（draft）
@@ -316,6 +318,16 @@ ai-workhub/
 
 Desktop · Apache-2.0 · cross-platform · CalVer (year.month.patch)
 
+Every link points to `releases/latest/download/{filename}` — GitHub automatically picks the latest **published** version's matching file and starts the download immediately.
+
+| Platform | Direct download |
+|----------|----------------|
+| 🪟 **Windows** (10+, x64) | [⬇ AI-WorkHub-1.0.0.exe](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0.exe) |
+| 🍎 **macOS** (12+, x64) | [⬇ AI-WorkHub-1.0.0.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0.dmg) |
+| 🍎 **macOS** (12+, arm64) | [⬇ AI-WorkHub-1.0.0-arm64.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0-arm64.dmg) |
+| 🐧 **Linux** (Ubuntu 22.04+, x64) | [⬇ AI-WorkHub-1.0.0.AppImage](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0.AppImage) |
+
+> 📦 [View all releases + SHA256 →](https://github.com/BuildInGitHub/ai-workhub/releases)
 > 🛠 Want to build from source? See "Quick Start" below.
 > 📦 Want to publish a release? See "Release flow (developers)" below.
 
@@ -323,11 +335,12 @@ Desktop · Apache-2.0 · cross-platform · CalVer (year.month.patch)
 
 ```bash
 # After accumulating commits on main:
-git tag -a v26.9.2 -m "feat: ...; fix: ..."
-git push origin v26.9.2
+git tag -a v26.9.10 -m "feat: ...; fix: ..."
+git push origin v26.9.10
 
-# GitHub Actions builds all three platforms and attaches them to a
-# draft Release with auto-generated notes; review and publish manually.
+# GitHub Actions builds all three platforms in parallel, uploads the
+# installers as workflow artifacts, then a single publish job downloads
+# them all and attaches to a draft Release. Review and click Publish.
 ```
 
 `.github/workflows/release.yml` listens for `v*` tags, builds the three platforms, creates a **draft** release with `generate_release_notes: true`.
