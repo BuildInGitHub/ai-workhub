@@ -70,6 +70,7 @@
       "node_modules/better-sqlite3/**"
     ],
     "publish": null,
+    "npmRebuild": true,
     "win": {
       "target": [
         {
