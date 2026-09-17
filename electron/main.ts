@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell, dialog, screen } from 'electron'
 import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
@@ -163,11 +163,17 @@ function createWindow() {
       sandbox: false,
     },
     frame: true,
-    // 不再 show:false —— macOS 上 ready-to-show 偶尔不触发会导致
-    // 窗口永远不可见（v26.9.20/21 实际就是这样）。直接默认 show:true，
-    // 让 Electron 自己处理首次显示。
     show: true,
     backgroundColor: '#1e1e2e',
+  })
+
+  // 立即移动到主显示器中央（多屏系统下默认坐标可能不可见）
+  const primaryDisplay = screen.getPrimaryDisplay()
+  mainWindow.setBounds({
+    x: Math.round((primaryDisplay.workAreaSize.width - 1400) / 2),
+    y: Math.round((primaryDisplay.workAreaSize.height - 900) / 2),
+    width: 1400,
+    height: 900,
   })
 
   // ready-to-show 仍然订阅（用于聚焦 + devtools）
@@ -181,10 +187,18 @@ function createWindow() {
     if (mainWindow) {
       mainWindow.show()
       mainWindow.focus()
+      // 多屏兜底：再 setBounds 一次
+      const pd = screen.getPrimaryDisplay()
+      mainWindow.setBounds({
+        x: Math.round((pd.workAreaSize.width - 1400) / 2),
+        y: Math.round((pd.workAreaSize.height - 900) / 2),
+        width: 1400,
+        height: 900,
+      })
     }
   }, 3000)
 
-  // 渲染层加载完后再次 show（防止 ready-to-show 错过后窗口被其他代码 hide）
+  // 渲染层加载完后再次 show
   mainWindow.webContents.once('did-finish-load', () => {
     mainWindow?.show()
     mainWindow?.focus()
