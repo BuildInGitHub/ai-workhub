@@ -47,20 +47,52 @@ jobs:
       - name: Generate icons
         run: npm run icons
 
-      # better-sqlite3 是 native module，必须针对各平台重建
-      - name: Rebuild native modules
-        run: npm rebuild better-sqlite3
+      # 注意：不要在这里 'npm rebuild better-sqlite3'。那会用 runner 本机
+      # 架构 rebuild（macOS arm64 runner 上 → arm64 .node binary），但
+      # 我们要产出 x64 DMG——架构错。electron-builder --mac --x64 会自己
+      # rebuild 给 target arch，所以不需要预 rebuild。
 
       # 三平台前置：每台 runner 只构建对应平台，避免跨平台编译依赖
       # package.json 已配置 "publish": null 阻止 electron-builder 自动调
       # GitHub API 发布；上传由 publish job 统一负责。
       # shell: pwsh 让 Windows / macOS / Linux 都用同一脚本（bash-only 语法在
       # Windows pwsh 下会 ParserError）。
-      - name: Build (Windows / macOS / Linux)
+      - name: Build (macOS x64 — explicit arch)
+        if: matrix.os == 'macos-latest'
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: |
-          npm run electron:build 2>&1 | Tee-Object -FilePath build.log
+          npm run electron:build:mac-x64 2>&1 | Tee-Object -FilePath build.log
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "===== electron-builder failed (exit $LASTEXITCODE) ====="
+            Write-Host "===== last 80 lines of build.log ====="
+            Get-Content build.log -Tail 80
+            Write-Host "===== full log uploaded as artifact 'build.log' ====="
+            exit $LASTEXITCODE
+          }
+        shell: pwsh
+
+      - name: Build (Windows x64)
+        if: matrix.os == 'windows-latest'
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          npm run electron:build:win 2>&1 | Tee-Object -FilePath build.log
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "===== electron-builder failed (exit $LASTEXITCODE) ====="
+            Write-Host "===== last 80 lines of build.log ====="
+            Get-Content build.log -Tail 80
+            Write-Host "===== full log uploaded as artifact 'build.log' ====="
+            exit $LASTEXITCODE
+          }
+        shell: pwsh
+
+      - name: Build (Linux x64)
+        if: matrix.os == 'ubuntu-latest'
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          npm run electron:build:linux 2>&1 | Tee-Object -FilePath build.log
           if ($LASTEXITCODE -ne 0) {
             Write-Host "===== electron-builder failed (exit $LASTEXITCODE) ====="
             Write-Host "===== last 80 lines of build.log ====="
