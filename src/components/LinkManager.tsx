@@ -806,20 +806,16 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
                 <button
                   onClick={handleCreateGroup}
                   disabled={!newGroupName.trim()}
-                  className="relative w-full p-4 rounded-xl bg-gradient-to-br from-caramel-400 to-caramel-500 text-white hover:from-caramel-500 hover:to-caramel-600 disabled:opacity-40 disabled:hover:from-caramel-400 disabled:hover:to-caramel-500 transition-all shadow-soft hover:shadow-medium disabled:cursor-not-allowed flex items-center gap-3"
+                  className="w-full p-3 rounded-xl bg-gradient-to-br from-caramel-400 to-caramel-500 text-white hover:from-caramel-500 hover:to-caramel-600 disabled:opacity-40 disabled:hover:from-caramel-400 disabled:hover:to-caramel-500 transition-all shadow-soft hover:shadow-medium disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {/* + 号在卡片左上角突出位置 */}
+                  {/* + 号 和 文字在同一水平线（baseline 对齐）*/}
+                  <Plus size={18} strokeWidth={2.5} />
+                  <span className="font-medium">新建分组</span>
                   <span
-                    className="absolute top-1.5 left-2 text-xl font-light opacity-80"
-                    aria-hidden
-                  >+</span>
-                  <div className="flex items-center gap-2 flex-1 pl-3">
-                    <div
-                      className="w-6 h-6 rounded-md border-2 border-white/60 flex-shrink-0"
-                      style={{ backgroundColor: newGroupColor }}
-                    />
-                    <span className="font-medium">新建分组</span>
-                  </div>
+                    className="w-3 h-3 rounded-sm border border-white/60 ml-1"
+                    style={{ backgroundColor: newGroupColor }}
+                    title="当前选中颜色"
+                  />
                 </button>
               </div>
             </div>
