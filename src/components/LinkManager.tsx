@@ -102,6 +102,8 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
   const [editingGroupName, setEditingGroupName] = useState('')
   const [deleteGroupTarget, setDeleteGroupTarget] = useState<CustomGroup | null>(null)
+  const [createError, setCreateError] = useState('')
+  const [renameError, setRenameError] = useState('')
   const [formData, setFormData] = useState({
     title: '',
     url: '',
@@ -211,11 +213,11 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
     const presetNames = PRESET_GROUPS.map(p => p.name)
     const customNames = customGroups.map(g => g.name)
     if (presetNames.includes(name)) {
-      alert(`"${name}" 是预设分组名，不能新建。请换一个其他名字。`)
+      setCreateError(`"${name}" 是预设分组名，请换一个其他名字`)
       return
     }
     if (customNames.includes(name)) {
-      alert(`"${name}" 已经存在，请换一个其他名字。`)
+      setCreateError(`"${name}" 已经存在，请换一个其他名字`)
       return
     }
     const id = uuidv4()
@@ -226,14 +228,14 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
         [id, name, newGroupColor, maxPos + 1]
       )
       setNewGroupName('')
+      setCreateError('')
       loadCustomGroups()
     } catch (error: any) {
       console.error('创建分组失败:', error)
-      // UNIQUE 约束冲突（数据库层兜底）
       if (String(error?.message || '').includes('UNIQUE')) {
-        alert(`"${name}" 已经存在，请换一个其他名字。`)
+        setCreateError(`"${name}" 已经存在，请换一个其他名字`)
       } else {
-        alert('创建分组失败：' + (error?.message || String(error)))
+        setCreateError('创建失败：' + (error?.message || String(error)))
       }
     }
   }
@@ -245,7 +247,7 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
     const presetNames = PRESET_GROUPS.map(p => p.name)
     const others = customGroups.filter(g => g.id !== id).map(g => g.name)
     if (presetNames.includes(name) || others.includes(name)) {
-      alert(`"${name}" 与其他分组重名，请换一个其他名字。`)
+      setRenameError(`"${name}" 与其他分组重名，请换一个其他名字`)
       return
     }
     try {
@@ -260,14 +262,15 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
       )
       setEditingGroupId(null)
       setEditingGroupName('')
+      setRenameError('')
       loadCustomGroups()
       loadLinks()
     } catch (error: any) {
       console.error('重命名分组失败:', error)
       if (String(error?.message || '').includes('UNIQUE')) {
-        alert(`"${name}" 与其他分组重名。`)
+        setRenameError(`"${name}" 与其他分组重名`)
       } else {
-        alert('重命名失败：' + (error?.message || String(error)))
+        setRenameError('重命名失败：' + (error?.message || String(error)))
       }
     }
   }
@@ -743,7 +746,11 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
       {showGroupManager && (
         <div
           className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={() => setShowGroupManager(false)}
+          onClick={() => {
+            setShowGroupManager(false)
+            setCreateError('')
+            setRenameError('')
+          }}
         >
           <div
             className="bg-white rounded-2xl shadow-large max-w-lg w-full max-h-[80vh] overflow-y-auto"
@@ -766,7 +773,7 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
                 <input
                   type="text"
                   value={newGroupName}
-                  onChange={(e) => setNewGroupName(e.target.value)}
+                  onChange={(e) => { setNewGroupName(e.target.value); setCreateError('') }}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleCreateGroup() }}
                   placeholder="分组名（如：AI 工具）"
                   className="input w-full"
@@ -791,13 +798,28 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
                     ))}
                   </div>
                 </div>
+                {createError && (
+                  <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                    {createError}
+                  </p>
+                )}
                 <button
                   onClick={handleCreateGroup}
                   disabled={!newGroupName.trim()}
-                  className="btn btn-primary w-full disabled:opacity-40"
+                  className="relative w-full p-4 rounded-xl bg-gradient-to-br from-caramel-400 to-caramel-500 text-white hover:from-caramel-500 hover:to-caramel-600 disabled:opacity-40 disabled:hover:from-caramel-400 disabled:hover:to-caramel-500 transition-all shadow-soft hover:shadow-medium disabled:cursor-not-allowed flex items-center gap-3"
                 >
-                  <Plus size={16} />
-                  新建
+                  {/* + 号在卡片左上角突出位置 */}
+                  <span
+                    className="absolute top-1.5 left-2 text-xl font-light opacity-80"
+                    aria-hidden
+                  >+</span>
+                  <div className="flex items-center gap-2 flex-1 pl-3">
+                    <div
+                      className="w-6 h-6 rounded-md border-2 border-white/60 flex-shrink-0"
+                      style={{ backgroundColor: newGroupColor }}
+                    />
+                    <span className="font-medium">新建分组</span>
+                  </div>
                 </button>
               </div>
             </div>
@@ -835,16 +857,17 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
               {customGroups.length > 0 && (
                 <div className="space-y-2">
                   {customGroups.map(g => (
-                    <div key={g.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-studio-50">
+                    <div key={g.id} className="p-2 rounded-lg hover:bg-studio-50">
+                      <div className="flex items-center gap-2">
                       {editingGroupId === g.id ? (
                         <>
                           <input
                             type="text"
                             value={editingGroupName}
-                            onChange={(e) => setEditingGroupName(e.target.value)}
+                            onChange={(e) => { setEditingGroupName(e.target.value); setRenameError('') }}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') handleRenameGroup(g.id)
-                              if (e.key === 'Escape') { setEditingGroupId(null); setEditingGroupName('') }
+                              if (e.key === 'Escape') { setEditingGroupId(null); setEditingGroupName(''); setRenameError('') }
                             }}
                             className="input flex-1"
                             maxLength={20}
@@ -857,7 +880,7 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
                             保存
                           </button>
                           <button
-                            onClick={() => { setEditingGroupId(null); setEditingGroupName('') }}
+                            onClick={() => { setEditingGroupId(null); setEditingGroupName(''); setRenameError('') }}
                             className="btn btn-ghost text-sm"
                           >
                             取消
@@ -910,6 +933,12 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
                             <Trash2 size={14} />
                           </button>
                         </>
+                      )}
+                      </div>
+                      {editingGroupId === g.id && renameError && (
+                        <p className="mt-1 ml-1 text-xs text-red-500 bg-red-50 border border-red-100 rounded-lg px-2 py-1">
+                          {renameError}
+                        </p>
                       )}
                     </div>
                   ))}
