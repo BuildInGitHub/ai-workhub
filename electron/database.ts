@@ -40,7 +40,11 @@ const TABLES: Record<string, string> = {
           installed_at TEXT, path TEXT`,
   cli_commands: `id TEXT PRIMARY KEY, name TEXT, install_cmd TEXT,
           uninstall_cmd TEXT, bin TEXT, version TEXT,
-          installed INTEGER DEFAULT 0, installed_at TEXT, source TEXT`
+          installed INTEGER DEFAULT 0, installed_at TEXT, source TEXT`,
+  // 用户自定义链接分组（与 links.category 关联，单选；预设分组内置不可改）
+  link_groups: `id TEXT PRIMARY KEY, name TEXT UNIQUE, color TEXT,
+                position INTEGER DEFAULT 0, is_preset INTEGER DEFAULT 0,
+                created_at TEXT`
 }
 
 export function initDatabase(): void {
