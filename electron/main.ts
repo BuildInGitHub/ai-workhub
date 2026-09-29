@@ -67,6 +67,9 @@ ipcMain.handle('db:backupNow', async () => {
     : { success: false, message: '备份失败' }
 })
 
+// 当前应用版本（package.json 中的 version 字段，electron-builder 会覆盖）
+ipcMain.handle('app:version', () => app.getVersion())
+
 // 导出数据库
 ipcMain.handle('db:exportData', async () => {
   try {

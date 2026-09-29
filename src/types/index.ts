@@ -207,6 +207,10 @@ export interface ElectronAPI {
   ai?: {
     abort: () => Promise<{ ok: boolean }>
   }
+  /** 应用元信息 */
+  app?: {
+    version: () => Promise<string>
+  }
 }
 
 declare global {

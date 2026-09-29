@@ -87,4 +87,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   ai: {
     abort: () => ipcRenderer.invoke('ai:abort'),
   },
+
+  // 应用元信息
+  app: {
+    version: () => ipcRenderer.invoke('app:version'),
+  },
 })

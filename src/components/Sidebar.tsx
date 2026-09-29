@@ -30,7 +30,6 @@ import {
   BarChart3,
   ListChecks,
   Link2,
-  Download,
   Upload,
   Image,
   Video,
@@ -49,7 +48,11 @@ import {
   RefreshCw,
   Eye,
   Copy,
-  Check
+  Check,
+  Info,
+  Download,
+  Github,
+  ExternalLink
 } from 'lucide-react'
 
 // 图标映射：key 是去掉方括号后的图标名，渲染时按需取
@@ -274,11 +277,11 @@ function ExtensionSection({ icon, title, open, onToggle, children }: {
 
 // 设置面板左栏分类导航
 function NavTab({ id, icon, label, active, onClick }: {
-  id: 'ai' | 'extensions' | 'data'
+  id: 'ai' | 'extensions' | 'data' | 'about'
   icon: ReactNode
   label: string
   active: boolean
-  onClick: (id: 'ai' | 'extensions' | 'data') => void
+  onClick: (id: 'ai' | 'extensions' | 'data' | 'about') => void
 }) {
   return (
     <button
@@ -316,8 +319,13 @@ export default function Sidebar({
   const [tempApiKey, setTempApiKey] = useState(apiKey)
 
   // v2 扩展抽屉开关
-  const [activeTab, setActiveTab] = useState<'ai' | 'extensions' | 'data'>('ai')
+  const [activeTab, setActiveTab] = useState<'ai' | 'extensions' | 'data' | 'about'>('ai')
   const [mcpOpen, setMcpOpen] = useState(false)
+  // 关于 tab 状态
+  const [appVersion, setAppVersion] = useState('…')
+  const [latestVersion, setLatestVersion] = useState<string | null>(null)
+  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'upToDate' | 'outdated' | 'error'>('idle')
+  const [updateError, setUpdateError] = useState('')
   const [skillOpen, setSkillOpen] = useState(false)
   const [cliOpen, setCliOpen] = useState(false)
   const [marketType, setMarketType] = useState<null | 'mcp' | 'skill' | 'cli'>(null)
@@ -397,6 +405,53 @@ export default function Sidebar({
   const handleSaveSettings = () => {
     onSaveApiKey(tempApiKey)
     setShowSettings(false)
+  }
+
+  // 从主进程读当前版本
+  useEffect(() => {
+    window.electronAPI?.app?.version().then((v: string) => {
+      if (v) setAppVersion(v)
+    }).catch(() => {})
+  }, [])
+
+  // 简单的 semver 比较：v1<v2 返回 -1，v1==v2 返回 0，v1>v2 返回 1
+  const compareSemver = (a: string, b: string): number => {
+    const pa = a.replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0)
+    const pb = b.replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0)
+    const len = Math.max(pa.length, pb.length)
+    for (let i = 0; i < len; i++) {
+      const x = pa[i] || 0, y = pb[i] || 0
+      if (x < y) return -1
+      if (x > y) return 1
+    }
+    return 0
+  }
+
+  // 检查更新：调 GitHub Releases API（最新 published release）
+  const handleCheckUpdate = async () => {
+    setUpdateStatus('checking')
+    setUpdateError('')
+    try {
+      const resp = await fetch('https://api.github.com/repos/BuildInGitHub/ai-workhub/releases/latest')
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+      const data = await resp.json()
+      const latestTag = (data.tag_name || '').trim()
+      setLatestVersion(latestTag)
+      if (!latestTag) {
+        setUpdateStatus('error')
+        setUpdateError('返回数据缺少 tag_name')
+        return
+      }
+      // 去掉 tag 前缀 'v' 后比较
+      if (compareSemver(appVersion, latestTag) < 0) {
+        setUpdateStatus('outdated')
+      } else {
+        setUpdateStatus('upToDate')
+      }
+    } catch (e: any) {
+      setUpdateStatus('error')
+      setUpdateError(e?.message || '检查更新失败')
+    }
   }
 
   // 切换 AI 引擎：写到 settings 表（持久化）并实时回调 App
@@ -837,6 +892,7 @@ export default function Sidebar({
                 <NavTab id="ai" icon={<Brain size={16} />} label="AI" active={activeTab === 'ai'} onClick={setActiveTab} />
                 <NavTab id="extensions" icon={<Store size={16} />} label="扩展" active={activeTab === 'extensions'} onClick={setActiveTab} />
                 <NavTab id="data" icon={<Hash size={16} />} label="数据" active={activeTab === 'data'} onClick={setActiveTab} />
+                <NavTab id="about" icon={<Info size={16} />} label="关于" active={activeTab === 'about'} onClick={setActiveTab} />
               </nav>
               {/* 右栏内容 */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
@@ -1062,6 +1118,91 @@ export default function Sidebar({
                       <br />备份目录: %APPDATA%\ai-workhub\backups
                     </p>
                     {backupInfo && <p className="text-xs text-orange-500 mt-2">{backupInfo}</p>}
+                  </div>
+                </>)}
+
+                {activeTab === 'about' && (<>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center text-white shadow-soft">
+                      <Info size={28} />
+                    </div>
+                    <div>
+                      <h4 className="font-display text-base font-semibold text-dark-900">AI WorkHub</h4>
+                      <p className="text-xs text-dark-500">智汇工作台 · 桌面 AI 办公伙伴</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 text-xs text-dark-500">
+                    <div className="flex justify-between py-1.5 border-b border-dark-200">
+                      <span>当前版本</span>
+                      <span className="font-mono text-dark-900">v{appVersion}</span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-dark-200">
+                      <span>最新发布</span>
+                      <span className="font-mono text-dark-900">
+                        {updateStatus === 'idle' && '点击下方"检查更新"'}
+                        {updateStatus === 'checking' && '检查中…'}
+                        {updateStatus === 'upToDate' && `v${appVersion}（已是最新）`}
+                        {updateStatus === 'outdated' && latestVersion}
+                        {updateStatus === 'error' && <span className="text-red-500">检查失败</span>}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleCheckUpdate}
+                    disabled={updateStatus === 'checking'}
+                    className="w-full py-2 mt-4 rounded-md text-xs font-medium bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <RefreshCw size={12} className={updateStatus === 'checking' ? 'animate-spin' : ''} />
+                    {updateStatus === 'checking' ? '检查中…' : '检查更新'}
+                  </button>
+
+                  {updateStatus === 'outdated' && latestVersion && (
+                    <a
+                      href={`https://github.com/BuildInGitHub/ai-workhub/releases/tag/${latestVersion}`}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        window.electronAPI?.shell.openExternal(`https://github.com/BuildInGitHub/ai-workhub/releases/tag/${latestVersion}`)
+                      }}
+                      className="mt-3 block text-center text-xs text-orange-500 hover:text-orange-600 underline underline-offset-2"
+                    >
+                      前往 GitHub Releases 下载 v{latestVersion} →
+                    </a>
+                  )}
+
+                  {updateStatus === 'error' && updateError && (
+                    <p className="mt-3 text-xs text-red-500">错误：{updateError}</p>
+                  )}
+
+                  <div className="mt-4 pt-4 border-t border-dark-200 space-y-1.5 text-xs text-dark-500">
+                    <p className="flex items-center gap-1.5">
+                      <Github size={12} />
+                      <a
+                        href="https://github.com/BuildInGitHub/ai-workhub"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          window.electronAPI?.shell.openExternal('https://github.com/BuildInGitHub/ai-workhub')
+                        }}
+                        className="text-caramel-400 hover:text-caramel-500 underline-offset-2 hover:underline"
+                      >
+                        BuildInGitHub/ai-workhub
+                      </a>
+                    </p>
+                    <p>Electron 28 · React 18 · DeepSeek · Pi SDK 0.83</p>
+                    <p className="text-dark-400">
+                      详见{' '}
+                      <a
+                        href="https://github.com/BuildInGitHub/ai-workhub/blob/main/RELEASE_NOTES.md"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          window.electronAPI?.shell.openExternal('https://github.com/BuildInGitHub/ai-workhub/blob/main/RELEASE_NOTES.md')
+                        }}
+                        className="text-caramel-400 hover:text-caramel-500 underline-offset-2 hover:underline"
+                      >
+                        RELEASE_NOTES.md
+                      </a>
+                    </p>
                   </div>
                 </>)}
               </div>
