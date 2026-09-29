@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
-import { 
-  Briefcase, 
-  Plus, 
-  Trash2, 
+import {
+  Briefcase,
+  Plus,
+  Trash2,
   Edit,
   X,
   FolderOpen,
   Link,
-  CheckSquare
+  CheckSquare,
+  Search
 } from 'lucide-react'
 import type { Project, Link as LinkType, Task } from '../types'
 import { v4 as uuidv4 } from 'uuid'
@@ -35,6 +36,7 @@ export default function ProjectManager({ refreshKey }: { refreshKey?: number }) 
   const [availableTasks, setAvailableTasks] = useState<Task[]>([])
   const [projectLinks, setProjectLinks] = useState<LinkType[]>([])
   const [projectTasks, setProjectTasks] = useState<Task[]>([])
+  const [pickerSearch, setPickerSearch] = useState('')
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -478,25 +480,55 @@ export default function ProjectManager({ refreshKey }: { refreshKey?: number }) 
               <h3 className="font-display text-lg font-semibold">
                 关联{pickerType === 'link' ? '链接' : '任务'}到「{selectedProject?.name}」
               </h3>
-              <button onClick={() => setPickerType(null)} className="p-2 hover:bg-studio-100 rounded-xl">
+              <button onClick={() => { setPickerType(null); setPickerSearch('') }} className="p-2 hover:bg-studio-100 rounded-xl">
                 <X size={20} />
               </button>
             </div>
 
+            {/* 搜索框 */}
+            <div className="relative mb-3">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-studio-400" />
+              <input
+                type="text"
+                value={pickerSearch}
+                onChange={(e) => setPickerSearch(e.target.value)}
+                placeholder={`搜索${pickerType === 'link' ? '链接标题、网址' : '任务标题'}…`}
+                className="w-full pl-9 pr-3 py-2 bg-studio-50 rounded-xl border border-studio-200 text-sm focus:outline-none focus:border-caramel-400 focus:ring-2 focus:ring-caramel-100"
+              />
+            </div>
+
             <div className="max-h-[360px] overflow-y-auto space-y-2 mb-4">
-              {pickerType === 'link' ? (
-                availableLinks.length === 0 ? (
-                  <p className="text-studio-400 text-sm text-center py-8">
-                    没有可关联的链接
-                    <span className="block text-xs mt-1">先到「链接收藏」中添加链接</span>
-                  </p>
-                ) : (
-                  availableLinks.map((link) => (
+              {(() => {
+                const q = pickerSearch.trim().toLowerCase()
+                if (pickerType === 'link') {
+                  const filtered = q
+                    ? availableLinks.filter(l =>
+                        l.title.toLowerCase().includes(q) ||
+                        l.url.toLowerCase().includes(q) ||
+                        ((l as any).category || '').toLowerCase().includes(q))
+                    : availableLinks
+                  if (availableLinks.length === 0) {
+                    return (
+                      <p className="text-studio-400 text-sm text-center py-8">
+                        没有可关联的链接
+                        <span className="block text-xs mt-1">先到「链接收藏」中添加链接</span>
+                      </p>
+                    )
+                  }
+                  if (filtered.length === 0) {
+                    return (
+                      <p className="text-studio-400 text-sm text-center py-8">
+                        没有匹配「{pickerSearch}」的链接
+                      </p>
+                    )
+                  }
+                  return filtered.map((link) => (
                     <button
                       key={link.id}
                       onClick={() => {
                         addProjectItem('link', link.id)
                         setPickerType(null)
+                        setPickerSearch('')
                       }}
                       className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-caramel-50 transition-colors text-left group"
                     >
@@ -507,20 +539,34 @@ export default function ProjectManager({ refreshKey }: { refreshKey?: number }) 
                       <Plus size={16} className="text-studio-300 group-hover:text-caramel-400 flex-shrink-0" />
                     </button>
                   ))
-                )
-              ) : (
-                availableTasks.length === 0 ? (
-                  <p className="text-studio-400 text-sm text-center py-8">
-                    没有可关联的任务
-                    <span className="block text-xs mt-1">先到「任务管理」中创建任务</span>
-                  </p>
-                ) : (
-                  availableTasks.map((task) => (
+                } else {
+                  const filtered = q
+                    ? availableTasks.filter(t =>
+                        t.title.toLowerCase().includes(q) ||
+                        ((t as any).description || '').toLowerCase().includes(q))
+                    : availableTasks
+                  if (availableTasks.length === 0) {
+                    return (
+                      <p className="text-studio-400 text-sm text-center py-8">
+                        没有可关联的任务
+                        <span className="block text-xs mt-1">先到「任务管理」中创建任务</span>
+                      </p>
+                    )
+                  }
+                  if (filtered.length === 0) {
+                    return (
+                      <p className="text-studio-400 text-sm text-center py-8">
+                        没有匹配「{pickerSearch}」的任务
+                      </p>
+                    )
+                  }
+                  return filtered.map((task) => (
                     <button
                       key={task.id}
                       onClick={() => {
                         addProjectItem('task', task.id)
                         setPickerType(null)
+                        setPickerSearch('')
                       }}
                       className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-caramel-50 transition-colors text-left group"
                     >
@@ -533,8 +579,8 @@ export default function ProjectManager({ refreshKey }: { refreshKey?: number }) 
                       <Plus size={16} className="text-studio-300 group-hover:text-caramel-400 flex-shrink-0" />
                     </button>
                   ))
-                )
-              )}
+                }
+              })()}
             </div>
 
             <button onClick={() => setPickerType(null)} className="w-full btn btn-secondary">

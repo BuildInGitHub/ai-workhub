@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { 
-  Zap, 
-  Plus, 
-  Trash2, 
+import {
+  Zap,
+  Plus,
+  Trash2,
   Edit,
   X,
   FolderOpen,
@@ -10,7 +10,8 @@ import {
   File,
   AppWindow,
   GripVertical,
-  ExternalLink
+  ExternalLink,
+  Search
 } from 'lucide-react'
 import type { QuickLaunchItem } from '../types'
 import { v4 as uuidv4 } from 'uuid'
@@ -175,6 +176,7 @@ export default function QuickLaunch({ refreshKey }: QuickLaunchProps) {
   // ============ 收藏链接选择器 ============
   const [showLinkPicker, setShowLinkPicker] = useState(false)
   const [availableLinks, setAvailableLinks] = useState<any[]>([])
+  const [linkPickerSearch, setLinkPickerSearch] = useState('')
 
   const openLinkPicker = async () => {
     if (!window.electronAPI) return
@@ -421,23 +423,53 @@ export default function QuickLaunch({ refreshKey }: QuickLaunchProps) {
       {/* 收藏链接选择器 */}
       {showLinkPicker && (
         <div className="fixed inset-0 bg-ink-400/40 flex items-center justify-center z-[60] backdrop-blur-sm"
-          onClick={(e) => { if (e.target === e.currentTarget) setShowLinkPicker(false) }}>
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowLinkPicker(false); setLinkPickerSearch('') } }}>
           <div className="bg-white rounded-2xl p-6 w-[440px] shadow-elevated animate-slideIn">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-display text-lg font-semibold">从收藏链接选择</h3>
-              <button onClick={() => setShowLinkPicker(false)} className="p-2 hover:bg-studio-100 rounded-xl">
+              <button onClick={() => { setShowLinkPicker(false); setLinkPickerSearch('') }} className="p-2 hover:bg-studio-100 rounded-xl">
                 <X size={20} />
               </button>
             </div>
 
+            {/* 搜索框 */}
+            <div className="relative mb-3">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-studio-400" />
+              <input
+                type="text"
+                value={linkPickerSearch}
+                onChange={(e) => setLinkPickerSearch(e.target.value)}
+                placeholder="搜索链接标题、网址、分组…"
+                className="w-full pl-9 pr-3 py-2 bg-studio-50 rounded-xl border border-studio-200 text-sm focus:outline-none focus:border-caramel-400 focus:ring-2 focus:ring-caramel-100"
+                autoFocus
+              />
+            </div>
+
             <div className="max-h-[360px] overflow-y-auto space-y-2 mb-4">
-              {availableLinks.length === 0 ? (
-                <p className="text-studio-400 text-sm text-center py-8">
-                  收藏夹中还没有链接
-                  <span className="block text-xs mt-1">先到「链接收藏」中添加，或直接在左侧输入网址</span>
-                </p>
-              ) : (
-                availableLinks.map((link) => (
+              {(() => {
+                const q = linkPickerSearch.trim().toLowerCase()
+                if (availableLinks.length === 0) {
+                  return (
+                    <p className="text-studio-400 text-sm text-center py-8">
+                      收藏夹中还没有链接
+                      <span className="block text-xs mt-1">先到「链接收藏」中添加，或直接在左侧输入网址</span>
+                    </p>
+                  )
+                }
+                const filtered = q
+                  ? availableLinks.filter((link: any) =>
+                      (link.title || '').toLowerCase().includes(q) ||
+                      (link.url || '').toLowerCase().includes(q) ||
+                      (link.category || '').toLowerCase().includes(q))
+                  : availableLinks
+                if (filtered.length === 0) {
+                  return (
+                    <p className="text-studio-400 text-sm text-center py-8">
+                      没有匹配「{linkPickerSearch}」的链接
+                    </p>
+                  )
+                }
+                return filtered.map((link: any) => (
                   <button
                     key={link.id}
                     onClick={() => pickLink(link)}
@@ -457,10 +489,10 @@ export default function QuickLaunch({ refreshKey }: QuickLaunchProps) {
                     )}
                   </button>
                 ))
-              )}
+              })()}
             </div>
 
-            <button onClick={() => setShowLinkPicker(false)} className="w-full btn btn-secondary">
+            <button onClick={() => { setShowLinkPicker(false); setLinkPickerSearch('') }} className="w-full btn btn-secondary">
               取消，手动输入网址
             </button>
           </div>
