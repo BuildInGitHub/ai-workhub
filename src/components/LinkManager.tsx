@@ -22,7 +22,7 @@ import ConfirmDialog from './ConfirmDialog'
 // 预设分组（内置不可改）
 interface PresetGroup {
   name: string
-  color: string   // tailwind class
+  color: string   // hex
   isPreset: true
 }
 
@@ -30,7 +30,7 @@ interface PresetGroup {
 interface CustomGroup {
   id: string
   name: string
-  color: string
+  color: string   // hex
   position: number
   isPreset: false
 }
@@ -39,39 +39,52 @@ type AnyGroup = PresetGroup | CustomGroup
 
 // 预设分组固定 7 个
 const PRESET_GROUPS: PresetGroup[] = [
-  { name: '工作', color: 'bg-blue-50 text-blue-500 border-blue-100', isPreset: true },
-  { name: '学习', color: 'bg-purple-50 text-purple-500 border-purple-100', isPreset: true },
-  { name: '生活', color: 'bg-green-50 text-green-500 border-green-100', isPreset: true },
-  { name: '购物', color: 'bg-pink-50 text-pink-500 border-pink-100', isPreset: true },
-  { name: '娱乐', color: 'bg-orange-50 text-orange-500 border-orange-100', isPreset: true },
-  { name: '工具', color: 'bg-teal-50 text-teal-500 border-teal-100', isPreset: true },
-  { name: '其他', color: 'bg-studio-100 text-studio-500 border-studio-200', isPreset: true },
+  { name: '工作', color: '#3b82f6', isPreset: true },
+  { name: '学习', color: '#8b5cf6', isPreset: true },
+  { name: '生活', color: '#22c55e', isPreset: true },
+  { name: '购物', color: '#ec4899', isPreset: true },
+  { name: '娱乐', color: '#f97316', isPreset: true },
+  { name: '工具', color: '#14b8a6', isPreset: true },
+  { name: '其他', color: '#78716c', isPreset: true },
 ]
 
-// 用户可自定义分组可选的颜色
+// 用户可自定义分组可选的 8 种 hex 颜色（参考 ProjectManager）
 const GROUP_COLOR_OPTIONS = [
-  { value: 'rose',    label: '玫红', classes: 'bg-rose-50 text-rose-500 border-rose-100' },
-  { value: 'pink',    label: '粉色', classes: 'bg-pink-50 text-pink-500 border-pink-100' },
-  { value: 'amber',   label: '琥珀', classes: 'bg-amber-50 text-amber-500 border-amber-100' },
-  { value: 'orange',  label: '橙色', classes: 'bg-orange-50 text-orange-500 border-orange-100' },
-  { value: 'lime',    label: '青柠', classes: 'bg-lime-50 text-lime-500 border-lime-100' },
-  { value: 'emerald', label: '翠绿', classes: 'bg-emerald-50 text-emerald-500 border-emerald-100' },
-  { value: 'sky',     label: '天蓝', classes: 'bg-sky-50 text-sky-500 border-sky-100' },
-  { value: 'indigo',  label: '靛蓝', classes: 'bg-indigo-50 text-indigo-500 border-indigo-100' },
-  { value: 'violet',  label: '紫罗兰', classes: 'bg-violet-50 text-violet-500 border-violet-100' },
-  { value: 'stone',   label: '石板', classes: 'bg-stone-100 text-stone-500 border-stone-200' },
+  '#0ea5e9',  // sky
+  '#22c55e',  // green
+  '#f59e0b',  // amber
+  '#ef4444',  // red
+  '#8b5cf6',  // violet
+  '#ec4899',  // pink
+  '#14b8a6',  // teal
+  '#f97316',  // orange
 ]
-const COLOR_TO_CLASSES: Record<string, string> = Object.fromEntries(
-  GROUP_COLOR_OPTIONS.map(c => [c.value, c.classes])
-)
 
-// 把数据库里的颜色 value 转成 tailwind class，找不到 fallback '其他'
-function colorToClasses(color: string | null | undefined): string {
+// 把 hex 颜色按亮度计算合适的文字颜色（深色背景用白字，浅色背景用黑字）
+function textColorForBg(hex: string): string {
+  const c = hex.replace('#', '')
+  if (c.length !== 6) return '#ffffff'
+  const r = parseInt(c.slice(0, 2), 16)
+  const g = parseInt(c.slice(2, 4), 16)
+  const b = parseInt(c.slice(4, 6), 16)
+  // 相对亮度 (WCAG)
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return lum > 0.6 ? '#1c1917' : '#ffffff'
+}
+
+// 兼容旧数据：颜色可能是名字（rose/sky/...）或 hex 或预设分组 name
+function resolveColor(color: string | null | undefined, customGroups?: CustomGroup[]): string {
   if (!color) return PRESET_GROUPS[6].color
-  if (COLOR_TO_CLASSES[color]) return COLOR_TO_CLASSES[color]
-  // 兼容旧数据：预设分组按 name 找颜色
+  // 是 hex 直接返回
+  if (color.startsWith('#')) return color
+  // 兼容：可能是预设名字
   const preset = PRESET_GROUPS.find(p => p.name === color)
   if (preset) return preset.color
+  // 兼容：可能是新色彩 value（旧 GROUP_COLOR_OPTIONS 里的 value）— 已删，先按 hex 处理
+  if (customGroups) {
+    const custom = customGroups.find(g => g.color === color)
+    if (custom) return custom.color
+  }
   return PRESET_GROUPS[6].color
 }
 
@@ -85,7 +98,7 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
   const [deleteTarget, setDeleteTarget] = useState<LinkType | null>(null)
   const [showGroupManager, setShowGroupManager] = useState(false)
   const [newGroupName, setNewGroupName] = useState('')
-  const [newGroupColor, setNewGroupColor] = useState('sky')
+  const [newGroupColor, setNewGroupColor] = useState(GROUP_COLOR_OPTIONS[0])
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
   const [editingGroupName, setEditingGroupName] = useState('')
   const [deleteGroupTarget, setDeleteGroupTarget] = useState<CustomGroup | null>(null)
@@ -141,7 +154,7 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
         setCustomGroups(result.data.map((r: any) => ({
           id: r.id,
           name: r.name,
-          color: r.color || 'stone',
+          color: r.color || GROUP_COLOR_OPTIONS[0],
           position: r.position || 0,
           isPreset: false,
         })))
@@ -151,13 +164,13 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
     }
   }
 
-  // 给 link.category 字段返回 tailwind 配色类（自定义分组也支持）
-  const getBadgeClasses = (categoryName: string): string => {
+  // 给 link.category 字段返回 { bg, fg } 配色对象
+  const getGroupColors = (categoryName: string): { bg: string; fg: string } => {
     const preset = PRESET_GROUPS.find(p => p.name === categoryName)
-    if (preset) return preset.color
+    if (preset) return { bg: preset.color, fg: textColorForBg(preset.color) }
     const custom = customGroups.find(g => g.name === categoryName)
-    if (custom) return colorToClasses(custom.color)
-    return PRESET_GROUPS[6].color
+    if (custom) return { bg: custom.color, fg: textColorForBg(custom.color) }
+    return { bg: PRESET_GROUPS[6].color, fg: textColorForBg(PRESET_GROUPS[6].color) }
   }
 
   // 合并后的全部分组（预设 + 自定义）
@@ -194,6 +207,17 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
   const handleCreateGroup = async () => {
     if (!window.electronAPI || !newGroupName.trim()) return
     const name = newGroupName.trim()
+    // 判重：不能与预设重名，也不能与已存在的自定义重名
+    const presetNames = PRESET_GROUPS.map(p => p.name)
+    const customNames = customGroups.map(g => g.name)
+    if (presetNames.includes(name)) {
+      alert(`"${name}" 是预设分组名，不能新建。请换一个其他名字。`)
+      return
+    }
+    if (customNames.includes(name)) {
+      alert(`"${name}" 已经存在，请换一个其他名字。`)
+      return
+    }
     const id = uuidv4()
     const maxPos = customGroups.reduce((m, g) => Math.max(m, g.position), -1)
     try {
@@ -202,27 +226,49 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
         [id, name, newGroupColor, maxPos + 1]
       )
       setNewGroupName('')
-      setNewGroupColor('sky')
       loadCustomGroups()
-    } catch (error) {
+    } catch (error: any) {
       console.error('创建分组失败:', error)
-      alert('创建分组失败：' + (error as Error).message)
+      // UNIQUE 约束冲突（数据库层兜底）
+      if (String(error?.message || '').includes('UNIQUE')) {
+        alert(`"${name}" 已经存在，请换一个其他名字。`)
+      } else {
+        alert('创建分组失败：' + (error?.message || String(error)))
+      }
     }
   }
 
   const handleRenameGroup = async (id: string) => {
     if (!window.electronAPI || !editingGroupName.trim()) return
+    const name = editingGroupName.trim()
+    // 判重
+    const presetNames = PRESET_GROUPS.map(p => p.name)
+    const others = customGroups.filter(g => g.id !== id).map(g => g.name)
+    if (presetNames.includes(name) || others.includes(name)) {
+      alert(`"${name}" 与其他分组重名，请换一个其他名字。`)
+      return
+    }
     try {
       await window.electronAPI.db.query(
         "UPDATE link_groups SET name = ? WHERE id = ?",
-        [editingGroupName.trim(), id]
+        [name, id]
+      )
+      // 把链接里的旧 category 名字同步更新
+      await window.electronAPI.db.query(
+        "UPDATE links SET category = ?, updated_at = datetime('now') WHERE category = ?",
+        [name, customGroups.find(g => g.id === id)?.name || '']
       )
       setEditingGroupId(null)
       setEditingGroupName('')
       loadCustomGroups()
       loadLinks()
-    } catch (error) {
+    } catch (error: any) {
       console.error('重命名分组失败:', error)
+      if (String(error?.message || '').includes('UNIQUE')) {
+        alert(`"${name}" 与其他分组重名。`)
+      } else {
+        alert('重命名失败：' + (error?.message || String(error)))
+      }
     }
   }
 
@@ -241,13 +287,20 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
 
   const handleDeleteGroup = async () => {
     if (!window.electronAPI || !deleteGroupTarget) return
+    const oldName = deleteGroupTarget.name
     try {
-      // 分组删除不影响 link 记录——link.category 字段保留旧名字（用户可手动改）
+      // 把归在该分组下的 link.category 重命名为 "未分组"（避免悬空字符串）
+      await window.electronAPI.db.query(
+        "UPDATE links SET category = ?, updated_at = datetime('now') WHERE category = ?",
+        ['未分组', oldName]
+      )
+      // 再删分组
       await window.electronAPI.db.query("DELETE FROM link_groups WHERE id = ?", [deleteGroupTarget.id])
       setDeleteGroupTarget(null)
       loadCustomGroups()
+      loadLinks()
       // 如果当前正在按这个分组筛选，清掉筛选
-      if (categoryFilter === deleteGroupTarget.name) setCategoryFilter('')
+      if (categoryFilter === oldName) setCategoryFilter('')
     } catch (error) {
       console.error('删除分组失败:', error)
     }
@@ -377,16 +430,21 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
         </button>
         {allGroups.filter(g => categoryCounts[g.name]).map((g) => {
           const active = categoryFilter === g.name
-          const colorClasses = g.isPreset ? g.color : colorToClasses(g.color)
+          const bg = g.color
+          const fg = textColorForBg(bg)
           return (
             <button
               key={g.isPreset ? `preset-${g.name}` : g.id}
               onClick={() => setCategoryFilter(active ? '' : g.name)}
               className={`px-3.5 py-1.5 rounded-full text-sm transition-colors border ${
                 active
-                  ? `${colorClasses} ring-2 ring-caramel-300`
-                  : 'bg-white border-studio-200 text-studio-500 hover:border-caramel-300'
+                  ? 'ring-2 ring-caramel-300'
+                  : 'border-studio-200 hover:border-caramel-300'
               }`}
+              style={active
+                ? { backgroundColor: bg, color: fg, borderColor: bg }
+                : { backgroundColor: 'white', color: fg === '#ffffff' ? '#78716c' : fg }
+              }
             >
               {g.name}<span className="ml-1 opacity-70">{categoryCounts[g.name]}</span>
             </button>
@@ -423,9 +481,17 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-medium text-ink-100 text-lg truncate">{link.title}</h3>
                       {(link as any).category && (
-                        <span className={`px-2 py-0.5 rounded-lg text-xs border flex-shrink-0 ${getBadgeClasses((link as any).category)}`}>
-                          {(link as any).category}
-                        </span>
+                          (() => {
+                            const { bg, fg } = getGroupColors((link as any).category)
+                            return (
+                              <span
+                                className="px-2 py-0.5 rounded-lg text-xs flex-shrink-0"
+                                style={{ backgroundColor: bg, color: fg }}
+                              >
+                                {(link as any).category}
+                              </span>
+                            )
+                          })()
                       )}
                     </div>
                     <a
@@ -580,17 +646,20 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
                   </button>
                   {allGroups.map((g) => {
                     const active = formData.category === g.name
-                    const colorClasses = g.isPreset ? g.color : colorToClasses(g.color)
+                    const bg = g.color
+                    const fg = textColorForBg(bg)
                     return (
                       <button
                         key={g.isPreset ? `preset-${g.name}` : g.id}
                         type="button"
                         onClick={() => setFormData({ ...formData, category: g.name })}
                         className={`px-3.5 py-1.5 rounded-full text-sm transition-colors border ${
-                          active
-                            ? `${colorClasses} ring-2 ring-caramel-300`
-                            : 'bg-white border-studio-200 text-studio-500 hover:border-caramel-300'
+                          active ? 'ring-2 ring-caramel-300' : 'border-studio-200 hover:border-caramel-300'
                         }`}
+                        style={active
+                          ? { backgroundColor: bg, color: fg, borderColor: bg }
+                          : { backgroundColor: 'white', color: fg === '#ffffff' ? '#78716c' : fg }
+                        }
                       >
                         {g.name}
                       </button>
@@ -693,29 +762,39 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
             {/* 新建分组 */}
             <div className="p-6 border-b border-studio-200 bg-studio-50">
               <h4 className="text-sm font-medium text-studio-500 mb-3">新建分组</h4>
-              <div className="flex flex-wrap gap-2 items-center">
+              <div className="space-y-3">
                 <input
                   type="text"
                   value={newGroupName}
                   onChange={(e) => setNewGroupName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleCreateGroup() }}
                   placeholder="分组名（如：AI 工具）"
-                  className="input flex-1 min-w-[180px]"
+                  className="input w-full"
                   maxLength={20}
                 />
-                <select
-                  value={newGroupColor}
-                  onChange={(e) => setNewGroupColor(e.target.value)}
-                  className="input w-auto"
-                >
-                  {GROUP_COLOR_OPTIONS.map(c => (
-                    <option key={c.value} value={c.value}>{c.label}</option>
-                  ))}
-                </select>
+                <div>
+                  <p className="text-xs text-studio-400 mb-2">选颜色</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {GROUP_COLOR_OPTIONS.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => setNewGroupColor(color)}
+                        className={`w-8 h-8 rounded-lg transition-transform ${
+                          newGroupColor === color
+                            ? 'ring-2 ring-offset-2 ring-caramel-400 scale-110'
+                            : 'hover:scale-110'
+                        }`}
+                        style={{ backgroundColor: color }}
+                        title={color}
+                      />
+                    ))}
+                  </div>
+                </div>
                 <button
                   onClick={handleCreateGroup}
                   disabled={!newGroupName.trim()}
-                  className="btn btn-primary disabled:opacity-40"
+                  className="btn btn-primary w-full disabled:opacity-40"
                 >
                   <Plus size={16} />
                   新建
@@ -732,7 +811,12 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
                 {PRESET_GROUPS.map(p => (
                   <span
                     key={p.name}
-                    className={`px-3 py-1 rounded-full text-xs border ${p.color}`}
+                    className="px-3 py-1 rounded-full text-xs border"
+                    style={{
+                      backgroundColor: p.color,
+                      color: textColorForBg(p.color),
+                      borderColor: p.color,
+                    }}
                   >
                     {p.name}
                   </span>
@@ -781,23 +865,36 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
                         </>
                       ) : (
                         <>
-                          <span className={`px-3 py-1 rounded-full text-xs border ${colorToClasses(g.color)}`}>
+                          <span
+                            className="px-3 py-1 rounded-full text-xs border"
+                            style={{
+                              backgroundColor: g.color,
+                              color: textColorForBg(g.color),
+                              borderColor: g.color,
+                            }}
+                          >
                             {g.name}
                           </span>
                           <span className="text-xs text-studio-400">
                             {categoryCounts[g.name] || 0} 个链接
                           </span>
                           <div className="flex-1" />
-                          <select
-                            value={g.color}
-                            onChange={(e) => handleChangeGroupColor(g.id, e.target.value)}
-                            className="input w-auto text-xs"
-                            title="修改颜色"
-                          >
-                            {GROUP_COLOR_OPTIONS.map(c => (
-                              <option key={c.value} value={c.value}>{c.label}</option>
+                          <div className="flex gap-1">
+                            {GROUP_COLOR_OPTIONS.map(color => (
+                              <button
+                                key={color}
+                                type="button"
+                                onClick={() => handleChangeGroupColor(g.id, color)}
+                                className={`w-5 h-5 rounded transition-transform ${
+                                  g.color === color
+                                    ? 'ring-2 ring-offset-1 ring-caramel-400 scale-110'
+                                    : 'hover:scale-110'
+                                }`}
+                                style={{ backgroundColor: color }}
+                                title={color}
+                              />
                             ))}
-                          </select>
+                          </div>
                           <button
                             onClick={() => { setEditingGroupId(g.id); setEditingGroupName(g.name) }}
                             className="text-studio-400 hover:text-caramel-500 p-1"
