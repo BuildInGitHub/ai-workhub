@@ -583,18 +583,20 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
 
       {/* 添加/编辑弹窗 */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-ink-400/30 flex items-center justify-center z-50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl p-6 w-[480px] shadow-elevated animate-slideIn">
-            <div className="flex items-center justify-between mb-6">
+        <div className="fixed inset-0 bg-ink-400/30 flex items-center justify-center z-50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl w-[480px] max-w-full max-h-[85vh] flex flex-col shadow-elevated animate-slideIn">
+            {/* Header — fixed at top, never scrolled away */}
+            <div className="flex items-center justify-between p-6 pb-4 border-b border-studio-100 flex-shrink-0">
               <h3 className="font-display text-lg font-semibold">
                 {editingLink ? '编辑链接' : '添加链接'}
               </h3>
-              <button onClick={closeModal} className="p-2 hover:bg-studio-100 rounded-xl">
+              <button onClick={closeModal} className="p-2 hover:bg-studio-100 rounded-xl" aria-label="关闭">
                 <X size={20} />
               </button>
             </div>
-            
-            <div className="space-y-4">
+
+            {/* Body — scrolls when content overflows */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-studio-500 mb-2">标题</label>
                 <input
@@ -605,7 +607,7 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
                   className="input"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-studio-500 mb-2">网址</label>
                 <input
@@ -616,67 +618,70 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
                   className="input"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-studio-500 mb-2">描述</label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="输入链接描述（可选）"
-                  rows={4}
-                  className="input resize-y min-h-[100px] max-h-56"
+                  rows={3}
+                  className="input resize-y min-h-[80px] max-h-40"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-studio-500 mb-2">
                   分组
                   <span className="text-xs text-studio-400 ml-2 font-normal">
-                    （互斥单选，标签请用下方"标签"字段）
+                    （互斥单选）
                   </span>
                 </label>
-                <div className="flex flex-wrap gap-2 items-center">
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, category: '' })}
-                    className={`px-3.5 py-1.5 rounded-full text-sm transition-colors border ${
-                      formData.category === ''
-                        ? 'bg-caramel-400 text-white border-caramel-400'
-                        : 'bg-white border-studio-200 text-studio-500 hover:border-caramel-300'
-                    }`}
-                  >
-                    无
-                  </button>
-                  {allGroups.map((g) => {
-                    const active = formData.category === g.name
-                    const bg = g.color
-                    const fg = textColorForBg(bg)
-                    return (
-                      <button
-                        key={g.isPreset ? `preset-${g.name}` : g.id}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, category: g.name })}
-                        className={`px-3.5 py-1.5 rounded-full text-sm transition-colors border ${
-                          active ? 'ring-2 ring-caramel-300' : 'border-studio-200 hover:border-caramel-300'
-                        }`}
-                        style={active
-                          ? { backgroundColor: bg, color: fg, borderColor: bg }
-                          : { backgroundColor: 'white', color: fg === '#ffffff' ? '#78716c' : fg }
-                        }
-                      >
-                        {g.name}
-                      </button>
-                    )
-                  })}
-                  <button
-                    type="button"
-                    onClick={() => setShowGroupManager(true)}
-                    className="px-3 py-1.5 rounded-full text-sm border border-dashed border-studio-300 text-studio-500 hover:border-caramel-400 hover:text-caramel-500 flex items-center gap-1"
-                    title="管理分组（新建 / 重命名 / 删除 / 改色）"
-                  >
-                    <FolderPlus size={14} />
-                    管理分组
-                  </button>
+                {/* chips 区域：固定 max-h + 滚动，超多分组也不会撑爆 modal */}
+                <div className="max-h-32 overflow-y-auto p-2 bg-studio-50 rounded-xl border border-studio-200">
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, category: '' })}
+                      className={`px-3 py-1 rounded-full text-xs transition-colors border ${
+                        formData.category === ''
+                          ? 'bg-caramel-400 text-white border-caramel-400'
+                          : 'bg-white border-studio-200 text-studio-500 hover:border-caramel-300'
+                      }`}
+                    >
+                      无
+                    </button>
+                    {allGroups.map((g) => {
+                      const active = formData.category === g.name
+                      const bg = g.color
+                      const fg = textColorForBg(bg)
+                      return (
+                        <button
+                          key={g.isPreset ? `preset-${g.name}` : g.id}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, category: g.name })}
+                          className={`px-3 py-1 rounded-full text-xs transition-colors border flex-shrink-0 ${
+                            active ? 'ring-2 ring-caramel-300' : 'border-studio-200 hover:border-caramel-300'
+                          }`}
+                          style={active
+                            ? { backgroundColor: bg, color: fg, borderColor: bg }
+                            : { backgroundColor: 'white', color: fg === '#ffffff' ? '#78716c' : fg }
+                          }
+                        >
+                          {g.name}
+                        </button>
+                      )
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => setShowGroupManager(true)}
+                      className="px-3 py-1 rounded-full text-xs border border-dashed border-studio-300 text-studio-500 hover:border-caramel-400 hover:text-caramel-500 flex items-center gap-1 flex-shrink-0"
+                      title="管理分组（新建 / 重命名 / 删除 / 改色）"
+                    >
+                      <FolderPlus size={12} />
+                      管理分组
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -721,8 +726,14 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
                   className="input"
                 />
               </div>
-              
-              <button onClick={handleSave} className="w-full btn btn-primary mt-2">
+            </div>
+
+            {/* Footer — fixed at bottom, always reachable even when body is long */}
+            <div className="flex-shrink-0 flex gap-2 p-6 pt-4 border-t border-studio-100">
+              <button onClick={closeModal} className="flex-1 btn btn-ghost">
+                取消
+              </button>
+              <button onClick={handleSave} className="flex-1 btn btn-primary">
                 {editingLink ? '保存修改' : '添加链接'}
               </button>
             </div>
@@ -753,106 +764,112 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
           }}
         >
           <div
-            className="bg-white rounded-2xl shadow-large max-w-lg w-full max-h-[80vh] overflow-y-auto"
+            className="bg-white rounded-2xl shadow-large w-full max-w-lg max-h-[85vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between p-6 border-b border-studio-200">
+            {/* Header — 固定 */}
+            <div className="flex items-center justify-between p-6 pb-4 border-b border-studio-100 flex-shrink-0">
               <h3 className="font-display text-lg font-semibold text-ink-100">管理分组</h3>
               <button
                 onClick={() => setShowGroupManager(false)}
-                className="text-studio-400 hover:text-studio-600"
+                className="text-studio-400 hover:text-studio-600 p-1"
+                aria-label="关闭"
               >
                 <X size={20} />
               </button>
             </div>
 
-            {/* 新建分组 */}
-            <div className="p-6 border-b border-studio-200 bg-studio-50">
-              <h4 className="text-sm font-medium text-studio-500 mb-3">新建分组</h4>
-              <div className="space-y-3">
-                <input
-                  type="text"
-                  value={newGroupName}
-                  onChange={(e) => { setNewGroupName(e.target.value); setCreateError('') }}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleCreateGroup() }}
-                  placeholder="分组名（如：AI 工具）"
-                  className="input w-full"
-                  maxLength={20}
-                />
-                <div>
-                  <p className="text-xs text-studio-400 mb-2">选颜色</p>
-                  <div className="flex gap-2 flex-wrap">
-                    {GROUP_COLOR_OPTIONS.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        onClick={() => setNewGroupColor(color)}
-                        className={`w-8 h-8 rounded-lg transition-transform ${
-                          newGroupColor === color
-                            ? 'ring-2 ring-offset-2 ring-caramel-400 scale-110'
-                            : 'hover:scale-110'
-                        }`}
-                        style={{ backgroundColor: color }}
-                        title={color}
-                      />
-                    ))}
-                  </div>
-                </div>
-                {createError && (
-                  <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-                    {createError}
-                  </p>
-                )}
-                <button
-                  onClick={handleCreateGroup}
-                  disabled={!newGroupName.trim()}
-                  className="w-full p-3 rounded-xl bg-gradient-to-br from-caramel-400 to-caramel-500 text-white hover:from-caramel-500 hover:to-caramel-600 disabled:opacity-40 disabled:hover:from-caramel-400 disabled:hover:to-caramel-500 transition-all shadow-soft hover:shadow-medium disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {/* + 号 和 文字在同一水平线（baseline 对齐）*/}
-                  <Plus size={18} strokeWidth={2.5} />
-                  <span className="font-medium">新建分组</span>
-                  <span
-                    className="w-3 h-3 rounded-sm border border-white/60 ml-1"
-                    style={{ backgroundColor: newGroupColor }}
-                    title="当前选中颜色"
+            {/* Body — 滚动 */}
+            <div className="flex-1 overflow-y-auto">
+              {/* 新建分组 */}
+              <div className="p-6 border-b border-studio-200 bg-studio-50">
+                <h4 className="text-sm font-medium text-studio-500 mb-3">新建分组</h4>
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    value={newGroupName}
+                    onChange={(e) => { setNewGroupName(e.target.value); setCreateError('') }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleCreateGroup() }}
+                    placeholder="分组名（如：AI 工具）"
+                    className="input w-full"
+                    maxLength={20}
                   />
-                </button>
-              </div>
-            </div>
-
-            {/* 预设分组（只读） */}
-            <div className="p-6 border-b border-studio-200">
-              <h4 className="text-sm font-medium text-studio-500 mb-3">
-                预设分组 <span className="text-xs text-studio-400 font-normal">（内置，不可改）</span>
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {PRESET_GROUPS.map(p => (
-                  <span
-                    key={p.name}
-                    className="px-3 py-1 rounded-full text-xs border"
-                    style={{
-                      backgroundColor: p.color,
-                      color: textColorForBg(p.color),
-                      borderColor: p.color,
-                    }}
+                  <div>
+                    <p className="text-xs text-studio-400 mb-2">选颜色</p>
+                    <div className="flex gap-2 flex-wrap">
+                      {GROUP_COLOR_OPTIONS.map((color) => (
+                        <button
+                          key={color}
+                          type="button"
+                          onClick={() => setNewGroupColor(color)}
+                          className={`w-8 h-8 rounded-lg transition-transform ${
+                            newGroupColor === color
+                              ? 'ring-2 ring-offset-2 ring-caramel-400 scale-110'
+                              : 'hover:scale-110'
+                          }`}
+                          style={{ backgroundColor: color }}
+                          title={color}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  {createError && (
+                    <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                      {createError}
+                    </p>
+                  )}
+                  <button
+                    onClick={handleCreateGroup}
+                    disabled={!newGroupName.trim()}
+                    className="w-full p-3 rounded-xl bg-gradient-to-br from-caramel-400 to-caramel-500 text-white hover:from-caramel-500 hover:to-caramel-600 disabled:opacity-40 disabled:hover:from-caramel-400 disabled:hover:to-caramel-500 transition-all shadow-soft hover:shadow-medium disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    {p.name}
-                  </span>
-                ))}
+                    <Plus size={18} strokeWidth={2.5} />
+                    <span className="font-medium">新建分组</span>
+                    <span
+                      className="w-3 h-3 rounded-sm border border-white/60 ml-1"
+                      style={{ backgroundColor: newGroupColor }}
+                      title="当前选中颜色"
+                    />
+                  </button>
+                </div>
               </div>
-            </div>
 
-            {/* 自定义分组（可编辑/删除） */}
-            <div className="p-6">
-              <h4 className="text-sm font-medium text-studio-500 mb-3">
-                自定义分组
-                {customGroups.length === 0 && (
-                  <span className="text-xs text-studio-400 font-normal ml-2">（暂无，在上方新建）</span>
-                )}
-              </h4>
-              {customGroups.length > 0 && (
-                <div className="space-y-2">
-                  {customGroups.map(g => (
+              {/* 预设分组（只读，固定 7 个） */}
+              <div className="p-6 border-b border-studio-200">
+                <h4 className="text-sm font-medium text-studio-500 mb-3">
+                  预设分组 <span className="text-xs text-studio-400 font-normal">（内置，不可改）</span>
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {PRESET_GROUPS.map(p => (
+                    <span
+                      key={p.name}
+                      className="px-3 py-1 rounded-full text-xs border"
+                      style={{
+                        backgroundColor: p.color,
+                        color: textColorForBg(p.color),
+                        borderColor: p.color,
+                      }}
+                    >
+                      {p.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* 自定义分组（可能很多 → 内部滚动，外部不变形） */}
+              <div className="p-6">
+                <h4 className="text-sm font-medium text-studio-500 mb-3">
+                  自定义分组
+                  {customGroups.length === 0 && (
+                    <span className="text-xs text-studio-400 font-normal ml-2">（暂无，在上方新建）</span>
+                  )}
+                  {customGroups.length > 0 && (
+                    <span className="text-xs text-studio-400 font-normal ml-2">（{customGroups.length} 个）</span>
+                  )}
+                </h4>
+                {customGroups.length > 0 && (
+                  <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                    {customGroups.map(g => (
                     <div key={g.id} className="p-2 rounded-lg hover:bg-studio-50">
                       <div className="flex items-center gap-2">
                       {editingGroupId === g.id ? (
@@ -940,6 +957,18 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
                   ))}
                 </div>
               )}
+              </div>
+            </div>
+
+            {/* Footer — 固定，关闭按钮始终可达 */}
+            <div className="flex-shrink-0 flex gap-2 p-6 pt-4 border-t border-studio-100">
+              <button onClick={() => {
+                setShowGroupManager(false)
+                setCreateError('')
+                setRenameError('')
+              }} className="w-full btn btn-ghost">
+                关闭
+              </button>
             </div>
           </div>
         </div>
