@@ -41,6 +41,24 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # 把 tag name（如 v26.9.37 → 26.9.37）写入 package.json version 字段
+      # 否则 app.getVersion() 永远是 1.0.0，"关于"页显示不出真实版本
+      - name: Sync version from git tag
+        shell: bash
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          echo "Setting package.json version to ${VERSION}"
+          # 用 python 保留文件其他字段（jq 会重排，sed 不安全）
+          python -c "
+          import json, sys
+          p = json.load(open('package.json'))
+          p['version'] = sys.argv[1]
+          json.dump(p, open('package.json','w'), indent=2, ensure_ascii=False)
+          print('OK')
+          " "${VERSION}"
+          cat package.json | head -5
+
       # 生成多尺寸 PNG 到 build/icons/ —— electron-builder 会自动从中
       # 生成 macOS .icns 和 Windows .ico。public/icon.png 必须是 512x512+，
       # 否则 macOS 会报 'image must be at least 512x512'。

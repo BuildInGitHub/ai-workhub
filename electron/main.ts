@@ -136,22 +136,37 @@ ipcMain.handle('app:downloadUpdate', async (event, args: { url: string; filename
     const reader = resp.body.getReader()
     const contentLength = parseInt(resp.headers.get('content-length') || '0', 10)
     let received = 0
+    let lastReportedPercent = -1
     // eslint-disable-next-line no-constant-condition
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
       fileStream.write(Buffer.from(value))
       received += value.byteLength
+      // 每 1% 推一次进度（避免 IPC 风暴），最后一次 100% 一定推
       if (contentLength > 0) {
-        sender.send('update:progress', {
-          filename,
-          percent: Math.round((received / contentLength) * 100),
-          received,
-          total: contentLength,
-        })
+        const percent = Math.round((received / contentLength) * 100)
+        if (percent !== lastReportedPercent) {
+          lastReportedPercent = percent
+          sender.send('update:progress', {
+            filename,
+            percent,
+            received,
+            total: contentLength,
+          })
+        }
       }
     }
     await new Promise<void>(resolve => fileStream.end(resolve))
+    // 文件写完后兜底再推一次 100%（如果上面没推到的极端情况）
+    if (contentLength > 0 && lastReportedPercent < 100) {
+      sender.send('update:progress', {
+        filename,
+        percent: 100,
+        received: contentLength,
+        total: contentLength,
+      })
+    }
     return { ok: true, localPath: dest, filename }
   } catch (e: any) {
     return { ok: false, error: e?.message || '下载失败' }
