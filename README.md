@@ -203,6 +203,29 @@ For full feature documentation, troubleshooting, architecture, and contribution 
 
 [Apache License 2.0](LICENSE)
 
+### 验证安装包 · Verify downloads
+
+每个 release 都附 `.asc` GPG 签名 + `SHA256SUMS.txt`，可在下载后验证完整性：
+
+```bash
+# 1. 导入公钥（一次性）
+curl -fsSL https://raw.githubusercontent.com/BuildInGitHub/ai-workhub/main/release-keys/ai-workhub-release-pubkey.asc \
+  | gpg --import
+
+# 2. GPG 签名验证（每个安装包对应一个 .asc 文件）
+gpg --verify AI-WorkHub-Setup-1.0.0.exe.asc AI-WorkHub-Setup-1.0.0.exe
+gpg --verify AI-WorkHub-1.0.0-x64.dmg.asc AI-WorkHub-1.0.0-x64.dmg
+
+# 3. SHA256 校验（不依赖密钥）
+sha256sum -c SHA256SUMS.txt
+```
+
+成功输出：
+```
+gpg: Good signature from "AI WorkHub Releases ..."
+SHA256SUMS.txt: OK
+```
+
 ### Contact
 
 - GitHub: <https://github.com/BuildInGitHub/ai-workhub>
