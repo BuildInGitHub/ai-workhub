@@ -174,9 +174,16 @@ ipcMain.handle('app:installWindows', async (_event, installerPath: string) => {
     return { ok: false, message: '仅 Windows 支持静默安装' }
   }
   try {
-    // NSIS /S = 静默安装；用 start /wait 等安装完成
-    spawn(installerPath, ['/S'], { detached: true, stdio: 'ignore' }).unref()
-    return { ok: true, message: '静默安装已启动，完成后请重启应用' }
+    // NSIS /S = 静默安装。spawn + shell:true 让 Windows 用 cmd.exe 处理路径
+    // （路径含空格 'AI WorkHub Setup 1.0.0.exe' 需要 cmd 转义）。
+    // detached: true 允许安装器独立运行不阻塞 Electron 主进程。
+    spawn(installerPath, ['/S'], {
+      detached: true,
+      shell: true,
+      stdio: 'ignore',
+      windowsHide: false,
+    }).unref()
+    return { ok: true, message: '静默安装已启动' }
   } catch (e: any) {
     return { ok: false, message: e?.message || '静默安装启动失败' }
   }
