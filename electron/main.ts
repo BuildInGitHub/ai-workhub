@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell, dialog, screen } from 'electron'
+import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell, dialog, screen, net } from 'electron'
 import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
@@ -69,6 +69,52 @@ ipcMain.handle('db:backupNow', async () => {
 
 // 当前应用版本（package.json 中的 version 字段，electron-builder 会覆盖）
 ipcMain.handle('app:version', () => app.getVersion())
+
+// 检查更新：主进程用 Electron 内置 net 模块请求 GitHub Releases API
+// （不走 renderer fetch，避免 CSP / 网络代理 / 跨域限制）
+ipcMain.handle('app:checkUpdate', async (): Promise<{
+  ok: boolean
+  currentVersion: string
+  latestVersion?: string
+  htmlUrl?: string
+  error?: string
+}> => {
+  const currentVersion = app.getVersion()
+  try {
+    // net.fetch 等价于 Node 18+ global fetch，但绑定 Electron 网络栈
+    const resp = await net.fetch('https://api.github.com/repos/BuildInGitHub/ai-workhub/releases/latest', {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'AI-WorkHub-Updater',
+      },
+    })
+    if (!resp.ok) {
+      return {
+        ok: false,
+        currentVersion,
+        error: `GitHub API HTTP ${resp.status}（可能是速率限制 403 或仓库私有）`,
+      }
+    }
+    const data: any = await resp.json()
+    const latestTag = String(data?.tag_name || '').trim()
+    if (!latestTag) {
+      return { ok: false, currentVersion, error: '返回数据缺少 tag_name（仓库可能还没有任何 published release）' }
+    }
+    return {
+      ok: true,
+      currentVersion,
+      latestVersion: latestTag,
+      htmlUrl: data.html_url || `https://github.com/BuildInGitHub/ai-workhub/releases/tag/${latestTag}`,
+    }
+  } catch (e: any) {
+    return {
+      ok: false,
+      currentVersion,
+      error: `${e?.message || '检查更新失败'}（确认网络可访问 api.github.com）`,
+    }
+  }
+})
 
 // 导出数据库
 ipcMain.handle('db:exportData', async () => {

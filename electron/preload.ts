@@ -91,5 +91,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 应用元信息
   app: {
     version: () => ipcRenderer.invoke('app:version'),
+    checkUpdate: () => ipcRenderer.invoke('app:checkUpdate'),
   },
 })

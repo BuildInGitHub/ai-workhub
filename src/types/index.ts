@@ -210,6 +210,13 @@ export interface ElectronAPI {
   /** 应用元信息 */
   app?: {
     version: () => Promise<string>
+    checkUpdate: () => Promise<{
+      ok: boolean
+      currentVersion: string
+      latestVersion?: string
+      htmlUrl?: string
+      error?: string
+    }>
   }
 }
 

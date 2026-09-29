@@ -324,6 +324,7 @@ export default function Sidebar({
   // 关于 tab 状态
   const [appVersion, setAppVersion] = useState('…')
   const [latestVersion, setLatestVersion] = useState<string | null>(null)
+  const [latestHtmlUrl, setLatestHtmlUrl] = useState<string>('')
   const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'upToDate' | 'outdated' | 'error'>('idle')
   const [updateError, setUpdateError] = useState('')
   const [skillOpen, setSkillOpen] = useState(false)
@@ -427,23 +428,26 @@ export default function Sidebar({
     return 0
   }
 
-  // 检查更新：调 GitHub Releases API（最新 published release）
+  // 检查更新：走主进程 IPC（net.fetch），绕过 renderer CSP / 网络限制
   const handleCheckUpdate = async () => {
     setUpdateStatus('checking')
     setUpdateError('')
     try {
-      const resp = await fetch('https://api.github.com/repos/BuildInGitHub/ai-workhub/releases/latest')
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-      const data = await resp.json()
-      const latestTag = (data.tag_name || '').trim()
-      setLatestVersion(latestTag)
-      if (!latestTag) {
+      const result = await window.electronAPI?.app?.checkUpdate()
+      if (!result) {
         setUpdateStatus('error')
-        setUpdateError('返回数据缺少 tag_name')
+        setUpdateError('主进程无响应（preload 没暴露？）')
         return
       }
-      // 去掉 tag 前缀 'v' 后比较
-      if (compareSemver(appVersion, latestTag) < 0) {
+      if (!result.ok) {
+        setUpdateStatus('error')
+        setUpdateError(result.error || '未知错误')
+        return
+      }
+      const latest = result.latestVersion || ''
+      setLatestVersion(latest)
+      setLatestHtmlUrl(result.htmlUrl || `https://github.com/BuildInGitHub/ai-workhub/releases/tag/${latest}`)
+      if (compareSemver(result.currentVersion, latest) < 0) {
         setUpdateStatus('outdated')
       } else {
         setUpdateStatus('upToDate')
@@ -1160,10 +1164,10 @@ export default function Sidebar({
 
                   {updateStatus === 'outdated' && latestVersion && (
                     <a
-                      href={`https://github.com/BuildInGitHub/ai-workhub/releases/tag/${latestVersion}`}
+                      href={latestHtmlUrl || `https://github.com/BuildInGitHub/ai-workhub/releases/tag/${latestVersion}`}
                       onClick={(e) => {
                         e.preventDefault()
-                        window.electronAPI?.shell.openExternal(`https://github.com/BuildInGitHub/ai-workhub/releases/tag/${latestVersion}`)
+                        window.electronAPI?.shell.openExternal(latestHtmlUrl || `https://github.com/BuildInGitHub/ai-workhub/releases/tag/${latestVersion}`)
                       }}
                       className="mt-3 block text-center text-xs text-orange-500 hover:text-orange-600 underline underline-offset-2"
                     >
