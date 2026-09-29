@@ -327,6 +327,18 @@ export default function Sidebar({
   const [latestHtmlUrl, setLatestHtmlUrl] = useState<string>('')
   const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'upToDate' | 'outdated' | 'error'>('idle')
   const [updateError, setUpdateError] = useState('')
+  const [downloadProgress, setDownloadProgress] = useState(0) // 0-100
+  const [downloadedPath, setDownloadedPath] = useState<string>('')
+  const [downloadedFilename, setDownloadedFilename] = useState<string>('')
+  const [installMessage, setInstallMessage] = useState<string>('')
+
+  // 检测当前平台（renderer 拿不到 process.platform）
+  const userPlatform = (() => {
+    const ua = navigator.userAgent.toLowerCase()
+    if (ua.includes('win')) return 'win32' as const
+    if (ua.includes('mac')) return 'darwin' as const
+    return 'linux' as const
+  })()
   const [skillOpen, setSkillOpen] = useState(false)
   const [cliOpen, setCliOpen] = useState(false)
   const [marketType, setMarketType] = useState<null | 'mcp' | 'skill' | 'cli'>(null)
@@ -415,6 +427,16 @@ export default function Sidebar({
     }).catch(() => {})
   }, [])
 
+  // 订阅主进程推送的下载进度
+  useEffect(() => {
+    const off = window.electronAPI?.app?.onUpdateProgress?.((data) => {
+      if (data.filename === downloadedFilename || !downloadedFilename) {
+        setDownloadProgress(data.percent)
+      }
+    })
+    return () => { off?.() }
+  }, [downloadedFilename])
+
   // 简单的 semver 比较：v1<v2 返回 -1，v1==v2 返回 0，v1>v2 返回 1
   const compareSemver = (a: string, b: string): number => {
     const pa = a.replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0)
@@ -455,6 +477,56 @@ export default function Sidebar({
     } catch (e: any) {
       setUpdateStatus('error')
       setUpdateError(e?.message || '检查更新失败')
+    }
+  }
+
+  // 根据当前平台推断对应的安装包文件名（artifactName 在 package.json 里设过）
+  const getInstallerFilename = (tag: string): string => {
+    const v = tag.replace(/^v/, '')
+    if (userPlatform === 'win32') return `AI-WorkHub-Setup-${v}.exe`
+    if (userPlatform === 'darwin') return `AI-WorkHub-${v}-arm64.dmg`  // 用户多半是 Apple Silicon
+    return `AI-WorkHub-${v}.AppImage`
+  }
+
+  // 下载按钮：拿 latestVersion 后直接走 github release 下载链接
+  const handleDownloadUpdate = async () => {
+    if (!latestVersion) return
+    const filename = getInstallerFilename(latestVersion)
+    const url = `https://github.com/BuildInGitHub/ai-workhub/releases/download/${latestVersion}/${filename}`
+    setDownloadProgress(0)
+    setDownloadedFilename(filename)
+    setInstallMessage('')
+    const result = await window.electronAPI?.app?.downloadUpdate({ url, filename })
+    if (!result?.ok) {
+      setUpdateError(result?.error || '下载失败')
+      return
+    }
+    setDownloadedPath(result.localPath || '')
+    setDownloadProgress(100)
+  }
+
+  // 安装按钮：按平台分支
+  const handleInstall = async () => {
+    if (!downloadedPath) return
+    setInstallMessage('')
+    if (userPlatform === 'win32') {
+      // Windows：静默运行 NSIS /S 安装
+      const r = await window.electronAPI?.app?.installWindows(downloadedPath)
+      setInstallMessage(r?.message || '已启动静默安装')
+    } else if (userPlatform === 'darwin') {
+      // macOS：打开 DMG（用户拖到 Applications）+ 提示重启
+      const r = await window.electronAPI?.app?.openInstaller(downloadedPath)
+      setInstallMessage(
+        (r?.message || '已打开 DMG') +
+        '\n安装完成后退出当前版本，再启动新版本（路径：Applications/AI WorkHub.app）。'
+      )
+    } else {
+      // Linux：直接启动新 AppImage
+      const r = await window.electronAPI?.app?.launchLinuxAppImage(downloadedPath)
+      setInstallMessage(
+        (r?.message || '已启动新版本') +
+        '\n现在可以退出当前版本。'
+      )
     }
   }
 
@@ -1162,16 +1234,81 @@ export default function Sidebar({
                     {updateStatus === 'checking' ? '检查中…' : '检查更新'}
                   </button>
 
-                  {updateStatus === 'outdated' && latestVersion && (
+                  {/* outdated：显示"下载 + 安装"按钮 + 进度条 */}
+                  {updateStatus === 'outdated' && latestVersion && !downloadedPath && (
+                    <button
+                      onClick={handleDownloadUpdate}
+                      className="mt-3 w-full py-2 rounded-md text-xs font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <Download size={12} />
+                      下载并安装 v{latestVersion}
+                    </button>
+                  )}
+
+                  {/* 下载中：进度条 */}
+                  {downloadProgress > 0 && downloadProgress < 100 && !downloadedPath && (
+                    <div className="mt-3">
+                      <div className="flex justify-between text-xs text-dark-500 mb-1">
+                        <span>下载中… {downloadedFilename}</span>
+                        <span>{downloadProgress}%</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-dark-200 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-orange-500 transition-all"
+                          style={{ width: `${downloadProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 下载完成：显示"立即安装"按钮 + 平台特定提示 */}
+                  {downloadedPath && (
+                    <>
+                      <p className="mt-3 text-xs text-green-500 flex items-center gap-1">
+                        <Check size={12} /> 下载完成：{downloadedFilename}
+                      </p>
+                      <button
+                        onClick={handleInstall}
+                        className="mt-2 w-full py-2 rounded-md text-xs font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        {userPlatform === 'win32' && '静默安装（将后台运行）'}
+                        {userPlatform === 'darwin' && '打开 DMG（拖到 Applications 安装）'}
+                        {userPlatform === 'linux' && '启动新版本（AppImage）'}
+                      </button>
+                      {installMessage && (
+                        <p className="mt-3 text-xs text-dark-500 whitespace-pre-line bg-dark-100 rounded-lg p-3">
+                          {installMessage}
+                        </p>
+                      )}
+                      {userPlatform === 'win32' && (
+                        <p className="mt-2 text-xs text-orange-500">
+                          💡 静默安装完成后，请退出本应用再重新启动，新版本生效。
+                        </p>
+                      )}
+                      {userPlatform === 'darwin' && (
+                        <p className="mt-2 text-xs text-orange-500">
+                          💡 DMG 打开后把 AI WorkHub 拖到 Applications 文件夹覆盖旧版本，再启动新版本。
+                        </p>
+                      )}
+                      {userPlatform === 'linux' && (
+                        <p className="mt-2 text-xs text-orange-500">
+                          💡 新版本 AppImage 已经在后台启动了，关闭当前窗口即可切换。
+                        </p>
+                      )}
+                    </>
+                  )}
+
+                  {/* outdated 但已下载完之前的 fallback：保留 GitHub 链接以防下载失败 */}
+                  {updateStatus === 'outdated' && latestVersion && !downloadedPath && downloadProgress === 0 && (
                     <a
                       href={latestHtmlUrl || `https://github.com/BuildInGitHub/ai-workhub/releases/tag/${latestVersion}`}
                       onClick={(e) => {
                         e.preventDefault()
                         window.electronAPI?.shell.openExternal(latestHtmlUrl || `https://github.com/BuildInGitHub/ai-workhub/releases/tag/${latestVersion}`)
                       }}
-                      className="mt-3 block text-center text-xs text-orange-500 hover:text-orange-600 underline underline-offset-2"
+                      className="mt-2 block text-center text-xs text-orange-500 hover:text-orange-600 underline underline-offset-2"
                     >
-                      前往 GitHub Releases 下载 v{latestVersion} →
+                      前往 GitHub Releases 查看 →
                     </a>
                   )}
 

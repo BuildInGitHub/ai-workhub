@@ -92,5 +92,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   app: {
     version: () => ipcRenderer.invoke('app:version'),
     checkUpdate: () => ipcRenderer.invoke('app:checkUpdate'),
+    downloadUpdate: (args: { url: string; filename: string }) => ipcRenderer.invoke('app:downloadUpdate', args),
+    openInstaller: (localPath: string) => ipcRenderer.invoke('app:openInstaller', localPath),
+    installWindows: (installerPath: string) => ipcRenderer.invoke('app:installWindows', installerPath),
+    launchLinuxAppImage: (appImagePath: string) => ipcRenderer.invoke('app:launchLinuxAppImage', appImagePath),
+    onUpdateProgress: (cb: (data: { filename: string; percent: number; received: number; total: number }) => void) => {
+      const listener = (_e: any, data: any) => cb(data)
+      ipcRenderer.on('update:progress', listener)
+      return () => ipcRenderer.removeListener('update:progress', listener)
+    },
   },
 })

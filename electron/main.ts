@@ -1,6 +1,8 @@
 import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell, dialog, screen, net } from 'electron'
 import path from 'path'
 import fs from 'fs'
+import os from 'os'
+import { spawn } from 'child_process'
 import { fileURLToPath } from 'url'
 import { v4 as uuidv4 } from 'uuid'
 import { initDatabase, runQuery, closeDatabase } from './database'
@@ -113,6 +115,84 @@ ipcMain.handle('app:checkUpdate', async (): Promise<{
       currentVersion,
       error: `${e?.message || '检查更新失败'}（确认网络可访问 api.github.com）`,
     }
+  }
+})
+
+// 在应用内下载更新（net.fetch + 流式写到临时文件 + 进度推送）
+// 保存到 OS 临时目录（macOS /tmp、Linux /tmp、Windows %TEMP%）
+ipcMain.handle('app:downloadUpdate', async (event, args: { url: string; filename: string }) => {
+  const { url, filename } = args
+  if (!url || !filename) return { ok: false, error: 'url 或 filename 为空' }
+  const sender = event.sender
+  try {
+    const resp = await net.fetch(url)
+    if (!resp.ok || !resp.body) {
+      return { ok: false, error: `下载 HTTP ${resp.status}` }
+    }
+    const tmpDir = path.join(os.tmpdir(), 'ai-workhub-update')
+    fs.mkdirSync(tmpDir, { recursive: true })
+    const dest = path.join(tmpDir, filename)
+    const fileStream = fs.createWriteStream(dest)
+    const reader = resp.body.getReader()
+    const contentLength = parseInt(resp.headers.get('content-length') || '0', 10)
+    let received = 0
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      fileStream.write(Buffer.from(value))
+      received += value.byteLength
+      if (contentLength > 0) {
+        sender.send('update:progress', {
+          filename,
+          percent: Math.round((received / contentLength) * 100),
+          received,
+          total: contentLength,
+        })
+      }
+    }
+    await new Promise<void>(resolve => fileStream.end(resolve))
+    return { ok: true, localPath: dest, filename }
+  } catch (e: any) {
+    return { ok: false, error: e?.message || '下载失败' }
+  }
+})
+
+// 打开下载的安装包（shell.openPath：macOS DMG 自动挂载；Windows/Linux 启动 installer/AppImage）
+ipcMain.handle('app:openInstaller', async (_event, localPath: string) => {
+  try {
+    const result = await shell.openPath(localPath)
+    return { ok: result === '', message: result || '已打开安装包' }
+  } catch (e: any) {
+    return { ok: false, message: e?.message || '打开失败' }
+  }
+})
+
+// 静默运行 Windows NSIS installer
+ipcMain.handle('app:installWindows', async (_event, installerPath: string) => {
+  if (process.platform !== 'win32') {
+    return { ok: false, message: '仅 Windows 支持静默安装' }
+  }
+  try {
+    // NSIS /S = 静默安装；用 start /wait 等安装完成
+    spawn(installerPath, ['/S'], { detached: true, stdio: 'ignore' }).unref()
+    return { ok: true, message: '静默安装已启动，完成后请重启应用' }
+  } catch (e: any) {
+    return { ok: false, message: e?.message || '静默安装启动失败' }
+  }
+})
+
+// 启动 Linux AppImage 新版本（旧版本需先退出）
+ipcMain.handle('app:launchLinuxAppImage', async (_event, appImagePath: string) => {
+  if (process.platform !== 'linux') {
+    return { ok: false, message: '仅 Linux 支持此操作' }
+  }
+  try {
+    fs.chmodSync(appImagePath, 0o755)
+    spawn(appImagePath, [], { detached: true, stdio: 'ignore' }).unref()
+    return { ok: true, message: '已启动新版本，可以退出当前版本' }
+  } catch (e: any) {
+    return { ok: false, message: e?.message || '启动失败' }
   }
 })
 

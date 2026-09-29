@@ -217,6 +217,16 @@ export interface ElectronAPI {
       htmlUrl?: string
       error?: string
     }>
+    downloadUpdate: (args: { url: string; filename: string }) => Promise<{
+      ok: boolean
+      localPath?: string
+      filename?: string
+      error?: string
+    }>
+    openInstaller: (localPath: string) => Promise<{ ok: boolean; message: string }>
+    installWindows: (installerPath: string) => Promise<{ ok: boolean; message: string }>
+    launchLinuxAppImage: (appImagePath: string) => Promise<{ ok: boolean; message: string }>
+    onUpdateProgress: (cb: (data: { filename: string; percent: number; received: number; total: number }) => void) => () => void
   }
 }
 
