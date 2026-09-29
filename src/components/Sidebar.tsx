@@ -332,13 +332,23 @@ export default function Sidebar({
   const [downloadedFilename, setDownloadedFilename] = useState<string>('')
   const [installMessage, setInstallMessage] = useState<string>('')
 
-  // 检测当前平台（renderer 拿不到 process.platform）
+  // 检测当前平台 + Mac CPU 架构
   const userPlatform = (() => {
     const ua = navigator.userAgent.toLowerCase()
-    if (ua.includes('win')) return 'win32' as const
-    if (ua.includes('mac')) return 'darwin' as const
+    const platform = (navigator as any).userAgentData?.platform?.toLowerCase?.() || ''
+    if (ua.includes('win') || platform.includes('win')) return 'win32' as const
+    if (ua.includes('mac') || platform.includes('mac')) {
+      // Mac 上 ARM 架构的 userAgent 含 "Mac ARM"
+      const isArm = ua.includes('arm') || (navigator as any).userAgentData?.architecture === 'arm'
+      return (isArm ? 'darwin-arm64' : 'darwin-x64') as 'darwin-x64' | 'darwin-arm64'
+    }
     return 'linux' as const
   })()
+
+  // 辅助判断宏
+  const isMac = userPlatform === 'darwin-x64' || userPlatform === 'darwin-arm64'
+  const isWin = userPlatform === 'win32'
+  const isLinux = userPlatform === 'linux'
   const [skillOpen, setSkillOpen] = useState(false)
   const [cliOpen, setCliOpen] = useState(false)
   const [marketType, setMarketType] = useState<null | 'mcp' | 'skill' | 'cli'>(null)
@@ -483,8 +493,9 @@ export default function Sidebar({
   // 根据当前平台推断对应的安装包文件名（artifactName 在 package.json 里设过）
   const getInstallerFilename = (tag: string): string => {
     const v = tag.replace(/^v/, '')
-    if (userPlatform === 'win32') return `AI-WorkHub-Setup-${v}.exe`
-    if (userPlatform === 'darwin') return `AI-WorkHub-${v}-arm64.dmg`  // 用户多半是 Apple Silicon
+    if (isWin) return `AI-WorkHub-Setup-${v}.exe`
+    if (userPlatform === 'darwin-x64') return `AI-WorkHub-${v}-x64.dmg`
+    if (userPlatform === 'darwin-arm64') return `AI-WorkHub-${v}-arm64.dmg`
     return `AI-WorkHub-${v}.AppImage`
   }
 
@@ -509,18 +520,18 @@ export default function Sidebar({
   const handleInstall = async () => {
     if (!downloadedPath) return
     setInstallMessage('')
-    if (userPlatform === 'win32') {
+    if (isWin) {
       // Windows：静默运行 NSIS /S 安装
       const r = await window.electronAPI?.app?.installWindows(downloadedPath)
       setInstallMessage(r?.message || '已启动静默安装')
-    } else if (userPlatform === 'darwin') {
+    } else if (isMac) {
       // macOS：打开 DMG（用户拖到 Applications）+ 提示重启
       const r = await window.electronAPI?.app?.openInstaller(downloadedPath)
       setInstallMessage(
         (r?.message || '已打开 DMG') +
         '\n安装完成后退出当前版本，再启动新版本（路径：Applications/AI WorkHub.app）。'
       )
-    } else {
+    } else if (isLinux) {
       // Linux：直接启动新 AppImage
       const r = await window.electronAPI?.app?.launchLinuxAppImage(downloadedPath)
       setInstallMessage(
@@ -1241,7 +1252,7 @@ export default function Sidebar({
                       className="mt-3 w-full py-2 rounded-md text-xs font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors flex items-center justify-center gap-1.5"
                     >
                       <Download size={12} />
-                      下载并安装 v{latestVersion}
+                      下载并安装 {latestVersion}
                     </button>
                   )}
 
@@ -1271,26 +1282,26 @@ export default function Sidebar({
                         onClick={handleInstall}
                         className="mt-2 w-full py-2 rounded-md text-xs font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors flex items-center justify-center gap-1.5"
                       >
-                        {userPlatform === 'win32' && '静默安装（将后台运行）'}
-                        {userPlatform === 'darwin' && '打开 DMG（拖到 Applications 安装）'}
-                        {userPlatform === 'linux' && '启动新版本（AppImage）'}
+                        {isWin && '静默安装（将后台运行）'}
+                        {isMac && '打开 DMG（拖到 Applications 安装）'}
+                        {isLinux && '启动新版本（AppImage）'}
                       </button>
                       {installMessage && (
                         <p className="mt-3 text-xs text-dark-500 whitespace-pre-line bg-dark-100 rounded-lg p-3">
                           {installMessage}
                         </p>
                       )}
-                      {userPlatform === 'win32' && (
+                      {isWin && (
                         <p className="mt-2 text-xs text-orange-500">
                           💡 静默安装完成后，请退出本应用再重新启动，新版本生效。
                         </p>
                       )}
-                      {userPlatform === 'darwin' && (
+                      {isMac && (
                         <p className="mt-2 text-xs text-orange-500">
                           💡 DMG 打开后把 AI WorkHub 拖到 Applications 文件夹覆盖旧版本，再启动新版本。
                         </p>
                       )}
-                      {userPlatform === 'linux' && (
+                      {isLinux && (
                         <p className="mt-2 text-xs text-orange-500">
                           💡 新版本 AppImage 已经在后台启动了，关闭当前窗口即可切换。
                         </p>
