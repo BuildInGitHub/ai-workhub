@@ -72,18 +72,46 @@ ipcMain.handle('db:backupNow', async () => {
 // 当前应用版本（package.json 中的 version 字段，electron-builder 会覆盖）
 ipcMain.handle('app:version', () => app.getVersion())
 
-// 检查更新：主进程用 Electron 内置 net 模块请求 GitHub Releases API
-// （不走 renderer fetch，避免 CSP / 网络代理 / 跨域限制）
+// 检查更新：主进程优先抓 Releases HTML 页面（无 API 速率限制），
+// fallback 到 GitHub REST API（60/h 匿名额度，公司 NAT 下易撞墙）。
 ipcMain.handle('app:checkUpdate', async (): Promise<{
   ok: boolean
   currentVersion: string
   latestVersion?: string
   htmlUrl?: string
   error?: string
+  source?: 'api' | 'html'
 }> => {
   const currentVersion = app.getVersion()
+
+  // 策略 1：抓 Releases HTML 页面，从链接里解析出最新 tag
+  // 优点：完全无 API 速率限制；缺点：tag 字符串需要从 HTML 正则提取
   try {
-    // net.fetch 等价于 Node 18+ global fetch，但绑定 Electron 网络栈
+    const htmlResp = await net.fetch('https://github.com/BuildInGitHub/ai-workhub/releases', {
+      method: 'GET',
+      headers: { 'User-Agent': 'AI-WorkHub-Updater' },
+    })
+    if (htmlResp.ok) {
+      const html = await htmlResp.text()
+      // 匹配 "/releases/tag/vX.Y.Z" — 第一个通常是最新（GitHub 排序）
+      const match = html.match(/\/releases\/tag\/(v\d+\.\d+\.\d+)/)
+      if (match && match[1]) {
+        const latestTag = match[1]
+        return {
+          ok: true,
+          currentVersion,
+          latestVersion: latestTag,
+          htmlUrl: `https://github.com/BuildInGitHub/ai-workhub/releases/tag/${latestTag}`,
+          source: 'html',
+        }
+      }
+    }
+  } catch (e) {
+    // 继续 fallback 到 API
+  }
+
+  // 策略 2：fallback 到 GitHub REST API（前面 html 失败时用）
+  try {
     const resp = await net.fetch('https://api.github.com/repos/BuildInGitHub/ai-workhub/releases/latest', {
       method: 'GET',
       headers: {
@@ -95,7 +123,7 @@ ipcMain.handle('app:checkUpdate', async (): Promise<{
       return {
         ok: false,
         currentVersion,
-        error: `GitHub API HTTP ${resp.status}（可能是速率限制 403 或仓库私有）`,
+        error: `GitHub API HTTP ${resp.status}（速率限制 403 / 仓库私有 / 网络问题）`,
       }
     }
     const data: any = await resp.json()
@@ -108,12 +136,13 @@ ipcMain.handle('app:checkUpdate', async (): Promise<{
       currentVersion,
       latestVersion: latestTag,
       htmlUrl: data.html_url || `https://github.com/BuildInGitHub/ai-workhub/releases/tag/${latestTag}`,
+      source: 'api',
     }
   } catch (e: any) {
     return {
       ok: false,
       currentVersion,
-      error: `${e?.message || '检查更新失败'}（确认网络可访问 api.github.com）`,
+      error: `${e?.message || '检查更新失败'}（确认网络可访问 github.com）`,
     }
   }
 })

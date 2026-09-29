@@ -216,6 +216,7 @@ export interface ElectronAPI {
       latestVersion?: string
       htmlUrl?: string
       error?: string
+      source?: 'api' | 'html'
     }>
     downloadUpdate: (args: { url: string; filename: string }) => Promise<{
       ok: boolean
