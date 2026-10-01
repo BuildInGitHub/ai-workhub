@@ -118,3 +118,33 @@ $RECYCLE.BIN/
 TODO.md
 USER_JOURNEY.md
 SIGNING.md
+
+# -----------------------
+# 代码签名证书 / 私钥（NEVER commit）
+# macOS: .p12 (Developer ID Application)
+# Windows: .pfx (OV / EV 代码签名)
+# Linux: GPG / OpenSSL 私钥
+# 这些文件应该配置在 GitHub Secrets，不入仓
+# -----------------------
+*.p12
+*.pfx
+*.p7b
+*.cer
+*.key
+*.pem
+# 防止误把整个 cert 目录 commit
+/certs/
+!electron/certs/.gitkeep
+
+# Apple Developer ID Application / Installer cert 的本地副本（即使临时也别进仓）
+*.mobileprovision
+*.provisionprofile
+*.developerprofile
+*.developerprofile.json
+
+# Windows 签名相关临时文件
+AppxSignature.p7x
+*.appxsym
+
+# macOS 公证 / Staple 票据（如果存成本地 disk）
+*.ticket
