@@ -87,6 +87,12 @@ input, textarea, button {
          placeholder:text-dark-500;
 }
 
+/* 必填校验失败态：叠在 .input 上覆盖边框与 focus 色 */
+.input-error {
+  @apply border-red-400 bg-red-50/40
+         focus:border-red-500 focus:ring-1 focus:ring-red-500/25;
+}
+
 /* 标签页样式 */
 .tab {
   @apply px-4 py-2 rounded-lg text-gray-500 transition-all duration-200;

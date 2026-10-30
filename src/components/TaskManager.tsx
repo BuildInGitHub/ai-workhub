@@ -27,6 +27,8 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all')
   const [showAddModal, setShowAddModal] = useState(false)
+  // 必填校验：标题为空时显示红边 + 提示文字
+  const [titleError, setTitleError] = useState('')
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null)
   const [kanbanTask, setKanbanTask] = useState<Task | null>(null)
@@ -126,7 +128,13 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
   }
 
   const handleSave = async () => {
-    if (!window.electronAPI || !formData.title) return
+    if (!window.electronAPI) return
+    // 必填校验：标题为空时标红并保留弹窗，不静默返回
+    if (!formData.title.trim()) {
+      setTitleError('请输入任务标题')
+      return
+    }
+    setTitleError('')
     
     try {
       const completed = formData.status === 'done' ? 1 : 0
@@ -187,6 +195,7 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
     setShowAddModal(false)
     setEditingTask(null)
     setFormData({ title: '', description: '', priority: 'medium', start_date: '', due_date: '', parent_id: '', status: 'todo' })
+    setTitleError('')
   }
 
   const toggleExpand = (id: string) => {
@@ -519,14 +528,26 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
             
             <div className="space-y-4 max-h-[78vh] overflow-y-auto pr-1">
               <div>
-                <label className="block text-sm font-medium text-studio-500 mb-2">任务标题</label>
+                <label className="block text-sm font-medium text-studio-500 mb-2">
+                  任务标题 <span className="text-red-400">*</span>
+                </label>
                 <input
                   type="text"
                   value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, title: e.target.value })
+                    if (titleError) setTitleError('')
+                  }}
                   placeholder="输入任务标题"
-                  className="w-full px-3 py-2 bg-studio-50 border border-studio-200 rounded-md text-sm text-ink-100 focus:bg-white focus:border-caramel-400 focus:outline-none focus:ring-2 focus:ring-caramel-400/20 transition-colors"
+                  className={`w-full px-3 py-2 border rounded-md text-sm text-ink-100 focus:outline-none focus:ring-2 transition-colors ${
+                    titleError
+                      ? 'bg-red-50/50 border-red-300 focus:border-red-400 focus:ring-red-100'
+                      : 'bg-studio-50 border-studio-200 focus:bg-white focus:border-caramel-400 focus:ring-caramel-400/20'
+                  }`}
                 />
+                {titleError && (
+                  <p className="text-xs text-red-500 mt-1.5">{titleError}</p>
+                )}
               </div>
 
               {!editingTask && (

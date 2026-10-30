@@ -104,6 +104,8 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
   const [deleteGroupTarget, setDeleteGroupTarget] = useState<CustomGroup | null>(null)
   const [createError, setCreateError] = useState('')
   const [renameError, setRenameError] = useState('')
+  // 添加/编辑弹窗必填校验：key 为空时对应字段显示红边 + 提示文字
+  const [validation, setValidation] = useState<{ title?: string; url?: string }>({})
   const [formData, setFormData] = useState({
     title: '',
     url: '',
@@ -310,7 +312,16 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
   }
 
   const handleSave = async () => {
-    if (!window.electronAPI || !formData.title || !formData.url) return
+    if (!window.electronAPI) return
+    // 必填校验：为空时标红对应字段并保留弹窗，不静默返回
+    const errs: { title?: string; url?: string } = {}
+    if (!formData.title.trim()) errs.title = '请输入标题'
+    if (!formData.url.trim()) errs.url = '请输入网址'
+    if (Object.keys(errs).length > 0) {
+      setValidation(errs)
+      return
+    }
+    setValidation({})
     
     try {
       if (editingLink) {
@@ -369,6 +380,7 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
     setShowAddModal(false)
     setEditingLink(null)
     setFormData({ title: '', url: '', description: '', tags: '', category: '', account: '', password_hint: '' })
+    setValidation({})
   }
 
   const parseTags = (tagsStr: string): string[] => {
@@ -598,25 +610,41 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
             {/* Body — scrolls when content overflows */}
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-studio-500 mb-2">标题</label>
+                <label className="block text-sm font-medium text-studio-500 mb-2">
+                  标题 <span className="text-red-400">*</span>
+                </label>
                 <input
                   type="text"
                   value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, title: e.target.value })
+                    if (validation.title) setValidation(v => ({ ...v, title: undefined }))
+                  }}
                   placeholder="输入链接标题"
-                  className="input"
+                  className={`input ${validation.title ? 'input-error' : ''}`}
                 />
+                {validation.title && (
+                  <p className="text-xs text-red-500 mt-1.5">{validation.title}</p>
+                )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-studio-500 mb-2">网址</label>
+                <label className="block text-sm font-medium text-studio-500 mb-2">
+                  网址 <span className="text-red-400">*</span>
+                </label>
                 <input
                   type="url"
                   value={formData.url}
-                  onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, url: e.target.value })
+                    if (validation.url) setValidation(v => ({ ...v, url: undefined }))
+                  }}
                   placeholder="https://example.com"
-                  className="input"
+                  className={`input ${validation.url ? 'input-error' : ''}`}
                 />
+                {validation.url && (
+                  <p className="text-xs text-red-500 mt-1.5">{validation.url}</p>
+                )}
               </div>
 
               <div>
