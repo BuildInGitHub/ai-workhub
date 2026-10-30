@@ -508,7 +508,7 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
                       {link.url}
                     </a>
                     {link.description && (
-                      <p className="text-sm text-studio-500 mb-3 line-clamp-2">
+                      <p className="text-sm text-studio-500 mb-3 whitespace-pre-wrap break-words">
                         {link.description}
                       </p>
                     )}

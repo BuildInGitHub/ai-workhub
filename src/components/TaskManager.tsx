@@ -361,7 +361,7 @@ export default function TaskManager({ refreshKey }: { refreshKey?: number }) {
                         )}
                       </div>
                       {task.description && (
-                        <p className="text-sm text-studio-500 mb-2 line-clamp-2">{task.description}</p>
+                        <p className="text-sm text-studio-500 mb-2 whitespace-pre-wrap break-words">{task.description}</p>
                       )}
                       {(task.start_date || task.due_date) && (
                         <p className="text-xs text-studio-400 flex items-center gap-1 flex-wrap">
