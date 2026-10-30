@@ -29,6 +29,8 @@ export default function ProjectManager({ refreshKey }: { refreshKey?: number }) 
   const [projects, setProjects] = useState<Project[]>([])
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
+  // 必填校验：项目名称为空时显示红边 + 提示文字
+  const [nameError, setNameError] = useState('')
   const [editingProject, setEditingProject] = useState<Project | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null)
   const [pickerType, setPickerType] = useState<'link' | 'task' | null>(null)
@@ -131,7 +133,13 @@ export default function ProjectManager({ refreshKey }: { refreshKey?: number }) 
   }
 
   const handleSave = async () => {
-    if (!window.electronAPI || !formData.name) return
+    if (!window.electronAPI) return
+    // 必填校验：名称为空时标红并保留弹窗，不静默返回
+    if (!formData.name.trim()) {
+      setNameError('请输入项目名称')
+      return
+    }
+    setNameError('')
     
     try {
       if (editingProject) {
@@ -201,6 +209,7 @@ export default function ProjectManager({ refreshKey }: { refreshKey?: number }) 
     setShowAddModal(false)
     setEditingProject(null)
     setFormData({ name: '', description: '', color: projectColors[0] })
+    setNameError('')
   }
 
   const handleSelectProject = (project: Project) => {
@@ -428,14 +437,22 @@ export default function ProjectManager({ refreshKey }: { refreshKey?: number }) 
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-studio-500 mb-2">项目名称</label>
+                <label className="block text-sm font-medium text-studio-500 mb-2">
+                  项目名称 <span className="text-red-400">*</span>
+                </label>
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value })
+                    if (nameError) setNameError('')
+                  }}
                   placeholder="输入项目名称"
-                  className="input"
+                  className={`input ${nameError ? 'input-error' : ''}`}
                 />
+                {nameError && (
+                  <p className="text-xs text-red-500 mt-1.5">{nameError}</p>
+                )}
               </div>
               
               <div>
