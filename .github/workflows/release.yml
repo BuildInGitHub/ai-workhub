@@ -49,15 +49,17 @@ jobs:
           TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
           echo "Setting package.json version to ${VERSION}"
-          # 用 python 保留文件其他字段（jq 会重排，sed 不安全）
-          python -c "
-          import json, sys
-          p = json.load(open('package.json'))
-          p['version'] = sys.argv[1]
-          json.dump(p, open('package.json','w'), indent=2, ensure_ascii=False)
-          print('OK')
+          # 用 node 而不是 python：node 在三个 runner 上都确定可用，
+          # 且写入时显式关闭文件句柄（Windows 上未关闭的句柄会锁住
+          # package.json，导致后面的 electron-builder 读不到 version）。
+          node -e "
+          const fs = require('fs');
+          const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          p.version = process.argv[1];
+          fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
+          console.log('OK version=' + p.version);
           " "${VERSION}"
-          cat package.json | head -5
+          node -e "console.log(require('./package.json').version)"
 
       # 生成多尺寸 PNG 到 build/icons/ —— electron-builder 会自动从中
       # 生成 macOS .icns 和 Windows .ico。public/icon.png 必须是 512x512+，
