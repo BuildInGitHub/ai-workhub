@@ -477,7 +477,7 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
             {filteredLinks.map((link) => (
               <div
                 key={link.id}
-                className="bg-white rounded-2xl p-5 hover:shadow-medium transition-all border border-studio-200"
+                className="bg-white rounded-2xl p-5 hover:shadow-medium transition-all border border-studio-200 min-w-0"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
@@ -514,14 +514,14 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
                     )}
                     {/* 账号与密码提示 */}
                     {((link as any).account || (link as any).password_hint) && (
-                      <div className="flex items-center gap-4 mb-3 text-xs text-studio-500">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-3 text-xs text-studio-500">
                         {(link as any).account && (
-                          <span className="flex items-center gap-1.5">
-                            <User size={13} className="text-studio-400" />
+                          <span className="flex items-center gap-1.5 min-w-0">
+                            <User size={13} className="text-studio-400 flex-shrink-0" />
                             <span className="truncate max-w-[160px]">{String((link as any).account)}</span>
                             <button
                               onClick={() => copyText(String((link as any).account), 'account')}
-                              className="p-1 rounded-md hover:bg-studio-100 text-studio-400 hover:text-caramel-400 transition-colors"
+                              className="p-1 rounded-md hover:bg-studio-100 text-studio-400 hover:text-caramel-400 transition-colors flex-shrink-0"
                               title="复制账号"
                             >
                               {copiedText === 'account'
@@ -531,9 +531,9 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
                           </span>
                         )}
                         {(link as any).password_hint && (
-                          <span className="flex items-center gap-1.5" title="密码提示（仅提示，不存明文密码）">
-                            <KeyRound size={13} className="text-studio-400" />
-                            {String((link as any).password_hint)}
+                          <span className="flex items-center gap-1.5 min-w-0" title="密码提示（仅提示，不存明文密码）">
+                            <KeyRound size={13} className="text-studio-400 flex-shrink-0" />
+                            <span className="truncate">{String((link as any).password_hint)}</span>
                           </span>
                         )}
                       </div>
@@ -551,7 +551,7 @@ export default function LinkManager({ refreshKey }: { refreshKey?: number }) {
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-1 ml-4">
+                  <div className="flex items-center gap-1 ml-4 flex-shrink-0">
                     <button
                       onClick={() => openLink(link.url)}
                       className="p-2.5 rounded-xl hover:bg-studio-100 text-studio-400 hover:text-green-500"
