@@ -16,10 +16,10 @@
 
 | 平台 | 直接下载 |
 |------|---------|
-| 🪟 **Windows** (10+, x64) | [⬇ AI-WorkHub-Setup-1.0.0.exe](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-Setup-1.0.0.exe) |
-| 🍎 **macOS** (12+, x64) | [⬇ AI-WorkHub-1.0.0-x64.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0-x64.dmg) |
-| 🍎 **macOS** (12+, arm64) | [⬇ AI-WorkHub-1.0.0-arm64.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0-arm64.dmg) |
-| 🐧 **Linux** (Ubuntu 22.04+, x64) | [⬇ AI-WorkHub-1.0.0.AppImage](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0.AppImage) |
+| 🪟 **Windows** (10+, x64) | [⬇ AI-WorkHub-Setup.exe](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-Setup.exe) |
+| 🍎 **macOS** (12+, x64) | [⬇ AI-WorkHub-x64.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-x64.dmg) |
+| 🍎 **macOS** (12+, arm64) | [⬇ AI-WorkHub-arm64.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-arm64.dmg) |
+| 🐧 **Linux** (Ubuntu 22.04+, x64) | [⬇ AI-WorkHub.AppImage](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub.AppImage) |
 
 > ⚠️ **代码签名**：Windows 与 macOS 安装包**当前未签名**。macOS 首次双击 .app 会"没反应"——详见下方"⚠️ macOS 首次启动"。
 > 📦 [查看所有历史版本与 SHA256 →](https://github.com/BuildInGitHub/ai-workhub/releases)
@@ -176,10 +176,10 @@ Every link points to `releases/latest/download/{filename}` — GitHub auto-picks
 
 | Platform | Direct download |
 |----------|----------------|
-| 🪟 **Windows** (10+, x64) | [⬇ AI-WorkHub-Setup-1.0.0.exe](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-Setup-1.0.0.exe) |
-| 🍎 **macOS** (12+, x64) | [⬇ AI-WorkHub-1.0.0-x64.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0-x64.dmg) |
-| 🍎 **macOS** (12+, arm64) | [⬇ AI-WorkHub-1.0.0-arm64.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0-arm64.dmg) |
-| 🐧 **Linux** (Ubuntu 22.04+, x64) | [⬇ AI-WorkHub-1.0.0.AppImage](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-1.0.0.AppImage) |
+| 🪟 **Windows** (10+, x64) | [⬇ AI-WorkHub-Setup.exe](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-Setup.exe) |
+| 🍎 **macOS** (12+, x64) | [⬇ AI-WorkHub-x64.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-x64.dmg) |
+| 🍎 **macOS** (12+, arm64) | [⬇ AI-WorkHub-arm64.dmg](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub-arm64.dmg) |
+| 🐧 **Linux** (Ubuntu 22.04+, x64) | [⬇ AI-WorkHub.AppImage](https://github.com/BuildInGitHub/ai-workhub/releases/latest/download/AI-WorkHub.AppImage) |
 
 > ⚠️ **Code signing**: Windows and macOS installers are currently **unsigned**. macOS first launch may appear to "do nothing" — see "⚠️ macOS first launch" above.
 > 📦 [All releases + SHA256 →](https://github.com/BuildInGitHub/ai-workhub/releases)
@@ -213,8 +213,8 @@ curl -fsSL https://raw.githubusercontent.com/BuildInGitHub/ai-workhub/main/relea
   | gpg --import
 
 # 2. GPG 签名验证（每个安装包对应一个 .asc 文件）
-gpg --verify AI-WorkHub-Setup-1.0.0.exe.asc AI-WorkHub-Setup-1.0.0.exe
-gpg --verify AI-WorkHub-1.0.0-x64.dmg.asc AI-WorkHub-1.0.0-x64.dmg
+gpg --verify AI-WorkHub-Setup.exe.asc AI-WorkHub-Setup.exe
+gpg --verify AI-WorkHub-x64.dmg.asc AI-WorkHub-x64.dmg
 
 # 3. SHA256 校验（不依赖密钥）
 sha256sum -c SHA256SUMS.txt

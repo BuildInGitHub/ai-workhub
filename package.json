@@ -84,7 +84,7 @@
           ]
         }
       ],
-      "artifactName": "AI-WorkHub-Setup-${version}.${ext}"
+      "artifactName": "AI-WorkHub-Setup.${ext}"
     },
     "mac": {
       "target": [
@@ -97,7 +97,7 @@
         }
       ],
       "category": "public.app-category.productivity",
-      "artifactName": "AI-WorkHub-${version}-${arch}.${ext}"
+      "artifactName": "AI-WorkHub-${arch}.${ext}"
     },
     "linux": {
       "target": [
@@ -109,7 +109,7 @@
         }
       ],
       "category": "Office",
-      "artifactName": "AI-WorkHub-${version}.${ext}"
+      "artifactName": "AI-WorkHub.${ext}"
     },
     "nsis": {
       "oneClick": false,

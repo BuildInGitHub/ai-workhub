@@ -216,7 +216,7 @@ jobs:
           {
             "tag_name": "${TAG}",
             "name": "AI WorkHub ${TAG}",
-            "body": "## AI WorkHub ${TAG}\n\nCross-platform desktop AI office companion (Electron + Pi SDK).\n\n**Installers in this release:**\n- 🪟 Windows: \`AI-WorkHub-Setup-1.0.0.exe\`\n- 🍎 macOS (x64 + arm64): \`AI-WorkHub-1.0.0-x64.dmg\` / \`AI-WorkHub-1.0.0-arm64.dmg\`\n- 🐧 Linux (Ubuntu 22.04+): \`AI-WorkHub-1.0.0.AppImage\`\n\nSee README for installation instructions and SHA256 checksums.",
+            "body": "## AI WorkHub ${TAG}\n\nCross-platform desktop AI office companion (Electron + Pi SDK).\n\n**Installers in this release:**\n- 🪟 Windows: \`AI-WorkHub-Setup.exe\`\n- 🍎 macOS (x64 + arm64): \`AI-WorkHub-x64.dmg\` / \`AI-WorkHub-arm64.dmg\`\n- 🐧 Linux (Ubuntu 22.04+): \`AI-WorkHub.AppImage\`\n\nSee README for installation instructions and SHA256 checksums.",
             "draft": false,
             "prerelease": false,
             "generate_release_notes": false

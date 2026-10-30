@@ -490,13 +490,14 @@ export default function Sidebar({
     }
   }
 
-  // 根据当前平台推断对应的安装包文件名（artifactName 在 package.json 里设过）
-  const getInstallerFilename = (tag: string): string => {
-    const v = tag.replace(/^v/, '')
-    if (isWin) return `AI-WorkHub-Setup-${v}.exe`
-    if (userPlatform === 'darwin-x64') return `AI-WorkHub-${v}-x64.dmg`
-    if (userPlatform === 'darwin-arm64') return `AI-WorkHub-${v}-arm64.dmg`
-    return `AI-WorkHub-${v}.AppImage`
+  // 根据当前平台推断对应的安装包文件名
+  // 文件名不含版本号（artifactName 固定），这样 README 和应用内的
+  // releases/latest/download/<file> 链接永远有效，不用每次发版都改。
+  const getInstallerFilename = (_tag: string): string => {
+    if (isWin) return `AI-WorkHub-Setup.exe`
+    if (userPlatform === 'darwin-x64') return `AI-WorkHub-x64.dmg`
+    if (userPlatform === 'darwin-arm64') return `AI-WorkHub-arm64.dmg`
+    return `AI-WorkHub.AppImage`
   }
 
   // 下载按钮：拿 latestVersion 后直接走 github release 下载链接
